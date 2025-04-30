@@ -1,0 +1,45 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=JMap Cloud
+description=JMap Cloud Plugin
+version=0.9.0
+author=K2 Geospatial
+email=Administration@k2geospatial.com
+
+about=This plugin allows you to work with your JMap Cloud projects directly in QGIS. Open your map projects to view or modify your data in QGIS. Export your QGIS projects to JMap Cloud. The plugin 'Layer Tree Icons' is an optional dependency of this plugin and does not work on Mac OS.
+homepage=https://k2geospatial.atlassian.net/wiki/spaces/STAG/pages/3745251338/Plugin+QGIS+for+JMap+Cloud+-+User+Guide
+tracker=https://bitbucket.org/k2geospatial/jmapcloud-qgis-plugin/jira
+repository=https://bitbucket.org/k2geospatial/jmapcloud-qgis-plugin/src/master/
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=no
+
+# Tags are comma separated with spaces allowed
+tags=python
+
+category=Web
+icon=images/icon.svg
+# experimental flag
+experimental=False
+qgisMinimumVersion=3.34
+qgisMaximumVersion=3.99
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=Layer Tree Icons==1.5.3
+
+
+# If the plugin can run on QGIS Server.
+server=False
+
+changelog=<p>0.9.0 First pre-release version</p>
+
+

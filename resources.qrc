@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="/images">
+    <file>./images/default_map.jpg</file>
+    <file>./images/Logo_JMap_Cloud.svg</file>
+    <file>./images/eye-password-hide.svg</file>
+    <file>./images/eye-password-show.svg</file>
+    <file>./images/gear-wheel.svg</file>
+    <file>./images/icon.svg</file>
+  </qresource>
+</RCC>

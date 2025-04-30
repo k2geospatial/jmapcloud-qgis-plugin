@@ -1,0 +1,317 @@
+# -----------------------------------------------------------
+# JMap Cloud plugin for QGIS
+# Copyright (C) 2025 K2 Geospatial
+# -----------------------------------------------------------
+# Licensed under the terms of GNU GPL 3
+# #
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+# #
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.html.
+# -----------------------------------------------------------
+from pathlib import Path
+
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.gui import QgisInterface
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction, QMenu
+
+from JMapCloud import resources_rc
+from JMapCloud.core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
+from JMapCloud.core.services.auth_manager import JMapAuth
+from JMapCloud.core.services.export_project_manager import ExportProjectManager
+from JMapCloud.core.services.import_project_manager import ImportProjectManager
+from JMapCloud.core.services.qgis_project_manager import QGISProjectManager
+from JMapCloud.core.services.request_manager import RequestManager
+from JMapCloud.core.services.session_manager import SessionManager
+from JMapCloud.core.views import ProjectData
+from JMapCloud.ui.py_files.action_dialog import ActionDialog
+from JMapCloud.ui.py_files.connection_dialog import ConnectionDialog
+from JMapCloud.ui.py_files.export_project_dialog import ExportProjectDialog
+from JMapCloud.ui.py_files.open_project_dialog import OpenProjectDialog
+
+
+class JMap:
+    """QGIS Plugin Implementation."""
+
+    def __init__(self, iface: QgisInterface):
+        """Constructor.
+
+        :param iface: An interface instance that will be passed to this class
+            which provides the hook by which you can manipulate the QGIS
+            application at run time.
+        :type iface: QgsInterface
+        """
+        # Save reference to the QGIS interface
+        self.iface = iface
+
+        # initialize plugin directory
+        self.plugin_dir = Path(__file__).parent
+
+        # initialize locale
+        locale = QSettings().value("locale/userLocale")
+        if locale:
+            locale = locale[0:2]
+            locale_path = Path(self.plugin_dir, "i18n", "JMap Cloud_{}.qm".format(locale))
+
+            if Path.exists(locale_path):
+                self.translator = QTranslator()
+                self.translator.load(locale_path)
+                QCoreApplication.installTranslator(self.translator)
+
+        # Declare instance attributes
+        self.actions = []
+
+        # create singletons
+        self.request_manager = RequestManager()
+        self.auth_manager = JMapAuth()
+        self.session_manager = SessionManager()
+        self.export_project_manager = ExportProjectManager()
+        self.import_project_manager = ImportProjectManager()
+
+        # initialize ui
+        self.connection_dialog = ConnectionDialog()
+        self.connection_dialog.logged_in_signal.connect(self.logged_in)
+        self.connection_dialog.logout_signal.connect(self.auth_manager.logout)
+        self.load_project_dialog = OpenProjectDialog()
+        self.load_project_dialog.open_project_pushButton.clicked.connect(self.load_project)
+        self.export_project_dialog = ExportProjectDialog()
+        self.export_project_dialog.export_project_pushButton.clicked.connect(self.export_project)
+
+        self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")  # could use locale eventually
+
+    # noinspection PyMethodMayBeStatic
+    def translate(self, message):
+        """Get the translation for a string using Qt translation API.
+
+        We implement this ourselves since we do not inherit QObject.
+
+        :param message: String for translation.
+        :type message: str, QString
+
+        :returns: Translated version of message.
+        :rtype: QString
+        """
+        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
+        return QCoreApplication.translate("JMap", message)
+
+    def create_actions(
+        self,
+        text: str,
+        callback: callable,
+        icon_path: str = None,
+        enabled_flag: bool = True,
+        status_tip: str = None,
+        whats_this: str = None,
+        parent: object = None,
+    ) -> QAction:
+        """Create QAction with given parameters."""
+        if icon_path:
+            icon = QIcon(icon_path)
+            action = QAction(icon, text, parent)
+        else:
+            action = QAction(text, parent)
+        action.triggered.connect(callback)
+        action.setEnabled(enabled_flag)
+
+        if status_tip is not None:
+            action.setStatusTip(status_tip)
+
+        if whats_this is not None:
+            action.setWhatsThis(whats_this)
+        return action
+
+    def add_action(self, action: QAction, add_to_menu: bool = True, add_to_toolbar: bool = True):
+        """Add action to the toolbar and plugin menu.
+
+        :param action: QAction to add to the toolbar and menu.
+        :param add_to_menu: indicate whether to add to menu. Defaults to True.
+        :param add_to_toolbar:  indicate whether to add to toolbar. Defaults to True.
+        :return: The action that was passed in.
+        """
+        # if add_to_toolbar:
+        #    self.toolbar.addAction(action)
+
+        if add_to_menu:
+            self.menu.addAction(action)
+
+        self.actions.append(action)
+
+        return action
+
+    def remove_action(self, action):
+        """Remove an action from the toolbar and plugin menu.
+
+        :param action: Action to remove.
+        :type action: QAction
+        """
+        self.menu.removeAction(action)
+        # self.toolbar.removeAction(action)
+        if action in self.actions:
+            self.actions.remove(action)
+
+    def initGui(self):
+        """
+        Create the menu entries and toolbar icons inside the QGIS GUI.
+        This function must exist for the plugin to load.
+        """
+        # create plugin menu
+        icon_path = ":images/images/icon.svg"
+        temp_action = QAction()
+        # This manipulation prevent the web menu to bug
+        self.iface.addPluginToWebMenu("JMap Cloud", temp_action)
+        web_menu = self.iface.webMenu()
+        self.menu = QMenu("JMap Cloud")
+        self.menu.setIcon(QIcon(icon_path))
+        web_menu.addMenu(self.menu)
+        self.iface.removePluginWebMenu("JMap Cloud", temp_action)
+        # -----------------------------------------------
+
+        self.connection_action = self.create_actions(
+            text=self.translate("Connection"),
+            callback=self.open_connection_dialog,
+            parent=self.iface.mainWindow(),
+        )
+        self.load_project_action = self.create_actions(
+            text=self.translate("Open project"),
+            callback=self.open_load_project_dialog,
+            parent=self.iface.mainWindow(),
+        )
+        self.export_project_action = self.create_actions(
+            text=self.translate("Export project"),
+            callback=self.open_export_project_dialog,
+            parent=self.iface.mainWindow(),
+        )
+        self.trigger_refresh_token_action = self.create_actions(
+            text=self.translate("Refresh token"),
+            callback=self.auth_manager.refresh_auth_settings,
+            parent=self.iface.mainWindow(),
+        )
+
+        self.add_action(self.connection_action)
+        self.add_action(self.trigger_refresh_token_action)
+        self.add_action(self.load_project_action)
+        self.add_action(self.export_project_action)
+        self.auth_manager.logged_out_signal.connect(lambda: self.set_authorized_action(AuthState.NOT_AUTHENTICATED))
+
+        auth_state = self.auth_manager.get_auth_state()
+        if auth_state == AuthState.AUTHENTICATED:
+            self.auth_manager.refresh_auth_event.start()
+        self.set_authorized_action(auth_state)
+
+    # --------------------------------------------------------------------------
+
+    def unload(self):
+        """
+        Removes the plugin menu item and icon from QGIS GUI.
+        This function must exist.
+        """
+        self.iface.webMenu().removeAction(self.menu.menuAction())
+        self.auth_manager.refresh_auth_event.stop()
+        self.connection_dialog.close()
+        self.load_project_dialog.close()
+        self.export_project_dialog.close()
+
+        # remove the toolbar
+        # del self.toolbar
+
+    # --------------------------------------------------------------------------
+    def set_authorized_action(self, authState: AuthState):
+        """
+        Enable or disable project-related actions based on the authentication state.
+
+        :param authState: The current authentication state, determining whether
+                          the user is authenticated and has an organization.
+        :type authState: AuthState
+        """
+        isAuthenticated = authState == AuthState.AUTHENTICATED
+        self.load_project_action.setEnabled(isAuthenticated)
+        self.export_project_action.setEnabled(isAuthenticated)
+        self.trigger_refresh_token_action.setEnabled(isAuthenticated)
+
+    def open_connection_dialog(self):
+        auth_state = self.auth_manager.get_auth_state()
+        if auth_state != AuthState.NOT_AUTHENTICATED:
+            self.connection_dialog.list_organizations()
+        self.connection_dialog.show()
+
+    def open_load_project_dialog(self):
+        if not self.import_project_manager.is_importing_project():
+            claims = self.session_manager.get_claims()
+            if claims and "organizationId" in claims:
+                self.load_project_dialog.show()
+                self.load_project_dialog.list_projects(claims["organizationId"])
+            else:
+                self.auth_manager.logout("Error : Authentication failed")
+        else:
+            self.import_project_manager.action_dialog.show()
+
+    def open_export_project_dialog(self):
+        if not self.export_project_manager.is_exporting_project():
+            claims = self.session_manager.get_claims()
+            if claims and "organizationId" in claims:
+                self.export_project_dialog.show()
+            else:
+                self.auth_manager.logout("Error : Authentication failed")
+        else:
+            self.export_project_manager.action_dialog.show()
+
+    def logged_in(self):
+        """
+        enable the load project and export project buttons and show successful login popup dialog
+
+        This function will be called when the user as successfully logged in.
+        """
+
+        self.connection_dialog.close()
+        self.set_authorized_action(AuthState.AUTHENTICATED)
+        self.auth_manager.refresh_auth_event.start()
+        action_dialog = ActionDialog()
+        action_dialog.show()
+        action_dialog.action_finished("Login successful", False)
+
+    def load_project(self):
+        """Load the selected project in QGIS"""
+        project_data = self.load_project_dialog.get_selected_project_data()
+        if project_data:
+            auth_state = self.auth_manager.get_auth_state()
+            if auth_state == AuthState.AUTHENTICATED:
+                self.load_project_dialog.close()
+                crs = QgsCoordinateReferenceSystem(project_data["crs"])
+                vector_layer_type = project_data["layerType"]
+                project_data = ProjectData(
+                    name=project_data["name"],
+                    description=project_data["description"],
+                    default_language=project_data["language"],
+                    project_id=project_data["id"],
+                    organization_id=self.session_manager.get_organization_id(),
+                    crs=crs,
+                )
+                pm = QGISProjectManager(project_data, vector_layer_type)
+                pm.load_project_data()
+                # self.import_project_manager.init_import(project_data, vector_layer_type)
+
+    def export_project(self):
+        """Export the selected project from QGIS to JMap Cloud."""
+
+        if not self.export_project_dialog.validate_input():
+            return
+        project_data = self.export_project_dialog.get_input_data()
+        project_data["language"] = self.language
+        project_data["description"] = "lorm ipsum"
+        if project_data:
+            auth_state = self.auth_manager.get_auth_state()
+            if auth_state == AuthState.AUTHENTICATED:
+                self.export_project_dialog.close()
+                project_data = ProjectData(
+                    name=project_data["projectTitle"],
+                    description=project_data["description"],
+                    default_language=project_data["language"],
+                    organization_id=self.session_manager.get_organization_id(),
+                )
+                project_data.setup_with_QGS_project(QgsProject.instance())
+                self.export_project_manager.export_project(project_data)

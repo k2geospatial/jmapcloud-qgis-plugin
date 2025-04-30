@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>611</width>
+    <height>531</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Open project</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color:rgb(36, 46, 52)</string>
+  </property>
+  <widget class="QLabel" name="jmap_image_label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>121</width>
+     <height>71</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap resource="../resources/resources.qrc">:/images/images/Logo_JMap_Cloud.svg</pixmap>
+   </property>
+  </widget>
+  <widget class="QWidget" name="widget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>100</y>
+     <width>591</width>
+     <height>421</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color:rgb(240, 240, 240);
+border: 1px solid</string>
+   </property>
+   <widget class="QPushButton" name="open_project_pushButton">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>360</y>
+      <width>321</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::WheelFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color:rgb(255, 255, 255)</string>
+    </property>
+    <property name="text">
+     <string>Open project</string>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="project_List_listWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>571</width>
+      <height>341</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font-size:17px;
+background-color:rgb(255, 255, 255)</string>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>100</width>
+      <height>75</height>
+     </size>
+    </property>
+    <property name="spacing">
+     <number>3</number>
+    </property>
+    <property name="viewMode">
+     <enum>QListView::ListMode</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="vector_type_label">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>360</y>
+      <width>111</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">border : none;
+color:black</string>
+    </property>
+    <property name="text">
+     <string> Vector layer type :</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="vector_type_comboBox">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>360</y>
+      <width>121</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color:white;
+color:black</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>Default</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>All in GeoJSON</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>All in Vector Tiles</string>
+     </property>
+    </item>
+   </widget>
+  </widget>
+ </widget>
+ <resources>
+  <include location="../../resources.qrc"/> </resources>
+ <connections/>
+</ui>
