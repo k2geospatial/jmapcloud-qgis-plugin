@@ -25,7 +25,6 @@ from JMapCloud.core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
 from JMapCloud.core.services.auth_manager import JMapAuth
 from JMapCloud.core.services.export_project_manager import ExportProjectManager
 from JMapCloud.core.services.import_project_manager import ImportProjectManager
-from JMapCloud.core.services.qgis_project_manager import QGISProjectManager
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.services.session_manager import SessionManager
 from JMapCloud.core.views import ProjectData
@@ -291,9 +290,9 @@ class JMap:
                     organization_id=self.session_manager.get_organization_id(),
                     crs=crs,
                 )
-                pm = QGISProjectManager(project_data, vector_layer_type)
-                pm.load_project_data()
-                # self.import_project_manager.init_import(project_data, vector_layer_type)
+                # pm = QGISProjectManager(project_data, vector_layer_type)
+                # pm.load_project_data()
+                self.import_project_manager.init_import(project_data, vector_layer_type)
 
     def export_project(self):
         """Export the selected project from QGIS to JMap Cloud."""

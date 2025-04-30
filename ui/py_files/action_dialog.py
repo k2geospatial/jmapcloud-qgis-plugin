@@ -77,14 +77,14 @@ class ActionDialog(QtWidgets.QDialog, Ui_Dialog):
             self.action_finished("Action canceled")
         self.reset_feedback()
 
-    def set_cancelable_mode(self, message: str = None):
+    def set_cancelable_mode(self, cancel_message: str = None):
         self.exit_pushButton.disconnect()
         self.exit_pushButton.setText("Cancel")
         self.exit_pushButton.setEnabled(True)
 
         def callback():
-            nonlocal message
-            self.cancel(message)
+            nonlocal cancel_message
+            self.cancel(cancel_message)
 
         self.exit_pushButton.clicked.connect(callback)
 

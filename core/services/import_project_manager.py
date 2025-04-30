@@ -36,12 +36,12 @@ from JMapCloud.core.constant import (
 )
 from JMapCloud.core.plugin_util import convert_jmap_text_expression
 from JMapCloud.core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
-from JMapCloud.core.services.qgis_project_style_manager import QGISProjectStyleManager
 from JMapCloud.core.services.request_manager import RequestManager
+from JMapCloud.core.services.style_manager import StyleManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
-from JMapCloud.core.tasks.import_style_task import (
-    ImportVectorStyleTask,
-    ImportVectorTilesStyleTask,
+from JMapCloud.core.tasks.load_style_task import (
+    LoadVectorStyleTask,
+    LoadVectorTilesStyleTask,
 )
 from JMapCloud.core.views import ProjectData, ProjectLayersData
 from JMapCloud.ui.py_files.action_dialog import ActionDialog
@@ -88,8 +88,7 @@ class ImportProjectManager(QObject):
         return ImportProjectManager()
 
     def init_import(self, project_data: ProjectData, project_vector_type: str):
-        if self._cancel:
-            return
+        self._cancel = False
         self.importing_project = True
         self.action_dialog.show_dialog()
         self.action_dialog.set_progress(0, "Initializing loading")
@@ -106,9 +105,78 @@ class ImportProjectManager(QObject):
             self.current_step += 1
             self._set_progress(0, self.current_step)
             self.load_project()
-            print("task:", len(QgsApplication.taskManager().tasks()))
 
         self.get_project_layers_data().connect(next_function)
+
+    def get_project_layers_data(self) -> pyqtSignal:
+        urls = {
+            # "project-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}",
+            "layers-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers",
+            "layer-order": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-order",
+            "layer-groups": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-groups",
+            "mapbox-styles": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/mapbox-styles",
+        }
+        requests = []
+        for id, url in urls.items():
+            requests.append(RequestManager.RequestData(url, type="GET", id=id))
+
+        query = (
+            """{
+            getStyleRules(organizationId: """
+            f'"{self.project_data.organization_id}"'
+            """,projectId: """
+            f'"{self.project_data.project_id}"'
+            """, locale: """
+            f'"{self.project_data.default_language}"'
+            """){
+                id
+                layerId
+                name
+                conditions{
+                    id
+                    name
+                    styleMapScales{
+                        id
+                        styleId
+                    }
+                }
+            }
+        }"""
+        )
+        variables = {}
+        body = {"query": query, "variables": variables}
+        headers = {"Organizationid": self.project_data.organization_id}  # do not change Organizationid
+        requests.append(
+            RequestManager.RequestData(f"{_base_url}/api/mcs/graphql", headers, body, "POST", id="graphql-style-data")
+        )
+        return RequestManager.multi_request_async(requests)
+
+    def check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
+        self.project_layers_data = ProjectLayersData()
+
+        for reply in replies.values():
+            if reply.status != QNetworkReply.NetworkError.NoError:
+                return None
+
+        self.project_layers_data.layer_groups = replies["layer-groups"].content
+        self.project_layers_data.layer_order = replies["layer-order"].content
+        self.project_layers_data.layers_data = replies["layers-data"].content
+
+        layers_data = replies["layers-data"].content
+        mapbox_styles = replies["mapbox-styles"].content
+        graphql_style_data = replies["graphql-style-data"].content
+
+        labels_config = StyleManager.format_JMap_label_configs(layers_data, self.project_data.default_language)
+        formatted_layers_properties = StyleManager.format_properties(mapbox_styles, graphql_style_data, labels_config)
+        if formatted_layers_properties == None or labels_config == None:
+            message = "error formatting styles"
+            self._handle_error(message)
+            return None
+            # -------
+
+        self.project_layers_data.layers_properties = formatted_layers_properties
+
+        return self.project_layers_data
 
     def load_project(self):
         """
@@ -146,45 +214,28 @@ class ImportProjectManager(QObject):
                 ):
 
                     def on_finish(renderers, labeling, layer_data=layer_data):
-                        print("finish loading vector layer")
                         self.load_geojson_layer(layer_data, renderers, labeling)
                         self.is_all_layer_loaded()
 
-                    task = ImportVectorStyleTask(layer_properties)
+                    task = LoadVectorStyleTask(layer_properties)
                     task.import_style_completed.connect(on_finish)
                     task.taskTerminated.connect(self.is_all_layer_loaded)
                     task.error_occurred.connect(self.error_occurred)
                     QgsApplication.taskManager().addTask(task)
-                    print("task:", len(QgsApplication.taskManager().tasks()))
                 # load MVT layer
                 elif self.project_vector_type == ProjectVectorType.VectorTiles or (
                     not layer_data["allowClientSideEditing"] and self.project_vector_type == ProjectVectorType.Default
                 ):
 
-                    def function(layer_properties=layer_properties, element_type=layer_data["elementType"]):
-                        print("finish loading mvt layer")
-                        style_groups = QGISProjectStyleManager.get_mvt_layer_styles(
-                            layer_properties["styleRules"], element_type
-                        )
-                        labeling = QGISProjectStyleManager.get_mvt_layer_labels(layer_properties["label"], element_type)
-                        renderers = {}
-                        for styles in style_groups:
-                            renderer = QgsVectorTileBasicRenderer()
-                            renderer.setStyles(styles["style_list"])
-                            renderers[styles["name"]] = renderer
-
-                        return renderer, labeling
-
                     def on_finish(renderers, labeling, layer_data=layer_data):
                         self.load_mvt_layer(layer_data, renderers, labeling)
                         self.is_all_layer_loaded()
 
-                    task = ImportVectorTilesStyleTask(layer_properties, layer_data["elementType"])
+                    task = LoadVectorTilesStyleTask(layer_properties, layer_data["elementType"])
                     task.import_style_completed.connect(on_finish)
                     task.taskTerminated.connect(self.is_all_layer_loaded)
                     task.error_occurred.connect(self.error_occurred)
                     QgsApplication.taskManager().addTask(task)
-                    print("task:", len(QgsApplication.taskManager().tasks()))
                 else:
                     message = f"Unknown error when loading vector layer : {layer_data['name'][self.project_data.default_language]}"
                     self.error_occur(message, MESSAGE_CATEGORY)
@@ -192,11 +243,8 @@ class ImportProjectManager(QObject):
             else:
                 message = f"Unsupported layer {layer_data['name'][self.project_data.default_language]} of type {layer_data['type']}"
                 self.error_occur(message, MESSAGE_CATEGORY)
-        print("end")
-        print("task:", len(QgsApplication.taskManager().tasks()))
 
     def load_wms_layer(self, layer_data: dict, sources) -> bool:
-        return
 
         # create group of layer because QGIS cannot get all selected sub-layer at once
         groupName = layer_data["name"][self.project_data.default_language]
@@ -215,7 +263,6 @@ class ImportProjectManager(QObject):
 
         # add sub-layer in group
         for layer_name, uri in layer_data["layers"].items():
-            print(uri)
             raster_layer = QgsRasterLayer(uri, layer_name, "wms")
             if not raster_layer.isValid():
                 message = f"Layer {layer_data['name'][self.project_data.default_language]} is not a valid wms layer"
@@ -280,13 +327,6 @@ class ImportProjectManager(QObject):
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
 
-    def load_geojson_style(layer_properties):
-        print("loading vector layer")
-        renderer = QGISProjectStyleManager.get_layer_styles(layer_properties["styleRules"])
-        labeling = QGISProjectStyleManager.get_layer_labels(layer_properties["label"])
-
-        return renderer, labeling
-
     def load_mvt_layer(self, layer_data: dict, renderers, labeling) -> bool:
         uri = JMapDAS.get_vector_tile_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
 
@@ -328,12 +368,8 @@ class ImportProjectManager(QObject):
         else:
             return False
 
-    def load_mvt_style() -> bool:
-        return
-
     def is_all_layer_loaded(self):
         self.layer_to_load -= 1
-        print(self.layer_to_load)
         if self.layer_to_load == 0:
             self.finalization()
 
@@ -359,7 +395,7 @@ class ImportProjectManager(QObject):
         root.setHasCustomLayerOrder(True)
         layer_ordered = root.customLayerOrder()
 
-        self._sort_layer_tree_layer(root, layer_groups, self.nodes)
+        self._sort_layer_tree_layer(root, layer_groups)
 
         self.action_dialog.set_text(f"Loading layer order")
         finalization_current_step += 1
@@ -405,80 +441,6 @@ class ImportProjectManager(QObject):
         """
         self.finish()
 
-    def get_project_layers_data(self) -> pyqtSignal:
-        urls = {
-            # "project-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}",
-            "layers-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers",
-            "layer-order": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-order",
-            "layer-groups": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-groups",
-            "mapbox-styles": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/mapbox-styles",
-        }
-        requests = []
-        for id, url in urls.items():
-            requests.append(RequestManager.RequestData(url, type="GET", id=id))
-
-        query = (
-            """{
-            getStyleRules(organizationId: """
-            f'"{self.project_data.organization_id}"'
-            """,projectId: """
-            f'"{self.project_data.project_id}"'
-            """, locale: """
-            f'"{self.project_data.default_language}"'
-            """){
-                id
-                layerId
-                name
-                conditions{
-                    id
-                    name
-                    styleMapScales{
-                        id
-                        styleId
-                    }
-                }
-            }
-        }"""
-        )
-        variables = {}
-        body = {"query": query, "variables": variables}
-        headers = {"Organizationid": self.project_data.organization_id}  # do not change Organizationid
-        requests.append(
-            RequestManager.RequestData(f"{_base_url}/api/mcs/graphql", headers, body, "POST", id="graphql-style-data")
-        )
-        return RequestManager.multi_request_async(requests)
-
-    def check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
-        self.project_layers_data = ProjectLayersData()
-
-        for reply in replies.values():
-            if reply.status != QNetworkReply.NetworkError.NoError:
-                return None
-
-        self.project_layers_data.layer_groups = replies["layer-groups"].content
-        self.project_layers_data.layer_order = replies["layer-order"].content
-        self.project_layers_data.layers_data = replies["layers-data"].content
-
-        layers_data = replies["layers-data"].content
-        mapbox_styles = replies["mapbox-styles"].content
-        graphql_style_data = replies["graphql-style-data"].content
-
-        labels_config = QGISProjectStyleManager.format_JMap_label_configs(
-            layers_data, self.project_data.default_language
-        )
-        formatted_layers_properties = QGISProjectStyleManager.format_properties(
-            mapbox_styles, graphql_style_data, labels_config
-        )
-        if formatted_layers_properties == None or labels_config == None:
-            message = "error formatting styles"
-            self._handle_error(message)
-            return None
-            # -------
-
-        self.project_layers_data.layers_properties = formatted_layers_properties
-
-        return self.project_layers_data
-
     def _check_editing_rights(self, layer_permissions: list) -> tuple[bool, bool]:
         edit_right = False
         all_rights = True
@@ -507,7 +469,7 @@ class ImportProjectManager(QObject):
                     "plugins/customTreeIcon/icon",
                     ":/images/themes/default/mIconFolder.svg",
                 )
-                self._sort_layer_tree_layer(group, index_data["children"], self.nodes)
+                self._sort_layer_tree_layer(group, index_data["children"])
             elif index_data["nodeType"].upper() == "LAYER":
                 if index_data["id"] in self.nodes:
                     node = self.nodes[index_data["id"]]

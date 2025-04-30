@@ -13,11 +13,11 @@
 from qgis.core import QgsTask, QgsVectorTileBasicRenderer
 from qgis.PyQt.QtCore import pyqtSignal
 
-from JMapCloud.core.services.qgis_project_manager import QGISProjectStyleManager
+from JMapCloud.core.services.style_manager import StyleManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
 
 
-class ImportVectorStyleTask(CustomQgsTask):
+class LoadVectorStyleTask(CustomQgsTask):
     import_style_completed = pyqtSignal((object, object))
 
     def __init__(self, layer_properties) -> None:
@@ -27,14 +27,14 @@ class ImportVectorStyleTask(CustomQgsTask):
     def run(self):
         if self.isCanceled():
             return False
-        renderer = QGISProjectStyleManager.get_layer_styles(self.layer_properties["styleRules"])
-        labeling = QGISProjectStyleManager.get_layer_labels(self.layer_properties["label"])
+        renderer = StyleManager.get_layer_styles(self.layer_properties["styleRules"])
+        labeling = StyleManager.get_layer_labels(self.layer_properties["label"])
 
         self.import_style_completed.emit(renderer, labeling)
         return True
 
 
-class ImportVectorTilesStyleTask(CustomQgsTask):
+class LoadVectorTilesStyleTask(CustomQgsTask):
     import_style_completed = pyqtSignal((object, object))
 
     def __init__(self, layer_properties, element_type) -> None:
@@ -49,8 +49,8 @@ class ImportVectorTilesStyleTask(CustomQgsTask):
             return False
         layer_properties = self.layer_properties
         element_type = self.element_type
-        style_groups = QGISProjectStyleManager.get_mvt_layer_styles(layer_properties["styleRules"], element_type)
-        labeling = QGISProjectStyleManager.get_mvt_layer_labels(layer_properties["label"], element_type)
+        style_groups = StyleManager.get_mvt_layer_styles(layer_properties["styleRules"], element_type)
+        labeling = StyleManager.get_mvt_layer_labels(layer_properties["label"], element_type)
         renderers = {}
         for styles in style_groups:
             renderer = QgsVectorTileBasicRenderer()

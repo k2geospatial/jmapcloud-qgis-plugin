@@ -19,7 +19,7 @@ from qgis.core import (
     QgsNetworkAccessManager,
     QgsNetworkReplyContent,
 )
-from qgis.PyQt.QtCore import QEventLoop, QMetaObject, QObject, QUrl, pyqtSignal
+from qgis.PyQt.QtCore import QEventLoop, QMetaObject, QObject, Qt, QUrl, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
 from JMapCloud.core.constant import AUTH_CONFIG_ID
@@ -31,6 +31,7 @@ MESSAGE_CATEGORY = "RequestManager"
 
 
 class RequestManager(QObject):
+    trigger_next_request = pyqtSignal()
     _instance = None
     """
     A class for making requests_data to the JMap API and handling the response and errors.
@@ -84,6 +85,7 @@ class RequestManager(QObject):
             self.queue: list[tuple["RequestManager.RequestData", TemporarySignalObject]] = []
             self.finished_requests = {}
             self.pending_request = {}
+            self.trigger_next_request.connect(self._send_next_request, Qt.ConnectionType.QueuedConnection)
             self._initialized = True
 
     @staticmethod
@@ -94,7 +96,7 @@ class RequestManager(QObject):
         """add a request to the queue"""
         signal_obj = TemporarySignalObject()
         self.queue.append((request, signal_obj))
-        self._send_next_request()
+        self.trigger_next_request.emit()
 
         return signal_obj.signal
 

@@ -12,7 +12,7 @@
 from .create_jmc_project_task import CreateJMCProjectTask
 from .custom_qgs_task import CustomQgsTask
 from .export_layer_style_task import ExportLayersStyleTask, ExportLayerStyleTask
-from .import_style_task import ImportVectorStyleTask, ImportVectorTilesStyleTask
+from .load_style_task import LoadVectorStyleTask, LoadVectorTilesStyleTask
 from .write_layer_tasks import (
     ConvertLayersToZipTask,
     CustomWriteRasterLayerTask,
@@ -25,8 +25,8 @@ __all__ = [
     "CustomQgsTask",
     "ExportLayersStyleTask",
     "ExportLayerStyleTask",
-    "ImportVectorStyleTask",
-    "ImportVectorTilesStyleTask",
+    "LoadVectorStyleTask",
+    "LoadVectorTilesStyleTask",
     "ConvertLayersToZipTask",
     "CustomWriteVectorLayerTask",
     "CustomWriteRasterLayerTask",

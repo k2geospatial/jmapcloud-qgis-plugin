@@ -22,14 +22,14 @@ from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication
 
 from JMapCloud.core.services.files_manager import DatasourceManager
-from JMapCloud.core.services.qgis_project_style_manager import QGISProjectStyleManager
+from JMapCloud.core.services.style_manager import StyleManager
 
 ORGANIZATION_ID = "ABC123"
 PROJECT_ID = "DEF456"
 PROJECT_NAME = "project_unit_tests"
 LANGUAGE = "fr"
 
-OBJECT_MAP = {"QGISExpression": QGISProjectStyleManager.QGISExpression}
+OBJECT_MAP = {"QGISExpression": StyleManager.QGISExpression}
 
 if not QApplication.instance():
     app = QApplication(sys.argv)
@@ -70,11 +70,11 @@ class Test_DatasourceManager:
         assert self.datasource_manager.qgis_typename_to_mysql(data) == expected
 
 
-class Test_QGISProjectStyleManager:
+class StyleManager:
 
     # setup
     def setup_method(self):
-        self.project_style_manager = QGISProjectStyleManager(
+        self.project_style_manager = StyleManager(
             {"id": PROJECT_ID, "name": PROJECT_NAME, "language": LANGUAGE}, ORGANIZATION_ID
         )
 
@@ -85,7 +85,7 @@ class Test_QGISProjectStyleManager:
                 return OBJECT_MAP[class_name](**d)  # reconstruct the object
         return d
 
-    with open("./test_data/Test_QGISProjectStyleManager_data.json", "r", encoding="utf-8") as file:
+    with open("./test_data/StyleManager_data.json", "r", encoding="utf-8") as file:
         TEST_DATA = json.load(file, object_hook=from_dict)
 
     # class fixtures
