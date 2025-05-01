@@ -11,19 +11,21 @@
 # -----------------------------------------------------------
 
 
+import re
 from enum import Enum
 
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
+    QgsFeedback,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,
+    QgsMessageLog,
     QgsProject,
     QgsRasterLayer,
-    QgsTask,
     QgsVectorLayer,
-    QgsVectorTileBasicRenderer,
     QgsVectorTileLayer,
 )
 from qgis.PyQt.QtCore import QObject, pyqtSignal
@@ -38,7 +40,6 @@ from JMapCloud.core.plugin_util import convert_jmap_text_expression
 from JMapCloud.core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.services.style_manager import StyleManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
 from JMapCloud.core.tasks.load_style_task import (
     LoadVectorStyleTask,
     LoadVectorTilesStyleTask,
@@ -46,8 +47,22 @@ from JMapCloud.core.tasks.load_style_task import (
 from JMapCloud.core.views import ProjectData, ProjectLayersData
 from JMapCloud.ui.py_files.action_dialog import ActionDialog
 
-TOTAL_STEPS = 3
 MESSAGE_CATEGORY = "LoadProjectTask"
+
+NUM_STEPS = 4
+"""
+get project data\n
+check project data\n
+load project (variable)\n
+  load MVT_Style\n
+  load MVT\n
+  load Vector_Style\n
+  load Vector\n
+  load raster\n
+  load wms\n
+order layer rendering\n
+order layer groups\n
+"""
 
 
 class ProjectVectorType(Enum):
@@ -64,6 +79,12 @@ class ImportProjectManager(QObject):
     project_loaded = pyqtSignal()
     error_occurred = pyqtSignal(str)
     _instance = None
+
+    current_step: int
+    _cancel: bool
+    errors: list[str]
+    importing_project: bool
+    total_steps: int
 
     def __new__(cls):
         if cls._instance is None:
@@ -102,13 +123,12 @@ class ImportProjectManager(QObject):
 
         def next_function(replies):
             self.project_layers_data = self.check_project_layers_data(replies)
-            self.current_step += 1
-            self._set_progress(0, self.current_step)
             self.load_project()
 
         self.get_project_layers_data().connect(next_function)
 
     def get_project_layers_data(self) -> pyqtSignal:
+        self.action_dialog.set_text("Getting project data")
         urls = {
             # "project-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}",
             "layers-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers",
@@ -152,6 +172,9 @@ class ImportProjectManager(QObject):
         return RequestManager.multi_request_async(requests)
 
     def check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
+        layers_data = replies["layers-data"].content
+        self.total_steps = len(layers_data) + NUM_STEPS
+        self._next_step("Checking project data")
         self.project_layers_data = ProjectLayersData()
 
         for reply in replies.values():
@@ -160,22 +183,20 @@ class ImportProjectManager(QObject):
 
         self.project_layers_data.layer_groups = replies["layer-groups"].content
         self.project_layers_data.layer_order = replies["layer-order"].content
-        self.project_layers_data.layers_data = replies["layers-data"].content
+        self.project_layers_data.layers_data = layers_data
 
-        layers_data = replies["layers-data"].content
         mapbox_styles = replies["mapbox-styles"].content
         graphql_style_data = replies["graphql-style-data"].content
 
-        labels_config = StyleManager.format_JMap_label_configs(layers_data, self.project_data.default_language)
-        formatted_layers_properties = StyleManager.format_properties(mapbox_styles, graphql_style_data, labels_config)
-        if formatted_layers_properties == None or labels_config == None:
-            message = "error formatting styles"
-            self._handle_error(message)
+        formatted_layers_properties = StyleManager.format_properties(mapbox_styles, graphql_style_data, layers_data)
+        if formatted_layers_properties == None:
+            message = "error formatting properties"
+            self._unmanageable_error_occur(message)
             return None
             # -------
 
         self.project_layers_data.layers_properties = formatted_layers_properties
-
+        print("end check project data")
         return self.project_layers_data
 
     def load_project(self):
@@ -183,7 +204,8 @@ class ImportProjectManager(QObject):
         Load the jmap project in QGIS
         this method call all the other method to load the project
         """
-
+        print("load project")
+        self.action_dialog.set_text(f"Loading project layers...")
         self.project_vector_type = ProjectVectorType(self.project_vector_type)
         self.project = QgsProject.instance()
         layers_data = self.project_layers_data.layers_data
@@ -213,14 +235,14 @@ class ImportProjectManager(QObject):
                     layer_data["allowClientSideEditing"] and self.project_vector_type == ProjectVectorType.Default
                 ):
 
-                    def on_finish(renderers, labeling, layer_data=layer_data):
-                        self.load_geojson_layer(layer_data, renderers, labeling)
+                    def on_finish(renderers, labeling, layer_data=layer_data, mouse_over=layer_properties["mouseOver"]):
+                        self.load_geojson_layer(layer_data, renderers, labeling, mouse_over)
                         self.is_all_layer_loaded()
 
                     task = LoadVectorStyleTask(layer_properties)
                     task.import_style_completed.connect(on_finish)
+                    task.error_occurred.connect(self._error_occur)
                     task.taskTerminated.connect(self.is_all_layer_loaded)
-                    task.error_occurred.connect(self.error_occurred)
                     QgsApplication.taskManager().addTask(task)
                 # load MVT layer
                 elif self.project_vector_type == ProjectVectorType.VectorTiles or (
@@ -234,7 +256,7 @@ class ImportProjectManager(QObject):
                     task = LoadVectorTilesStyleTask(layer_properties, layer_data["elementType"])
                     task.import_style_completed.connect(on_finish)
                     task.taskTerminated.connect(self.is_all_layer_loaded)
-                    task.error_occurred.connect(self.error_occurred)
+                    task.error_occurred.connect(self._error_occur)
                     QgsApplication.taskManager().addTask(task)
                 else:
                     message = f"Unknown error when loading vector layer : {layer_data['name'][self.project_data.default_language]}"
@@ -289,7 +311,7 @@ class ImportProjectManager(QObject):
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
 
-    def load_geojson_layer(self, layer_data: dict, renderer, labeling) -> bool:
+    def load_geojson_layer(self, layer_data: dict, renderer, labeling, mouse_over=None) -> bool:
         uri = JMapDAS.get_vector_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         vector_layer = QgsVectorLayer(uri, layer_data["name"][self.project_data.default_language], "oapif")
         if vector_layer.isValid():
@@ -301,14 +323,8 @@ class ImportProjectManager(QObject):
             vector_layer.setLabeling(labeling)
 
             # set layer mouse over
-            if "mouseOverConfiguration" in layer_data and "text" in layer_data["mouseOverConfiguration"]:
-                text = layer_data["mouseOverConfiguration"]["text"]
-                if self.project_data.default_language in text:
-                    text = text[self.project_data.default_language]
-                else:
-                    text = next(iter(text))
-                text_label = convert_jmap_text_expression(text)
-                vector_layer.setMapTipTemplate(f"[%{text_label}%]")
+            if bool(mouse_over):
+                vector_layer.setMapTipTemplate(mouse_over)
 
             edit_rights, all_rights = self._check_editing_rights(layer_data["permissions"])
             if not edit_rights:
@@ -324,7 +340,7 @@ class ImportProjectManager(QObject):
             return True
         else:
             message = f"Layer {layer_data['name'][self.project_data.default_language]} is not valid"
-            self.error_occur(message, MESSAGE_CATEGORY)
+            self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
     def load_mvt_layer(self, layer_data: dict, renderers, labeling) -> bool:
@@ -370,6 +386,7 @@ class ImportProjectManager(QObject):
 
     def is_all_layer_loaded(self):
         self.layer_to_load -= 1
+        self._next_step()
         if self.layer_to_load == 0:
             self.finalization()
 
@@ -377,29 +394,23 @@ class ImportProjectManager(QObject):
         if self._cancel:
             return
 
-        finalization_total_steps = 3
-        finalization_current_step = 0
         # add layers to the project
-        self.action_dialog.set_text(f"Adding layers to the project")
 
         layer_groups = self.project_layers_data.layer_groups
         layer_order = self.project_layers_data.layer_order
         project = QgsProject.instance()
 
-        self.action_dialog.set_text(f"Loading layer groups")
-        finalization_current_step += 1
-        self._set_progress(finalization_current_step / finalization_total_steps * 100, self.current_step)
+        self._next_step("Loading layer groups")
 
-        # add layers to the legend
+        # get and initialize the root node for sorting
         root = project.layerTreeRoot()
         root.setHasCustomLayerOrder(True)
         layer_ordered = root.customLayerOrder()
 
-        self._sort_layer_tree_layer(root, layer_groups)
+        # sort layer groups
+        self._sort_layer_tree(root, layer_groups)
 
-        self.action_dialog.set_text(f"Loading layer order")
-        finalization_current_step += 1
-        self._set_progress(finalization_current_step / finalization_total_steps * 100, self.current_step)
+        self._next_step("Loading layer order")
 
         # order layers rendering
         new_layer_order = []
@@ -454,7 +465,7 @@ class ImportProjectManager(QObject):
                 all_rights = False
         return edit_right, all_rights
 
-    def _sort_layer_tree_layer(self, root: QgsLayerTreeNode, layer_groups: list[dict]):
+    def _sort_layer_tree(self, root: QgsLayerTreeNode, layer_groups: list[dict]):
         """
         Recursive method to sort the layer tree based on the layer order from the JMap Cloud
         :param root: The root of the layer tree
@@ -469,24 +480,32 @@ class ImportProjectManager(QObject):
                     "plugins/customTreeIcon/icon",
                     ":/images/themes/default/mIconFolder.svg",
                 )
-                self._sort_layer_tree_layer(group, index_data["children"])
+                self._sort_layer_tree(group, index_data["children"])
             elif index_data["nodeType"].upper() == "LAYER":
                 if index_data["id"] in self.nodes:
                     node = self.nodes[index_data["id"]]
                     node.setItemVisibilityChecked(index_data["visible"])
                     root.insertChildNode(-1, node)
 
-    def _handle_error(self, message: str) -> None:
-        self.action_dialog.action_finished(message, False)
+    def _unmanageable_error_occur(self, message: str, category: str = None) -> None:
+        self._error_occur(message, category)
+        self.action_dialog.action_finished(message, True)
+
+    def _error_occur(self, message: str, category: str = None):
+        self.errors.append(message)
+        QgsMessageLog.logMessage(message, category, Qgis.Critical)
         self.error_occurred.emit(message)
 
-    def _set_progress(self, value: float, current_step: int = None, message: str = None):
-        total_progress = (current_step * 100 + value) / TOTAL_STEPS
+    def _set_progress(self, current_step: int = None, message: str = None):
+        total_progress = current_step / self.total_steps * 100
         self.action_dialog.set_progress(total_progress, message)
+
+    def _next_step(self, message: str = None):
+        self.current_step += 1
+        self._set_progress(self.current_step, message)
 
     def finish(self):
         project = QgsProject.instance()
-        self._set_progress(0, TOTAL_STEPS)
         self.action_dialog.set_text(f"Finalization...")
 
         message = "<h3>Project loaded successfully</h3>"

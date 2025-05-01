@@ -158,25 +158,32 @@ def convert_QGIS_text_expression_to_JMap(expression):  # TODO upgrade
 
 
 def convert_jmap_text_expression(text: str) -> str:
-    new_text = text
+    text = text.replace("{", "{{").replace("}", "}}")
+    text = text.replace("'", "\\'")
 
-    def quote(group) -> str:
-        if not re.search(r"\{\d+\}", group):
-            group = f"'{group}'"
-        return group
+    new_text = text
+    replacement_counter = 0
+    replacements = {}
 
     # backreference are not quoted while {num} are quoted if they do not refer to a placeholder
     patterns = {
         r"[eE][vV]\(\s*(\w+)\s*\)": r"\1",  # non formatter group
         r"[iI][fF][nN][oO][tT][nN][uU][lL][lL]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "if(attribute({0}), {1}, '')",  # formatter groups
         r"[iI][fF][nN][uU][lL][lL]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "if(attribute({0}), '', {1})",  # formatter groups
+        r"[Ll][Ii][Nn][Ee][lL][Ee][Nn][Gg][Tt][Hh]\(\s*\)": 'to_string(round( "jmap_length",2))',
+        r"[Pp][Oo][Ll][Yy][Gg][Oo][Nn][Aa][Rr][Ee][Aa]\(\s*\)": 'to_string(round("jmap_area", 2))',
+        r"[Pp][Rr][Oo][Jj][Ee][Cc][Tt][nN][Aa][Mm][Ee]\(\s*\)": "@project_basename",
+        r"[Dd][Aa][Tt][Ee]\(\s*\)": " format_date( now(),'ddd MMM dd yyyy')",
+        r"[Ss][Uu][Bb][Ss][Tt][Rr][Ii][Nn][Gg]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "substr({0}, {1}, {2} - {1})",
     }
-
-    replacement_counter = 0
-    replacements = {}
 
     # 🔹 **Build a regex that matches any function name in `patterns`**
     pattern_regex = "|".join(patterns.keys())
+
+    def quote(group) -> str:
+        if not re.search(r"\{\d+\}", group):
+            group = f"'{group}'"
+        return group
 
     # 🔹 **Step 1: Process one match at a time until no more matches are found**
     while True:

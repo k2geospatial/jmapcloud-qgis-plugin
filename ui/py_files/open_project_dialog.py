@@ -56,10 +56,11 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         if projects:
             self.project_List_listWidget.clear()
             self.project_List_listWidget.setEnabled(True)
-            sorted_projects = sorted(
-                projects,
-                key=lambda k: find_value_in_dict_or_first(k["name"], [self.language, k["defaultLanguage"]], "no name"),
-            )
+            for project in projects:
+                project["name"] = find_value_in_dict_or_first(
+                    project["name"], [self.language, project["defaultLanguage"]], "no name"
+                )
+            sorted_projects = sorted(projects, key=lambda p: p["name"])
             for project in sorted_projects:
                 item = CustomListWidgetItem()
                 icon = QtGui.QIcon()
@@ -70,11 +71,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                 )
                 item.setIcon(icon)
                 # lastModificationDate = datetime.strptime(str(project["lastModificationDate"]), "%Y-%m-%dT%H:%M:%SZ")
-                name = find_value_in_dict_or_first(
-                    project["name"],
-                    [self.language, project["defaultLanguage"]],
-                    "no name",
-                )
+                name = project["name"]
                 description = find_value_in_dict_or_first(
                     project["description"],
                     [self.language, project["defaultLanguage"]],

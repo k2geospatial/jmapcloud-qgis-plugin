@@ -45,6 +45,7 @@ from qgis.PyQt.QtGui import QColor, QFont, QPixmap
 from JMapCloud.core.plugin_util import (
     convert_jmap_text_expression,
     convert_zoom_to_scale,
+    find_value_in_dict_or_first,
 )
 from JMapCloud.core.qgs_message_bar_handler import QgsMessageBarHandler
 from JMapCloud.core.services.jmap_services_access import JMapMCS
@@ -106,26 +107,35 @@ class StyleManager:
         return icons
 
     @staticmethod
-    def format_JMap_label_configs(layers_data: list, default_language: str = "en") -> dict:
+    def format_layer_label_config(layer_data: dict, default_language: str = "en") -> dict:
         """
         Formats JMap label configurations for a list of layer data.
         """
+        if "labellingConfiguration" not in layer_data:
+            return {}
+        if "text" in layer_data["labellingConfiguration"]:
+            language = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
+            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(
+                layer_data["labellingConfiguration"]["text"][language]
+            )
+        return layer_data["labellingConfiguration"]
 
-        layer_label_configs = {}
-        for layer_data in layers_data:
-            if "labellingConfiguration" not in layer_data or "text" not in layer_data["labellingConfiguration"]:
-                continue
-            if default_language in layer_data["labellingConfiguration"]["text"]:
-                labeling_config = layer_data["labellingConfiguration"]["text"][default_language]
-            else:
-                labeling_config = next(iter(layer_data["labellingConfiguration"]["text"]))
-            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(labeling_config)
-            layer_label_configs[layer_data["id"]] = layer_data["labellingConfiguration"]
+    @staticmethod
+    def format_layer_mouse_over_configs(layer_data: dict, default_language: str = "en") -> str:
 
-        return layer_label_configs
+        if "mouseOverConfiguration" not in layer_data or "text" not in layer_data["mouseOverConfiguration"]:
+            return None
+        language = find_value_in_dict_or_first(layer_data["mouseOverConfiguration"]["text"], [default_language], "")
+        text = layer_data["mouseOverConfiguration"]["text"][language]
+
+        text_label = convert_jmap_text_expression(text)
+        text_label = text_label.replace("\n", "<br>\n")
+        text_label = f"[%{text_label}%]"
+
+        return text_label
 
     @classmethod
-    def format_properties(cls, mapbox_styles: dict, graphql_style_data: dict = {}, labels_config: dict = {}) -> dict:
+    def format_properties(cls, mapbox_styles: dict, graphql_style_data: dict = {}, layers_data: list = []) -> dict:
         """
         Formats a mapbox styles with graphql style name data to make it easier to use for a QGIS project.
         :param mapbox_styles: mapbox styles file
@@ -150,6 +160,7 @@ class StyleManager:
                 layer_styles[layer_id] = {
                     "styleRules": {},
                     "label": {},
+                    "mouseOver": None,
                 }
             layer = layer_styles[layer_id]
 
@@ -233,14 +244,19 @@ class StyleManager:
                     c["name"] = condition["name"]
                     # the style rule name cannot be in style rule because there  is only condition id that can be here for now
                     c["styleRuleName"] = style_rule["name"]
-        if bool(labels_config):
-            for layer_id, label_config in labels_config.items():
-                layer_styles[layer_id]["label"] = label_config
+
+        # format layer data properties
+        for layer_data in layers_data:
+            labeling_config = cls.format_layer_label_config(layer_data)
+            mouse_over_config = cls.format_layer_mouse_over_configs(layer_data)
+
+            layer_styles[layer_data["id"]]["label"] = labeling_config
+            layer_styles[layer_data["id"]]["mouseOver"] = mouse_over_config
+
         return layer_styles
 
     @classmethod
     def get_layer_labels(cls, labeling_data: dict) -> QgsRuleBasedLabeling:
-
         if not bool(labeling_data):
             return QgsRuleBasedLabeling(QgsRuleBasedLabeling.Rule(None))
 
