@@ -19,7 +19,7 @@ from qgis.core import (
     QgsNetworkAccessManager,
     QgsNetworkReplyContent,
 )
-from qgis.PyQt.QtCore import QEventLoop, QMetaObject, QObject, Qt, QUrl, pyqtSignal
+from qgis.PyQt.QtCore import QEventLoop, QObject, Qt, QUrl, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
 from JMapCloud.core.constant import AUTH_CONFIG_ID
@@ -95,6 +95,7 @@ class RequestManager(QObject):
     def add_requests(self, request: "RequestManager.RequestData") -> pyqtSignal:
         """add a request to the queue"""
         signal_obj = TemporarySignalObject()
+        print("new signal object", signal_obj)
         self.queue.append((request, signal_obj))
         self.trigger_next_request.emit()
 
@@ -105,11 +106,11 @@ class RequestManager(QObject):
         while self.queue and self.active_requests < self.max_concurrent:
 
             request, signal_obj = self.queue.pop(0)
+            print("ejected signal object", signal_obj)
 
-            def _handle_queue_response(response: RequestManager.ResponseData):
-                nonlocal signal_obj
-                print(response.id, "finished")
+            def _handle_queue_response(response: RequestManager.ResponseData, signal_obj=signal_obj):
                 self.pending_request.pop(response.id)
+                print(signal_obj.signal, response.id)
                 signal_obj.signal.emit(response)
                 self.active_requests -= 1
                 self._send_next_request()
@@ -229,7 +230,14 @@ class RequestManager(QObject):
             request_data.body,
         )
         if callback:
-            reply.finished.connect(lambda r=reply, id=request_data.id: callback(RequestManager._handle_reply(r, id)))
+
+            def on_finished(reply=reply, id=request_data.id):
+                reply.disconnect()
+                response_data = RequestManager._handle_reply(reply, id)
+                print(id, "finished, response_data:", response_data.id)
+                callback(response_data)
+
+            reply.finished.connect(on_finished)
         return reply
 
     @staticmethod
@@ -316,6 +324,11 @@ class RequestManager(QObject):
         error_string = ""
         if error_code != QNetworkReply.NoError:
             QgsMessageLog.logMessage(f"Error occurred {content}", MESSAGE_CATEGORY, Qgis.Critical)
+            reply_error_string = reply.errorString()
+            if bool(reply_error_string):
+                error_string += f"reply : {reply_error_string}\n"
+            if bool(content):
+                error_string += f"content : {content}\n"
 
         headers = RequestManager._get_headers(reply)
 

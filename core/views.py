@@ -126,11 +126,8 @@ class ProjectData:
     organization_id: str
     name: str
     description: str
-    crs: QgsCoordinateReferenceSystem
-    initialExtent: QgsReferencedRectangle
     default_language: str
     layers: list[QgsMapLayer]
-    legendRoot: QgsLayerTree
 
     def __init__(
         self,

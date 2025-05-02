@@ -80,10 +80,12 @@ class ExportProjectManager(QObject):
         next_step = lambda layers_data, layer_files: self._upload_layer_files(
             self._error_handler(layers_data, "convert layer to zip"), layer_files
         )
+
         convert_layer_to_zip_task.convert_layers_completed.connect(next_step)
+
         convert_layer_to_zip_task.error_occurred.connect(self.errors.append)
         self.feedback.canceled.connect(convert_layer_to_zip_task.cancel)
-        self.task_manager.addTask(convert_layer_to_zip_task)
+        convert_layer_to_zip_task.start()
 
     def _upload_layer_files(self, layers_data: list[LayerData], layer_files: list[LayerFile]):
         if self._cancel:
@@ -204,7 +206,7 @@ class ExportProjectManager(QObject):
         if len(self.errors) > 0:
             message += "<h4>Some errors occurred during the process:</h4>"
             for error in self.errors:
-                message += f"<p>{error}</p>"
+                message += f"<p>{error.replace('\n', '<br>')}</p>"
         self.action_dialog.action_finished(message)
         self.project_exportation_finished.emit(success)
         self.exporting_project = False

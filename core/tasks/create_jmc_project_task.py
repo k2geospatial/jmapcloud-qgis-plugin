@@ -64,11 +64,12 @@ class CreateJMCProjectTask(CustomQgsTask):
             initialExtent=rectangle,
         )
         reply = JMapMCS.post_project(self.project_data.organization_id, project_dto)
-        if reply is None or "id" not in reply:
-            self.error_occur("Error creating project", MESSAGE_CATEGORY)
+        if reply.status != QNetworkReply.NetworkError.NoError:
+            self.error_occur(f"Error creating project : {reply.error_message}", MESSAGE_CATEGORY)
             return False
+        content = reply.content
         self.next_steps()
-        self.project_data.project_id = reply["id"]
+        self.project_data.project_id = content["id"]
 
         for layer_data in self.layers_data:
             print("create layer : ", layer_data.layer_name)
@@ -147,6 +148,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         print("is_all_layers_created")
         if reply.status != QNetworkReply.NetworkError.NoError:
             layer_data.status = LayerData.Status.layer_creation_error
+            self.error_occur(reply.error_message, MESSAGE_CATEGORY)
         else:
             layer_data.jmc_layer_id = reply.content["id"]
         self.no_layers_created += 1
@@ -158,9 +160,17 @@ class CreateJMCProjectTask(CustomQgsTask):
             self.project_creation_finished.emit(self.layers_data)
 
     def _update_layers_order(self) -> bool:
+        layers_list_order = self.project_data.legendRoot.layerOrder()
+        ids_list_order = []
+        for layer in reversed(layers_list_order):
+            for layer_data in self.layers_data:
+                if layer.id() == layer_data.layer_id:
+                    ids_list_order.append(layer_data.jmc_layer_id)
+                    break
+
         print("update layers order")
         url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-order"
-        body = {"ids": [layer_data.jmc_layer_id for layer_data in reversed(self.layers_data)]}
+        body = {"ids": ids_list_order}
         request = RequestManager.RequestData(url, body=body, type="PUT")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:

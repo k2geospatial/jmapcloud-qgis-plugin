@@ -39,7 +39,7 @@ class FilesUploadManager(QObject):
         super().__init__()
         self.layers_data: list[LayerData] = layers_data
         self.layer_files = layer_files
-        self.files_to_analyze: list[LayerFile] = []
+        self.files_to_analyze: list[str] = []
         self.file_uploaders: list[FileUploader] = []
         self.organization_id = organization_id
         self._num_file_uploaded = 0
@@ -76,10 +76,15 @@ class FilesUploadManager(QObject):
 
             file_uploader.error_occurred.connect(error_occurred)
             file_uploader.progress_changed.connect(lambda progress, ref=i: progress_changed(progress, ref))
-            next_func = lambda _, layer_file=layer_file: self.is_all_files_uploaded(layer_file)
+            print("layer file upload", layer_file.file_path)
+
+            def next_func(jmc_file_id):
+                print("layer file upload", jmc_file_id)
+                self.is_all_files_uploaded(jmc_file_id)
+
             file_uploader.requests_finished.connect(next_func)
-            file_uploader.init_upload()
             self.file_uploaders.append(file_uploader)
+            file_uploader.init_upload()
         return True
 
     def cancel(self):
@@ -87,27 +92,31 @@ class FilesUploadManager(QObject):
         for file_uploader in self.file_uploaders:
             file_uploader.cancel()
 
-    def is_all_files_uploaded(self, layer_file: LayerFile):
+    def is_all_files_uploaded(self, jmc_file_id: str):
         print("is_all_files_uploaded")
         self._num_file_uploaded += 1
-        self.files_to_analyze.append(layer_file)
+        self.files_to_analyze.append(jmc_file_id)
         if self._num_file_uploaded == len(self.layer_files) and not self._cancel:
             self._num_file_uploaded = 0
+            self.file_uploaders = []
             self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
         self.step_changed.emit(f"Server is analyzing files")
 
-        def is_file_analyzed(response: RequestManager.ResponseData, layer_file: LayerFile = None):
+        def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
             if (
                 not bool(response.content)
                 or "status" not in response.content
                 or response.content["status"] in ["UPLOADING", "ERROR"]
             ):
-                layer_file.upload_status = LayerFile.Status.uploading_error
-                self.files_to_analyze.remove(layer_file)
+                for layer_file in self.layer_files:
+                    if layer_file.jmc_file_id == jmc_file_id:
+                        layer_file.upload_status = LayerFile.Status.uploading_error
+                        break
+                self.files_to_analyze.remove(jmc_file_id)
             elif response.content["status"] == "ANALYZED":
-                self.files_to_analyze.remove(layer_file)
+                self.files_to_analyze.remove(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
                 print("all files analyzed")
                 self.recurring_event.stop()
@@ -119,10 +128,10 @@ class FilesUploadManager(QObject):
                 self.recurring_event.stop()
             print("poke_all_not_analyzed_files")
 
-            for layer_file in self.files_to_analyze:
-                url = f"{API_FUS_URL}/organizations/{self.organization_id}/files/{layer_file.jmc_file_id}"
-                request = RequestManager.RequestData(url, type="GET", id=layer_file.jmc_file_id)
-                next_func = lambda response, layer_file=layer_file: is_file_analyzed(response, layer_file)
+            for jmc_file_id in self.files_to_analyze:
+                url = f"{API_FUS_URL}/organizations/{self.organization_id}/files/{jmc_file_id}"
+                request = RequestManager.RequestData(url, type="GET", id=jmc_file_id)
+                next_func = lambda response, _jmc_file_id=jmc_file_id: is_file_analyzed(response, _jmc_file_id)
                 self.request_manager.add_requests(request).connect(next_func)
 
         self.recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_files, False, 200)
@@ -141,7 +150,8 @@ class FileUploader(QObject):
     :requests_finished: signal emit when all requests are finished
     """
 
-    requests_finished = pyqtSignal(list)
+    requests_finished = pyqtSignal(str)
+    """returns jmc_file_id"""
     progress_changed = pyqtSignal(float)
     error_occurred = pyqtSignal(str)
 
@@ -198,6 +208,7 @@ class FileUploader(QObject):
         url_array = location.split("/")
         file_id = url_array[-1]
         self.layer_file.jmc_file_id = file_id
+        print("file_id", file_id, self.layer_file.jmc_file_id)
         self.url = f"{url}/{file_id}"
         self.progress_changed.emit(self.step / self.total_steps * 100.0)
         self.execute_next_request(response)
@@ -207,6 +218,7 @@ class FileUploader(QObject):
         """
         this function must be call after upload initialization
         """
+        print("next", self, self.layer_file.jmc_file_id)
         if self._cancel:
             return False
         if response != None:
@@ -217,34 +229,33 @@ class FileUploader(QObject):
                     self.error_occurred.emit(error_message)
                     self.responses.append(response)
                     self.pending_requests = []
-                    self.requests_finished.emit(self.responses)
+                    self.layer_file.upload_status = LayerFile.Status.uploading_error
+                    self.requests_finished.emit(self.layer_file.jmc_file_id)
                     self.progress_changed.emit(100.0)
                     return False
 
                 def resend_request():
-                    new_response = self.request_manager.add_requests(self.request).connect(
-                        lambda response: self.execute_next_request(response)
-                    )
-                    self.pending_requests.append(new_response)
+                    response_signal_obj = self.request_manager.add_requests(self.request)
+                    response_signal_obj.connect(lambda response, this=self: this.execute_next_request(response))
+                    self.pending_requests.append(response_signal_obj)
 
                 QTimer.singleShot(2000, resend_request)
+                return False
             else:
                 self.upload_safer_counter = 0
                 self.responses.append(response)
                 self.step += 1  # first call will be on initialization
                 self.progress_changed.emit(self.step / self.total_steps * 100.0)
             if self.file_offset >= self.file_length:
-                print("all requests finished")
+                print("all requests finished", self.layer_file.jmc_file_id)
                 self.pending_requests = []
-                self.requests_finished.emit(self.responses)
-                return False
+                self.requests_finished.emit(self.layer_file.jmc_file_id)
+                return True
         self.request = self.define_next_request()
         self.file_offset += CHUNK_SIZE
-        self.pending_requests.append(
-            self.request_manager.add_requests(self.request).connect(
-                lambda response: self.execute_next_request(response)
-            )
-        )
+        response_signal_obj = self.request_manager.add_requests(self.request)
+        response_signal_obj.connect(lambda response, this=self: this.execute_next_request(response))
+        self.pending_requests.append(response_signal_obj)
         return True
 
     def define_next_request(self) -> RequestManager.RequestData:
@@ -259,6 +270,7 @@ class FileUploader(QObject):
             "content-length": f"{content_length}",
             "Upload-Offset": f"{self.file_offset}",
         }
+        print("next request", self.layer_file.jmc_file_id)
         return RequestManager.RequestData(
             self.url,
             headers,

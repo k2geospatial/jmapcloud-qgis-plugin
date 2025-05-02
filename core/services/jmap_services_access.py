@@ -25,6 +25,7 @@ from JMapCloud.core.constant import (
 )
 from JMapCloud.core.DTOS.project_dto import ProjectDTO
 from JMapCloud.core.services.request_manager import RequestManager
+from JMapCloud.core.signal_object import TemporarySignalObject
 
 
 class JMapMCS:
@@ -162,11 +163,11 @@ class JMapMCS:
         return json_sprites, png_sprites
 
     @staticmethod
-    def post_project(organization_id: str, project_data: ProjectDTO) -> dict:
+    def post_project(organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
         url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
         prefix = "error creating project"
         body = project_data.to_json()
-        return RequestManager.post_request(url, body, error_prefix=prefix).content
+        return RequestManager.post_request(url, body, error_prefix=prefix)
 
 
 class JMapMIS:
