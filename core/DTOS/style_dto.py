@@ -9,21 +9,44 @@
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 # -----------------------------------------------------------
+from enum import Enum, auto
+
+from qgis.core import QgsSymbol
+
 from JMapCloud.core.DTOS.dto import DTO
+from JMapCloud.core.plugin_util import opacity_to_transparency, transparency_to_opacity
 
 
 class StyleDTO(DTO):
+    class StyleDTOType(Enum):
+        POINT = auto()
+        LINE = auto()
+        POLYGON = auto()
+        COMPOUND = auto()
+        IMAGE = auto()
+
     type: str
-    """value between: 'POINT', 'LINE', 'POLYGON', 'COMPOUND'"""
+    """value between: 'POINT', 'LINE', 'POLYGON', 'COMPOUND', 'IMAGE'"""
     name: str
     description: str
     transparency: int
     """value between: 0 and 100"""
     tags: list[str]
 
-    def __init__(self, type: str):
+    def __init__(self, type: StyleDTOType):
         super().__init__()
-        self.type = type
+        self.type = type.name
         self.name = "Symbol Layer"
         self.description = ""
         self.tags = []
+
+    @classmethod
+    def from_symbol(cls, symbol: QgsSymbol) -> list["StyleDTO"]:
+        dtos = [cls.from_symbol_layer(symbol_layer) for symbol_layer in symbol.symbolLayers()]
+        for dto in dtos:
+            if isinstance(dto, cls):
+                dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
+        return dtos
+
+    def from_symbol_layer(cls, symbol_layer) -> "StyleDTO":
+        return None

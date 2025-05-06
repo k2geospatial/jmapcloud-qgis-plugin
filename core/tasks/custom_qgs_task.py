@@ -145,6 +145,7 @@ class CustomTaskManager(QObject):
         return self.is_cancel
 
     def start(self):
+        result = False
         try:
             result = self.run()
         except Exception as e:

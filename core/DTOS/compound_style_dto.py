@@ -17,10 +17,10 @@ class CompoundStyleDTO(StyleDTO):
     styles: list[str]
 
     def __init__(self):
-        super().__init__("COMPOUND")
+        super().__init__(self.StyleDTOType.COMPOUND)
 
-    @staticmethod
-    def from_style_ids(style_ids: list[str]) -> "CompoundStyleDTO":
-        dto = CompoundStyleDTO()
+    @classmethod
+    def from_style_ids(cls, style_ids: list[str]) -> "CompoundStyleDTO":
+        dto = cls()
         dto.styles = style_ids
         return dto

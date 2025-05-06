@@ -15,12 +15,15 @@ from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.utils import iface
 
-from JMapCloud.core.constant import SETTINGS_PREFIX, AuthState
+from JMapCloud.core.constant import (
+    EMAIL_SUFFIX,
+    ORG_NAME_SUFFIX,
+    SETTINGS_PREFIX,
+    AuthState,
+)
 from JMapCloud.core.services.auth_manager import JMapAuth
 
 from .connection_dialog_base_ui import Ui_Dialog
-
-EMAIL_SUFFIX = "login_email"
 
 
 class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
@@ -74,6 +77,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def logout(self):
         self.logout_signal.emit()
+        QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
         self.connection_button.clicked.disconnect()
         self.connection_button.setText("login")
         self.connection_button.clicked.connect(self.login)
@@ -85,8 +89,12 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
     def list_organizations(self):
         result = self.auth_manager.get_user_self()
         if result != None:
-            self.message_label.setStyleSheet("font-size: 20px;")
-            self.message_label.setText(f"Welcome {result['name']}")
+            self.message_label.setStyleSheet("font-size: 18px;")
+            welcome_message = f"Welcome {result['name']}<br />"
+            organization_name = QgsSettings().value(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
+            if organization_name != "":
+                welcome_message += f"\nConnected to: {organization_name}"
+            self.message_label.setText(welcome_message)
             organizations = result["organizations"]
             # to modify ui for ask for organization
             if len(organizations) > 0:
@@ -94,7 +102,9 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.organization_list_comboBox.clear()
                 sorted_organizations = sorted(organizations, key=lambda k: k["name"])
                 for organization in sorted_organizations:
-                    self.organization_list_comboBox.addItem(organization["name"], organization["id"])
+                    self.organization_list_comboBox.addItem(
+                        organization["name"], {"id": organization["id"], "name": organization["name"]}
+                    )
             else:
                 self.message_label.setStyleSheet("color: red;")
                 self.message_label.setText("no organization found")
@@ -105,11 +115,12 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def choose_organization(self):
         self.accept_button.setEnabled(False)
-        organization_id = self.organization_list_comboBox.currentData()
+        organization_data = self.organization_list_comboBox.currentData()
         auth_state = self.auth_manager.get_auth_state()
         if auth_state != AuthState.NOT_AUTHENTICATED and self.auth_manager.refresh_auth_settings(
-            org_id=organization_id
+            org_id=organization_data["id"]
         ):
+            QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", organization_data["name"])
             self.password_input.clear()
             self.set_login_input_enable(False)
             self.accept_button.setEnabled(True)

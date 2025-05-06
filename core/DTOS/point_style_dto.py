@@ -15,13 +15,13 @@ from qgis.core import (
     QgsRasterMarkerSymbolLayer,
     QgsSvgMarkerSymbolLayer,
 )
-from qgis.PyQt.QtCore import QSize
 
 from JMapCloud.core.DTOS.style_dto import StyleDTO
 from JMapCloud.core.plugin_util import (
-    convert_measurement_to_pixel,
     image_to_base64,
+    opacity_to_transparency,
     symbol_to_SVG_base64,
+    transparency_to_opacity,
 )
 
 
@@ -37,13 +37,13 @@ class PointStyleDTO(StyleDTO):
     """value in base64"""
 
     def __init__(self):
-        super().__init__("POINT")
+        super().__init__(self.StyleDTOType.POINT)
         self.rotationLocked = False
         self.proportional = False
 
     # could change in the future TODO
-    @staticmethod
-    def from_symbol(symbol: QgsMarkerSymbol) -> list["PointStyleDTO"]:
+    @classmethod
+    def from_symbol(cls, symbol: QgsMarkerSymbol) -> list["PointStyleDTO"]:
         if all(
             [
                 isinstance(symbol_layer, QgsRasterMarkerSymbolLayer)
@@ -51,16 +51,17 @@ class PointStyleDTO(StyleDTO):
                 for symbol_layer in symbol.symbolLayers()
             ]
         ):
-            return [PointStyleDTO.from_symbol_layer(symbol_layer) for symbol_layer in symbol.symbolLayers()]
+            return super().from_symbol(symbol)
         else:
             base64_symbol = symbol_to_SVG_base64(symbol)
-            dto = PointStyleDTO()
+            dto = cls()
             dto.symbolData = base64_symbol
-            dto.transparency = (1 - min(1.0, symbol.opacity())) * 100
+            dto.transparency = opacity_to_transparency(symbol.opacity())
             return [dto]
 
-    def from_symbol_layer(symbol_layer: QgsMarkerSymbolLayer) -> "PointStyleDTO":
-        style = PointStyleDTO()
+    @classmethod
+    def from_symbol_layer(cls, symbol_layer: QgsMarkerSymbolLayer) -> "PointStyleDTO":
+        style = cls()
 
         style.size = 0.5  # this handle the pixel ratio of 2 of Mapbox spites
         offset = symbol_layer.offset()
@@ -69,7 +70,7 @@ class PointStyleDTO(StyleDTO):
 
         if isinstance(symbol_layer, QgsRasterMarkerSymbolLayer):
             style.symbolData = image_to_base64(symbol_layer.path())
-            style.transparency = (1 - min(1.0, symbol_layer.opacity())) * 100
+            style.transparency = opacity_to_transparency(symbol_layer.opacity())
         elif isinstance(symbol_layer, QgsSvgMarkerSymbolLayer):
             style.symbolData = image_to_base64(symbol_layer.path())
         else:

@@ -25,6 +25,7 @@ from JMapCloud.core.plugin_util import (
     convert_measurement_to_pixel,
     convert_pen_style_to_dash_array,
     image_to_base64,
+    opacity_to_transparency,
 )
 
 
@@ -44,16 +45,16 @@ class LineStyleDTO(StyleDTO):
     """value in base64"""
 
     def __init__(self):
-        super().__init__("LINE")
+        super().__init__(self.StyleDTOType.LINE)
 
-    @staticmethod
-    def from_symbol(symbol: QgsLineSymbol) -> list["LineStyleDTO"]:
-        return [LineStyleDTO.from_symbol_layer(symbol_layer) for symbol_layer in symbol.symbolLayers()]
-
-    @staticmethod
-    def from_symbol_layer(symbol_layer: QgsLineSymbolLayer) -> "LineStyleDTO":
-        dto = LineStyleDTO()
-        dto.lineThickness = convert_measurement_to_pixel(symbol_layer.width(), symbol_layer.widthUnit())
+    @classmethod
+    def from_symbol_layer(cls, symbol_layer: QgsLineSymbolLayer) -> "LineStyleDTO":
+        dto = cls()
+        width = symbol_layer.width()
+        if width == 0:
+            dto.lineThickness = 0
+        else:
+            dto.lineThickness = max(1, round(convert_measurement_to_pixel(width, symbol_layer.widthUnit())))
         if isinstance(symbol_layer, QgsSimpleLineSymbolLayer):
             dto.lineColor = symbol_layer.color().name()
             line_cap = symbol_layer.penCapStyle()
@@ -84,10 +85,10 @@ class LineStyleDTO(StyleDTO):
                 pen_style = symbol_layer.penStyle()
                 dto.dashPattern = convert_pen_style_to_dash_array(pen_style, dto.lineThickness)
 
-            dto.transparency = 100 - symbol_layer.color().alphaF() * 100
+            dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
         elif isinstance(symbol_layer, QgsRasterLineSymbolLayer):
             dto.patternData = image_to_base64(symbol_layer.path())
-            dto.transparency = 100 - symbol_layer.opacity() * 100
+            dto.transparency = opacity_to_transparency(symbol_layer.opacity())
         elif isinstance(symbol_layer, QgsArrowSymbolLayer):
             sub_symbol = symbol_layer.subSymbol()
             sub_dto = PolygonStyleDTO.from_symbol_layer(sub_symbol)
@@ -99,6 +100,7 @@ class LineStyleDTO(StyleDTO):
             dto.lineColor = fill_color
             dto.arrowType = symbol_layer.arrowType()  # or maybe headType()
             dto.arrowPosition = 1.0
+            dto.transparency = opacity_to_transparency(sub_symbol.color().alphaF())
         else:
             return None
 

@@ -39,10 +39,15 @@ from JMapCloud.core.DTOS import (
     LineStyleDTO,
     PointStyleDTO,
     PolygonStyleDTO,
+    StyleDTO,
     StyleMapScaleDTO,
     StyleRuleDTO,
 )
-from JMapCloud.core.plugin_util import convert_jmap_datetime, convert_scale_to_zoom
+from JMapCloud.core.plugin_util import (
+    convert_jmap_datetime,
+    convert_scale_to_zoom,
+    opacity_to_transparency,
+)
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
 from JMapCloud.core.views import LayerData, ProjectData
@@ -59,7 +64,7 @@ class ExportLayersStyleTask(CustomQgsTask):
     def __init__(self, layers_data: list[LayerData], project_data: ProjectData):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
 
-        self.layers_data = [layers_data for layers_data in layers_data if isinstance(layers_data.layer, QgsVectorLayer)]
+        self.layers_data = layers_data
         self.project_data = project_data
         self.no_layer_style_exported = 0
         self.request_manager = RequestManager.instance()
@@ -97,8 +102,11 @@ class ExportLayerStyleTask(CustomQgsTask):
     def run(self):
         if self.isCanceled():
             return False
-        self._handle_renderer(self.layer_data.layer.renderer())
-        self._delete_default_style_rules()
+        if self.layer_data.layer_type in [LayerData.LayerType.file_vector, LayerData.LayerType.API_FEATURES]:
+            self._handle_renderer(self.layer_data.layer.renderer())
+            self._delete_default_style_rules()
+        else:
+            self._patch_raster_style()
         self.export_layer_style_completed.emit()
         return True
 
@@ -455,5 +463,35 @@ class ExportLayerStyleTask(CustomQgsTask):
         request = RequestManager.RequestData(f"{url}/{id}", type="DELETE")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
+            return False
+        return True
+
+    def _patch_raster_style(self):
+        layer = self.layer_data.layer
+        dto = StyleDTO(StyleDTO.StyleDTOType.IMAGE)
+        dto.transparency = opacity_to_transparency(layer.opacity())
+
+        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers/{self.layer_data.jmc_layer_id}/style-rules"
+        request_data = RequestManager.RequestData(url, type="GET")
+        response = self.request_manager.custom_request(request_data)
+        if response.status != QNetworkReply.NetworkError.NoError:
+            error_message = f"Error getting style for layer '{self.layer_data.layer_name}': {response.error_message}"
+            self.error_occur(error_message, MESSAGE_CATEGORY)
+            return False
+        style_id = None
+        try:
+            style_id = response.content[0]["conditions"][0]["styleMapScales"][0]["styleId"]
+        except Exception as e:
+            error_message = f"Error getting style for layer '{self.layer_data.layer_name}': {e}"
+            self.error_occur(error_message, MESSAGE_CATEGORY)
+            return False
+
+        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/styles/{style_id}"
+        body = dto.to_json()
+        request = RequestManager.RequestData(url, type="PATCH", body=body)
+        response = self.request_manager.custom_request(request)
+        if response.status != QNetworkReply.NetworkError.NoError:
+            error_message = f"Error patching style for layer '{self.layer_data.layer_name}': {response.error_message}"
+            self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
         return True

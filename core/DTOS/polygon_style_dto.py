@@ -11,13 +11,13 @@
 # -----------------------------------------------------------
 from qgis.core import (
     QgsFillSymbol,
-    QgsFillSymbolLayer,
     QgsImageFillSymbolLayer,
     QgsRasterFillSymbolLayer,
     QgsRasterLineSymbolLayer,
     QgsSimpleFillSymbolLayer,
     QgsSimpleLineSymbolLayer,
     QgsSVGFillSymbolLayer,
+    QgsSymbolLayer,
 )
 from qgis.PyQt.QtCore import Qt
 
@@ -26,6 +26,7 @@ from JMapCloud.core.plugin_util import (
     convert_measurement_to_pixel,
     convert_pen_style_to_dash_array,
     image_to_base64,
+    opacity_to_transparency,
 )
 
 
@@ -45,23 +46,22 @@ class PolygonStyleDTO(StyleDTO):
     """value in base64"""
 
     def __init__(self):
-        super().__init__("POLYGON")
+        super().__init__(self.StyleDTOType.POLYGON)
 
     @classmethod
-    def from_symbol(cls, symbol: QgsFillSymbol) -> list["PolygonStyleDTO"]:
-        return [cls.from_symbol_layer(symbol_layer) for symbol_layer in symbol.symbolLayers()]
-
-    @classmethod
-    def from_symbol_layer(cls, symbol_layer: QgsFillSymbolLayer) -> "PolygonStyleDTO":
+    def from_symbol_layer(cls, symbol_layer: QgsSymbolLayer) -> "PolygonStyleDTO":
         dto = cls()
         if isinstance(symbol_layer, QgsSimpleFillSymbolLayer):
             dto.fillColor = symbol_layer.color().name()
-            dto.transparency = 100 - symbol_layer.color().alphaF() * 100
+            dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
             dto.borderColor = symbol_layer.strokeColor().name()
-            dto.borderTransparency = 100 - symbol_layer.strokeColor().alphaF() * 100
-            dto.borderThickness = convert_measurement_to_pixel(
-                symbol_layer.strokeWidth(), symbol_layer.strokeWidthUnit()
-            )
+            dto.borderTransparency = opacity_to_transparency(symbol_layer.strokeColor().alphaF())
+            width = symbol_layer.strokeWidth()
+            if width == 0:
+                dto.borderThickness = 0
+            else:
+                dto.borderThickness = max(1, round(convert_measurement_to_pixel(width, symbol_layer.strokeWidthUnit())))
+
             border_pen_style = symbol_layer.strokeStyle()
             if border_pen_style == Qt.PenStyle.NoPen:
                 dto.borderTransparency = 100
@@ -72,14 +72,18 @@ class PolygonStyleDTO(StyleDTO):
                 dto.patternData = image_to_base64(symbol_layer.svgFilePath())
             elif isinstance(symbol_layer, QgsRasterFillSymbolLayer):
                 dto.patternData = image_to_base64(symbol_layer.imageFilePath())
-                dto.transparency = (1 - symbol_layer.opacity()) * 100
+                dto.transparency = opacity_to_transparency(symbol_layer.opacity())
             else:
                 return None
 
         elif isinstance(symbol_layer, QgsSimpleLineSymbolLayer):
-            dto.borderThickness = convert_measurement_to_pixel(symbol_layer.width(), symbol_layer.widthUnit())
+            width = symbol_layer.width()
+            if width == 0:
+                dto.borderThickness = 0
+            else:
+                dto.borderThickness = max(1, round(convert_measurement_to_pixel(width, symbol_layer.widthUnit())))
             dto.borderColor = symbol_layer.color().name()
-            dto.borderTransparency = 100 - symbol_layer.color().alphaF() * 100
+            dto.borderTransparency = opacity_to_transparency(symbol_layer.color().alphaF())
             dto.fillColor = symbol_layer.color().name()
             dto.transparency = 100  # only border, no fill
             if symbol_layer.useCustomDashPattern():
@@ -91,8 +95,12 @@ class PolygonStyleDTO(StyleDTO):
                 ]  # because Mapbox dash-array is value * lineWidth
 
         elif isinstance(symbol_layer, QgsRasterLineSymbolLayer):
-            dto.borderThickness = convert_measurement_to_pixel(symbol_layer.width(), symbol_layer.widthUnit())
-            dto.borderTransparency = 100 - symbol_layer.color().alphaF() * 100
+            width = symbol_layer.width()
+            if width == 0:
+                dto.borderThickness = 0
+            else:
+                dto.borderThickness = max(1, round(convert_measurement_to_pixel(width, symbol_layer.widthUnit())))
+            dto.borderTransparency = opacity_to_transparency(symbol_layer.color().alphaF())
             dto.patternData = image_to_base64(symbol_layer.path())
             dto.transparency = 100  # only border, no fill
             dto.fillColor = symbol_layer.color().name()

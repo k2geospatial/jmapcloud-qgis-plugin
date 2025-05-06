@@ -36,7 +36,7 @@ from JMapCloud.core.constant import (
     VECTOR_LAYER_EDIT_PERMISSIONS,
     _base_url,
 )
-from JMapCloud.core.plugin_util import convert_jmap_text_expression
+from JMapCloud.core.plugin_util import find_value_in_dict_or_first
 from JMapCloud.core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.services.style_manager import StyleManager
@@ -46,6 +46,7 @@ from JMapCloud.core.tasks.load_style_task import (
 )
 from JMapCloud.core.views import ProjectData, ProjectLayersData
 from JMapCloud.ui.py_files.action_dialog import ActionDialog
+from JMapCloud.ui.py_files.warning_dialog import WarningDialog
 
 MESSAGE_CATEGORY = "LoadProjectTask"
 
@@ -253,7 +254,7 @@ class ImportProjectManager(QObject):
                         self.load_mvt_layer(layer_data, renderers, labeling)
                         self.is_all_layer_loaded()
 
-                    task = LoadVectorTilesStyleTask(layer_properties, layer_data["elementType"])
+                    task = LoadVectorTilesStyleTask(layer_properties)
                     task.import_style_completed.connect(on_finish)
                     task.taskTerminated.connect(self.is_all_layer_loaded)
                     task.error_occurred.connect(self._error_occur)
@@ -269,8 +270,8 @@ class ImportProjectManager(QObject):
     def load_wms_layer(self, layer_data: dict, sources) -> bool:
 
         # create group of layer because QGIS cannot get all selected sub-layer at once
-        groupName = layer_data["name"][self.project_data.default_language]
-        group = QgsLayerTreeGroup(groupName)
+        name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+        group = QgsLayerTreeGroup(name)
         group.setCustomProperty(
             "plugins/customTreeIcon/icon",
             ":/images/themes/default/mIconRasterGroup.svg",
@@ -287,7 +288,7 @@ class ImportProjectManager(QObject):
         for layer_name, uri in layer_data["layers"].items():
             raster_layer = QgsRasterLayer(uri, layer_name, "wms")
             if not raster_layer.isValid():
-                message = f"Layer {layer_data['name'][self.project_data.default_language]} is not a valid wms layer"
+                message = f"Layer {name} is not a valid wms layer"
                 self.error_occur(message, MESSAGE_CATEGORY)
                 continue
             self.project.addMapLayer(raster_layer, addToLegend=False)
@@ -301,19 +302,21 @@ class ImportProjectManager(QObject):
 
     def load_raster_layer(self, layer_data: dict) -> bool:
         uri = JMapMIS.get_raster_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
-        raster_layer = QgsRasterLayer(uri, layer_data["name"][self.project_data.default_language], "wms")
+        name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+        raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():
             self.project.addMapLayer(raster_layer, addToLegend=False)
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(raster_layer)
             return True
         else:
-            message = f"Layer {layer_data['name'][self.project_data.default_language]} is not valid"
+            message = f"Layer {name} is not valid"
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
 
     def load_geojson_layer(self, layer_data: dict, renderer, labeling, mouse_over=None) -> bool:
         uri = JMapDAS.get_vector_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
-        vector_layer = QgsVectorLayer(uri, layer_data["name"][self.project_data.default_language], "oapif")
+        name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+        vector_layer = QgsVectorLayer(uri, name, "oapif")
         if vector_layer.isValid():
             # set layer style
             vector_layer.setRenderer(renderer)
@@ -339,7 +342,7 @@ class ImportProjectManager(QObject):
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(vector_layer)
             return True
         else:
-            message = f"Layer {layer_data['name'][self.project_data.default_language]} is not valid"
+            message = f"Layer {name} is not valid"
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
@@ -348,7 +351,8 @@ class ImportProjectManager(QObject):
 
         # We need to create a new layer for each style because rule based styles are not supported by MVT
         # create a layer group
-        groupName = f'{layer_data["name"][self.project_data.default_language]}_{layer_data["elementType"]}'
+        base_name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+        groupName = f'{base_name}_{layer_data["elementType"]}'
         group = QgsLayerTreeGroup(groupName)
         # set group icon
         group.setCustomProperty(
@@ -376,7 +380,7 @@ class ImportProjectManager(QObject):
                     ":/images/themes/default/styleicons/singlebandpseudocolor.svg",
                 )
             else:
-                message = f"Layer {layer_data['name'][self.project_data.default_language]} is not valid"
+                message = f"Layer {base_name} is not valid"
                 self.error_occur(message, MESSAGE_CATEGORY)
         if len(group.children()) > 0:
             self.nodes[layer_data["id"]] = group
@@ -464,6 +468,27 @@ class ImportProjectManager(QObject):
             else:
                 all_rights = False
         return edit_right, all_rights
+
+    def _layer_editing_warning(self, layer_permissions: list) -> None:
+        message = """
+            <h1>Warning</h1>
+            <p>You don't have all the right to edit this layer</p>
+            <p>Some changes made on this layer may not be pushed to the JMap Cloud project</p>
+            <p>Here are the rights you have on this layer:</p><br>
+            <style>
+              table {border-collapse: collapse;}
+              td {
+                border:solid, 2px, black;
+                padding: 10px;
+              }
+            </style>
+            <table>
+            """
+        for permission in VECTOR_LAYER_EDIT_PERMISSIONS:
+            message += f"<tr><td>{permission}</td><td>{'O' if permission in layer_permissions else'X'}</td></tr>"
+        message += "</table>"
+        self.warning_dialog = WarningDialog(message)
+        self.warning_dialog.show()
 
     def _sort_layer_tree(self, root: QgsLayerTreeNode, layer_groups: list[dict]):
         """

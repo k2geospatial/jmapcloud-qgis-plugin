@@ -49,6 +49,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         self.total_tasks = 0
 
     def run(self) -> bool:
+        print("start ConvertLayersToZipTask!!!!!!!!!!!!!!!!!!!")
         if self.is_canceled():
             return False
         for layer in self.layers:
@@ -80,14 +81,13 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     self.layer_files.append(layer_data.layer_file)
 
                     # create subtasks
-                    write_subtask = CustomWriteVectorLayerTask(sources, layer_data.layer)
+                    write_subtask = CustomWriteVectorLayerTask(sources[0], layer_data.layer)
                     write_subtask.error_occurred.connect(on_convert_error)
                     compress_task = compressFilesToZipTask(sources, output_path)
                     compress_task.error_occurred.connect(on_convert_error)
                     compress_task.taskCompleted.connect(lambda task=compress_task: self.all_sub_tasks_finished(task))
                     compress_task.taskTerminated.connect(lambda task=compress_task: self.all_sub_tasks_finished(task))
                     # set tasks order
-                    compress_task.addSubTask(write_subtask, subTaskDependency=self.ParentDependsOnSubTask)
                     self.tasks.append(compress_task)
                     self.total_tasks += 1
                 elif layer_data.layer_type == LayerData.LayerType.file_raster:
@@ -97,7 +97,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     )
                     self.layer_files.append(layer_data.layer_file)
 
-                    write_subtask = CustomWriteRasterLayerTask(sources, layer_data.layer)
+                    write_subtask = CustomWriteRasterLayerTask(sources[0], layer_data.layer)
                     write_subtask.error_occurred.connect(on_convert_error)
                     write_subtask.taskCompleted.connect(lambda task=write_subtask: self.all_sub_tasks_finished(task))
                     write_subtask.taskTerminated.connect(lambda task=write_subtask: self.all_sub_tasks_finished(task))
@@ -328,7 +328,7 @@ class CustomWriteVectorLayerTask(CustomQgsTask):
 
         self.main_task = QgsVectorFileWriterTask(layer, str(output_path), writer_options)
         self.main_task.errorOccurred.connect(lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY))
-        QgsApplication.taskManager().addTask(self=self.SubTaskDependency.ParentDependsOnSubTask)
+        self.addSubTask(self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
 
     def run(self):
         if self.isCanceled():
@@ -349,12 +349,12 @@ class CustomWriteRasterLayerTask(CustomQgsTask):
         if not pipe.set(provider):
             self.error_occur("Cannot set pipe provider", MESSAGE_CATEGORY)
 
-        main_task = QgsRasterFileWriterTask(
+        self.main_task = QgsRasterFileWriterTask(
             file_writer, pipe, layer.width(), layer.height(), provider.extent(), provider.crs()
         )
-        main_task.errorOccurred.connect(lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY))
-        main_task.writeComplete.connect(self.write_layer_completed)
-        QgsApplication.taskManager().addTask(main_task.ParentDependsOnSubTask)
+        self.main_task.errorOccurred.connect(lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY))
+        self.main_task.writeComplete.connect(self.write_layer_completed)
+        self.addSubTask(self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
 
 
 class compressFilesToZipTask(CustomQgsTask):

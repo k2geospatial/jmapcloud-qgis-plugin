@@ -16,6 +16,8 @@
 import re
 from enum import Enum, auto
 
+from qgis.core import Qgis
+
 from JMapCloud.config import CONFIG
 
 # config
@@ -37,9 +39,11 @@ ORGANIZATION_SETTING_ID = "JMapCf4"
 USERNAME_SETTING_ID = "JMapCf5"
 AUTH_CONFIG_ID = "JMapACF"
 
-# QSetting path
+# QgsSetting path
 SETTINGS_PREFIX = "JMap"
+ORG_NAME_SUFFIX = "Organization"
 LANGUAGE_SUFFIX = "Language"
+EMAIL_SUFFIX = "login_email"
 
 
 # layer permission
@@ -58,6 +62,23 @@ class AuthState(Enum):
     NO_ORGANIZATION = auto()
 
 
+class ElementTypeWrapper(Enum):
+    POINT = "POINT"
+    LINE = "LINE"
+    POLYGON = "POLYGON"
+    TEXT = "TEXT"
+    IMAGE = "IMAGE"
+
+    def to_qgis_geometry_type(self) -> int:
+        return {
+            self.POINT: Qgis.GeometryType.Point,
+            self.LINE: Qgis.GeometryType.Line,
+            self.POLYGON: Qgis.GeometryType.Polygon,
+            self.TEXT: Qgis.GeometryType.Point,
+            self.IMAGE: Qgis.GeometryType.Unknown,
+        }[self]
+
+
 class JMCOperator(Enum):
     """
     Class to translate QGIS expression operators to JMap cloud operators
@@ -72,55 +93,55 @@ class JMCOperator(Enum):
     EQUALS = auto()
     NOT_EQUALS = auto()
 
-    @staticmethod
-    def operator_translate() -> dict[str, str]:
+    @classmethod
+    def operator_translate(cls) -> dict[str, str]:
         return {
-            ">=": JMCOperator.GREATER_OR_EQUALS_TO.name,
-            "<=": JMCOperator.LOWER_OR_EQUALS_TO.name,
-            ">": JMCOperator.GREATER_THAN.name,
-            "<": JMCOperator.LOWER_THAN.name,
-            "!=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+[nN][oO][tT]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": JMCOperator.IS_NOT_NULL.name,
-            "=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": JMCOperator.IS_NULL.name,
-            "!=|[iI][sS]\s+[nN][oO][tT]": JMCOperator.NOT_EQUALS.name,
-            "=|[iI][sS]": JMCOperator.EQUALS.name,
+            r">=": cls.GREATER_OR_EQUALS_TO.name,
+            r"<=": cls.LOWER_OR_EQUALS_TO.name,
+            r">": cls.GREATER_THAN.name,
+            r"<": cls.LOWER_THAN.name,
+            r"!=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+[nN][oO][tT]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": cls.IS_NOT_NULL.name,
+            r"=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": cls.IS_NULL.name,
+            r"!=|[iI][sS]\s+[nN][oO][tT]": cls.NOT_EQUALS.name,
+            r"=|[iI][sS]": cls.EQUALS.name,
         }
 
-    @staticmethod
-    def translate(operator: str) -> str:
+    @classmethod
+    def translate(cls, operator: str) -> str:
 
-        for pattern, replacement in JMCOperator.operator_translate().items():
+        for pattern, replacement in cls.operator_translate().items():
             if re.match(pattern, operator):
                 return replacement
         return None
 
-    @staticmethod
-    def reverse(operator: str) -> str:
-        if operator == JMCOperator.GREATER_OR_EQUALS_TO.name:
-            return JMCOperator.LOWER_OR_EQUALS_TO.name
-        elif operator == JMCOperator.LOWER_OR_EQUALS_TO.name:
-            return JMCOperator.GREATER_OR_EQUALS_TO.name
-        elif operator == JMCOperator.GREATER_THAN.name:
-            return JMCOperator.LOWER_THAN.name
-        elif operator == JMCOperator.LOWER_THAN.name:
-            return JMCOperator.GREATER_THAN.name
+    @classmethod
+    def reverse(cls, operator: str) -> str:
+        if operator == cls.GREATER_OR_EQUALS_TO.name:
+            return cls.LOWER_OR_EQUALS_TO.name
+        elif operator == cls.LOWER_OR_EQUALS_TO.name:
+            return cls.GREATER_OR_EQUALS_TO.name
+        elif operator == cls.GREATER_THAN.name:
+            return cls.LOWER_THAN.name
+        elif operator == cls.LOWER_THAN.name:
+            return cls.GREATER_THAN.name
 
-    @staticmethod
-    def inverse(operator: str) -> str:
-        if operator == JMCOperator.GREATER_OR_EQUALS_TO.name:
-            return JMCOperator.LOWER_THAN.name
-        elif operator == JMCOperator.LOWER_OR_EQUALS_TO.name:
-            return JMCOperator.GREATER_THAN.name
-        elif operator == JMCOperator.GREATER_THAN.name:
-            return JMCOperator.LOWER_OR_EQUALS_TO.name
-        elif operator == JMCOperator.LOWER_THAN.name:
-            return JMCOperator.GREATER_OR_EQUALS_TO.name
-        elif operator == JMCOperator.IS_NOT_NULL.name:
-            return JMCOperator.IS_NULL.name
-        elif operator == JMCOperator.IS_NULL.name:
-            return JMCOperator.IS_NOT_NULL.name
-        elif operator == JMCOperator.NOT_EQUALS.name:
-            return JMCOperator.EQUALS.name
-        elif operator == JMCOperator.EQUALS.name:
-            return JMCOperator.NOT_EQUALS.name
+    @classmethod
+    def inverse(cls, operator: str) -> str:
+        if operator == cls.GREATER_OR_EQUALS_TO.name:
+            return cls.LOWER_THAN.name
+        elif operator == cls.LOWER_OR_EQUALS_TO.name:
+            return cls.GREATER_THAN.name
+        elif operator == cls.GREATER_THAN.name:
+            return cls.LOWER_OR_EQUALS_TO.name
+        elif operator == cls.LOWER_THAN.name:
+            return cls.GREATER_OR_EQUALS_TO.name
+        elif operator == cls.IS_NOT_NULL.name:
+            return cls.IS_NULL.name
+        elif operator == cls.IS_NULL.name:
+            return cls.IS_NOT_NULL.name
+        elif operator == cls.NOT_EQUALS.name:
+            return cls.EQUALS.name
+        elif operator == cls.EQUALS.name:
+            return cls.NOT_EQUALS.name
         else:
             return None

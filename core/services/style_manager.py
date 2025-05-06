@@ -38,6 +38,9 @@ from qgis.core import (
     QgsVectorTileBasicLabeling,
     QgsVectorTileBasicLabelingStyle,
     QgsVectorTileBasicRendererStyle,
+    QgsLabelLineSettings,
+    QgsLabelThinningSettings
+    
 )
 from qgis.PyQt.QtCore import QPointF, QSizeF, Qt
 from qgis.PyQt.QtGui import QColor, QFont, QPixmap
@@ -49,6 +52,7 @@ from JMapCloud.core.plugin_util import (
 )
 from JMapCloud.core.qgs_message_bar_handler import QgsMessageBarHandler
 from JMapCloud.core.services.jmap_services_access import JMapMCS
+from JMapCloud.core.constant import ElementTypeWrapper
 
 
 class StyleManager:
@@ -114,9 +118,9 @@ class StyleManager:
         if "labellingConfiguration" not in layer_data:
             return {}
         if "text" in layer_data["labellingConfiguration"]:
-            language = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
+            text = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
             layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(
-                layer_data["labellingConfiguration"]["text"][language]
+                text
             )
         return layer_data["labellingConfiguration"]
 
@@ -125,8 +129,7 @@ class StyleManager:
 
         if "mouseOverConfiguration" not in layer_data or "text" not in layer_data["mouseOverConfiguration"]:
             return None
-        language = find_value_in_dict_or_first(layer_data["mouseOverConfiguration"]["text"], [default_language], "")
-        text = layer_data["mouseOverConfiguration"]["text"][language]
+        text = find_value_in_dict_or_first(layer_data["mouseOverConfiguration"]["text"], [default_language], "")
 
         text_label = convert_jmap_text_expression(text)
         text_label = text_label.replace("\n", "<br>\n")
@@ -161,6 +164,7 @@ class StyleManager:
                     "styleRules": {},
                     "label": {},
                     "mouseOver": None,
+                    "elementType" : None,
                 }
             layer = layer_styles[layer_id]
 
@@ -252,15 +256,19 @@ class StyleManager:
 
             layer_styles[layer_data["id"]]["label"] = labeling_config
             layer_styles[layer_data["id"]]["mouseOver"] = mouse_over_config
+            if layer_data["elementType"] in ElementTypeWrapper:
+                layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[layer_data["elementType"]].to_qgis_geometry_type()
+            else:
+                layer_styles[layer_data["id"]]["elementType"] = Qgis.GeometryType.Unknown
 
         return layer_styles
 
     @classmethod
-    def get_layer_labels(cls, labeling_data: dict) -> QgsRuleBasedLabeling:
+    def get_layer_labels(cls, labeling_data: dict, element_type: Qgis.GeometryType) -> QgsRuleBasedLabeling:
         if not bool(labeling_data):
             return QgsRuleBasedLabeling(QgsRuleBasedLabeling.Rule(None))
 
-        rule_settings = cls._get_pal_layer_settings(labeling_data)
+        rule_settings = cls._get_pal_layer_settings(labeling_data,element_type)
 
         # set rule settings
         rule = QgsRuleBasedLabeling.Rule(rule_settings)
@@ -323,20 +331,20 @@ class StyleManager:
         return renderer
 
     @classmethod
-    def get_mvt_layer_labels(cls, labeling_data: dict, element_type: str) -> QgsVectorTileBasicLabeling:
+    def get_mvt_layer_labels(cls, labeling_data: dict, element_type: Qgis.GeometryType) -> QgsVectorTileBasicLabeling:
 
         if not bool(labeling_data):
             return QgsVectorTileBasicLabeling()
 
-        label_settings = cls._get_pal_layer_settings(labeling_data)
+        label_settings = cls._get_pal_layer_settings(labeling_data, element_type)
 
         rule = QgsVectorTileBasicLabelingStyle()
 
-        if element_type in ["POINT", "TEXT"]:
+        if element_type == Qgis.GeometryType.Point:
             rule.setGeometryType(Qgis.GeometryType.Point)
-        elif element_type == "LINE":
+        elif element_type == Qgis.GeometryType.Line:
             rule.setGeometryType(Qgis.GeometryType.Line)
-        elif element_type == "POLYGON":
+        elif element_type == Qgis.GeometryType.Polygon:
             rule.setGeometryType(Qgis.GeometryType.Polygon)
 
         rule.setLabelSettings(label_settings)
@@ -355,7 +363,7 @@ class StyleManager:
 
     @classmethod
     def get_mvt_layer_styles(
-        cls, style_rules: dict, element_type: str
+        cls, style_rules: dict, element_type: Qgis.GeometryType
     ) -> list[dict[str, list[QgsVectorTileBasicRendererStyle]]]:
 
         # MVT layer are in a group of layer because of impossibility to handle multiple styles in one layer
@@ -371,13 +379,13 @@ class StyleManager:
                 # style by zoom level
                 for h, style_map_scale in condition["styleMapScales"].items():
                     symbol = cls._convert_formatted_style_map_scale_to_symbol(style_map_scale)
-                    if element_type in ["POINT", "TEXT"]:
+                    if element_type == Qgis.GeometryType.Point:
                         style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Point)
 
-                    elif element_type == "LINE":
+                    elif element_type == Qgis.GeometryType.Line:
                         style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Line)
 
-                    elif element_type == "POLYGON":
+                    elif element_type == Qgis.GeometryType.Polygon:
                         style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Polygon)
 
                     else:
@@ -805,66 +813,92 @@ class StyleManager:
             return x, y
 
     @classmethod
-    def _get_pal_layer_settings(cls, labeling_data: dict) -> QgsPalLayerSettings:
+    def _get_pal_layer_settings(cls, labeling_data: dict, element_type: Qgis.GeometryType) -> QgsPalLayerSettings:
 
         # set label settings
         rule_settings = QgsPalLayerSettings()
         rule_settings.centroidInside = True
         rule_settings.centroidWhole = True
         rule_settings.isExpression = True
+        rule_settings.layerType = element_type
 
+        
         if "text" in labeling_data:
             rule_settings.fieldName = labeling_data["text"]
 
-        if "symbolPlacement" in labeling_data:
-            symbol_placement = labeling_data["symbolPlacement"]
-            if symbol_placement == "point":
-                rule_settings.placement = Qgis.LabelPlacement.OverPoint
-            elif symbol_placement in ["line", "line-center"]:
-                rule_settings.placement = Qgis.LabelPlacement.Line
-        else:  # mapbox default value
-            rule_settings.placement = Qgis.LabelPlacement.OverPoint
-
-        # maplibre text anchor is inverse of qgis
-        if "anchor" in labeling_data:
-            text_anchor = labeling_data["anchor"].lower()
-            # if isinstance(text_anchor, cls.QGISExpression):
-            #    convert_dict = {
-            #        "'center'": int(QgsPalLayerSettings.QuadrantOver),
-            #        "'left'": int(QgsPalLayerSettings.QuadrantLeft),
-            #        "'right'": int(QgsPalLayerSettings.QuadrantRight),
-            #        "'top'": int(QgsPalLayerSettings.QuadrantAbove),
-            #        "'bottom'": int(QgsPalLayerSettings.QuadrantBelow),
-            #        "'top-left'": int(QgsPalLayerSettings.QuadrantAboveLeft),
-            #        "'top-right'": int(QgsPalLayerSettings.QuadrantAboveRight),
-            #        "'bottom-left'": int(QgsPalLayerSettings.QuadrantBelowLeft),
-            #        "'bottom-right'": int(QgsPalLayerSettings.QuadrantBelowRight),
-            #    }
-            #    text_anchor = text_anchor.convert_expression_variable_to_qgis_variable(convert_dict)
-            #    rule_settings = cls._set_object_data_define_property_expression(
-            #        rule_settings, Qgis.LabelQuadrantPosition, text_anchor
+        #set position settings
+        offset_y = 0
+        if "offset" in labeling_data:
+            text_translate = labeling_data["offset"]
+            # if isinstance(text_translate, str):
+            #    rule_settings.xOffset = cls._set_object_data_define_property_expression(
+            #        rule_settings, QgsPalLayerSettings.OffsetXY, text_translate
             #    )
             # else:
-            if text_anchor == "left":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantRight
-            elif text_anchor == "right":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantLeft
-            elif text_anchor == "top":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelow
-            elif text_anchor == "bottom":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAbove
-            elif text_anchor == "top-left":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelowRight
-            elif text_anchor == "top-right":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelowLeft
-            elif text_anchor == "bottom-left":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAboveRight
-            elif text_anchor == "bottom-right":
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAboveLeft
-            else:
-                # mapbox default value
-                rule_settings.quadOffset = QgsPalLayerSettings.QuadrantOver
+            offset_x, offset_y = cls._convert_jmap_offset(text_translate)
+            
 
+        # line label are not handled by point on map but rather by line itself
+        if element_type == Qgis.GeometryType.Line:
+            line_settings = QgsLabelLineSettings()
+            line_settings.setAnchorClipping(QgsLabelLineSettings.AnchorClipping.UseEntireLine)
+            #line render settings
+            if "labelSpacing" in labeling_data:
+                rule_settings.repeatDistance = labeling_data["labelSpacing"]
+                rule_settings.repeatDistanceUnit = Qgis.RenderUnit.Pixels
+            #--------------------
+
+            if "followMapRotation" in labeling_data and labeling_data["followMapRotation"]:
+                rule_settings.placement = Qgis.LabelPlacement.Line
+                if "anchor" in labeling_data:
+                    if "top" in labeling_data["anchor"].lower(): # Maplibre top is bottom in qgis and vice versa
+                        offset_y = -offset_y
+                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.BelowLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+                    else:
+                        if "bottom" not in labeling_data["anchor"].lower():
+                            offset_y -= 6
+                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.AboveLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+
+                    rule_settings.dist = offset_y
+                    rule_settings.distUnits = Qgis.RenderUnit.Pixels
+            else:
+                rule_settings.placement = Qgis.LabelPlacement.Horizontal
+
+            rule_settings.setLineSettings(line_settings)
+
+        # label is handled as point
+        else: 
+            rule_settings.placement = Qgis.LabelPlacement.OverPoint
+            rule_settings.xOffset = offset_x
+            rule_settings.yOffset = -offset_y
+            rule_settings.offsetUnits = Qgis.RenderUnit.Pixels
+            # maplibre text anchor is inverse of qgis
+            if "anchor" in labeling_data:
+                text_anchor = labeling_data["anchor"].lower()
+
+                if text_anchor == "left":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantRight
+                elif text_anchor == "right":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantLeft
+                elif text_anchor == "top":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelow
+                elif text_anchor == "bottom":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAbove
+                elif text_anchor == "top-left":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelowRight
+                elif text_anchor == "top-right":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantBelowLeft
+                elif text_anchor == "bottom-left":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAboveRight
+                elif text_anchor == "bottom-right":
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantAboveLeft
+                else:
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantOver
+
+        # set render settings
+        thinning_settings = QgsLabelThinningSettings()
+        thinning_settings.setMinimumFeatureSize(15)
+        rule_settings.setThinningSettings(thinning_settings)
         if "allowOverlapping" in labeling_data:
             text_allow_overlap = labeling_data["allowOverlapping"]
             # if isinstance(text_allow_overlap, cls.QGISExpression):
@@ -881,18 +915,7 @@ class StyleManager:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.AllowOverlapAtNoCost)
             else:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.PreventOverlap)
-
-        if "offset" in labeling_data:
-            text_translate = labeling_data["offset"]
-            # if isinstance(text_translate, str):
-            #    rule_settings.xOffset = cls._set_object_data_define_property_expression(
-            #        rule_settings, QgsPalLayerSettings.OffsetXY, text_translate
-            #    )
-            # else:
-            x, y = cls._convert_jmap_offset(text_translate)
-            rule_settings.xOffset = x
-            rule_settings.yOffset = -y
-            rule_settings.offsetUnits = Qgis.RenderUnit.Pixels
+        
 
         # set label setting text format
         text_format = QgsTextFormat()

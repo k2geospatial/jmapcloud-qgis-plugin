@@ -28,7 +28,7 @@ class LoadVectorStyleTask(CustomQgsTask):
         if self.isCanceled():
             return False
         renderer = StyleManager.get_layer_styles(self.layer_properties["styleRules"])
-        labeling = StyleManager.get_layer_labels(self.layer_properties["label"])
+        labeling = StyleManager.get_layer_labels(self.layer_properties["label"], self.layer_properties["elementType"])
 
         self.import_style_completed.emit(renderer, labeling)
         return True
@@ -37,10 +37,9 @@ class LoadVectorStyleTask(CustomQgsTask):
 class LoadVectorTilesStyleTask(CustomQgsTask):
     import_style_completed = pyqtSignal((object, object))
 
-    def __init__(self, layer_properties, element_type) -> None:
+    def __init__(self, layer_properties) -> None:
         super().__init__("Import Style", QgsTask.CanCancel)
         self.layer_properties = layer_properties
-        self.element_type = element_type
 
     def run(
         self,
@@ -48,7 +47,7 @@ class LoadVectorTilesStyleTask(CustomQgsTask):
         if self.isCanceled():
             return False
         layer_properties = self.layer_properties
-        element_type = self.element_type
+        element_type = layer_properties["elementType"]
         style_groups = StyleManager.get_mvt_layer_styles(layer_properties["styleRules"], element_type)
         labeling = StyleManager.get_mvt_layer_labels(layer_properties["label"], element_type)
         renderers = {}

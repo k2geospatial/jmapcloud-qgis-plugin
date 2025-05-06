@@ -49,8 +49,8 @@ def qgis_data_type_name_to_mysql(type_enum: QMetaType.Type) -> str:
     QGIS_DATA_TYPE_TO_MYSQL = {
         QMetaType.Int: "INTEGER",
         QMetaType.LongLong: "BIGINT",
-        QMetaType.Double: "DOUBLE",
-        QMetaType.Float: "DOUBLE",
+        QMetaType.Double: "DECIMAL",
+        QMetaType.Float: "DECIMAL",
         QMetaType.QString: "VARCHAR",
         QMetaType.QDate: "DATE",
         QMetaType.QTime: "TIME",
@@ -69,10 +69,16 @@ def convert_crs_to_epsg(crs: QgsCoordinateReferenceSystem) -> QgsCoordinateRefer
 
 
 def find_value_in_dict_or_first(dict: dict, keys: list, default_value: any = None) -> any:
+    """Find the first value in a dictionary that matches one of the keys.
+
+    If the dictionary contains one of the keys, return the value associated with it.
+    Otherwise, return the first item in the dictionary, or the default value if no items are found.
+    """
+
     for key in keys:
         if key in dict:
             return dict[key]
-    return next(iter(dict), default_value)
+    return next(iter(dict.values()), default_value)
 
 
 def convert_zoom_to_scale(zoom: int) -> int:
@@ -246,3 +252,12 @@ def convert_pen_style_to_dash_array(pen_style, width) -> list[int]:
         return [4, 2, 1, 2, 1, 2]
 
     return dashPattern
+
+
+def opacity_to_transparency(opacity) -> float:
+
+    return (1 - min(1.0, opacity)) * 100
+
+
+def transparency_to_opacity(transparency) -> float:
+    return 1 - transparency / 100

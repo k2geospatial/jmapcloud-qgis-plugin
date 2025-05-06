@@ -21,7 +21,10 @@ from JMapCloud.core.DTOS import (
     MouseOverConfigDTO,
     ProjectDTO,
 )
-from JMapCloud.core.plugin_util import convert_QGIS_text_expression_to_JMap
+from JMapCloud.core.plugin_util import (
+    convert_QGIS_text_expression_to_JMap,
+    opacity_to_transparency,
+)
 from JMapCloud.core.services.jmap_services_access import JMapMCS
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
@@ -76,7 +79,7 @@ class CreateJMCProjectTask(CustomQgsTask):
             request = self.define_next_post_layer_request(layer_data)
             if request:
                 reply = self.request_manager.custom_request(request)
-                self.is_all_layers_style_exported(reply, layer_data)
+                self.is_all_layers_exported(reply, layer_data)
             else:
                 self.no_layers_created += 1
                 layer_data.status = LayerData.Status.layer_creation_error
@@ -144,7 +147,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         body = layer_dto.to_json()
         return RequestManager.RequestData(url, type="POST", body=body, id=layer_data.layer_id)
 
-    def is_all_layers_style_exported(self, reply: RequestManager.ResponseData, layer_data: LayerData):
+    def is_all_layers_exported(self, reply: RequestManager.ResponseData, layer_data: LayerData):
         print("is_all_layers_created")
         if reply.status != QNetworkReply.NetworkError.NoError:
             layer_data.status = LayerData.Status.layer_creation_error
