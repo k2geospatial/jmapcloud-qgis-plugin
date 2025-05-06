@@ -197,7 +197,6 @@ class ImportProjectManager(QObject):
             # -------
 
         self.project_layers_data.layers_properties = formatted_layers_properties
-        print("end check project data")
         return self.project_layers_data
 
     def load_project(self):
@@ -205,7 +204,6 @@ class ImportProjectManager(QObject):
         Load the jmap project in QGIS
         this method call all the other method to load the project
         """
-        print("load project")
         self.action_dialog.set_text(f"Loading project layers...")
         self.project_vector_type = ProjectVectorType(self.project_vector_type)
         self.project = QgsProject.instance()
@@ -351,7 +349,9 @@ class ImportProjectManager(QObject):
 
         # We need to create a new layer for each style because rule based styles are not supported by MVT
         # create a layer group
-        base_name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+        base_name = find_value_in_dict_or_first(
+            layer_data["name"], [self.project_data.default_language], layer_data["id"]
+        )
         groupName = f'{base_name}_{layer_data["elementType"]}'
         group = QgsLayerTreeGroup(groupName)
         # set group icon

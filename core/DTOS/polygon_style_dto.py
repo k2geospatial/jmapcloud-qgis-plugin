@@ -27,6 +27,7 @@ from JMapCloud.core.plugin_util import (
     convert_pen_style_to_dash_array,
     image_to_base64,
     opacity_to_transparency,
+    transparency_to_opacity,
 )
 
 
@@ -47,6 +48,17 @@ class PolygonStyleDTO(StyleDTO):
 
     def __init__(self):
         super().__init__(self.StyleDTOType.POLYGON)
+
+    @classmethod
+    def from_symbol(cls, symbol: QgsFillSymbol) -> list["PolygonStyleDTO"]:
+        dtos = super().from_symbol(symbol)
+        for dto in dtos:
+            if isinstance(dto, cls):
+                dto.borderTransparency = opacity_to_transparency(
+                    transparency_to_opacity(dto.borderTransparency) * symbol.opacity()
+                )
+
+        return dtos
 
     @classmethod
     def from_symbol_layer(cls, symbol_layer: QgsSymbolLayer) -> "PolygonStyleDTO":

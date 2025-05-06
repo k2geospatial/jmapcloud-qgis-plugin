@@ -49,7 +49,6 @@ class ConvertLayersToZipTask(CustomTaskManager):
         self.total_tasks = 0
 
     def run(self) -> bool:
-        print("start ConvertLayersToZipTask!!!!!!!!!!!!!!!!!!!")
         if self.is_canceled():
             return False
         for layer in self.layers:
@@ -82,8 +81,11 @@ class ConvertLayersToZipTask(CustomTaskManager):
 
                     # create subtasks
                     write_subtask = CustomWriteVectorLayerTask(sources[0], layer_data.layer)
-                    write_subtask.error_occurred.connect(on_convert_error)
                     compress_task = compressFilesToZipTask(sources, output_path)
+                    compress_task.addSubTask(
+                        write_subtask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask
+                    )
+                    write_subtask.error_occurred.connect(on_convert_error)
                     compress_task.error_occurred.connect(on_convert_error)
                     compress_task.taskCompleted.connect(lambda task=compress_task: self.all_sub_tasks_finished(task))
                     compress_task.taskTerminated.connect(lambda task=compress_task: self.all_sub_tasks_finished(task))
@@ -97,12 +99,12 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     )
                     self.layer_files.append(layer_data.layer_file)
 
-                    write_subtask = CustomWriteRasterLayerTask(sources[0], layer_data.layer)
-                    write_subtask.error_occurred.connect(on_convert_error)
-                    write_subtask.taskCompleted.connect(lambda task=write_subtask: self.all_sub_tasks_finished(task))
-                    write_subtask.taskTerminated.connect(lambda task=write_subtask: self.all_sub_tasks_finished(task))
+                    write_task = CustomWriteRasterLayerTask(sources[0], layer_data.layer)
+                    write_task.error_occurred.connect(on_convert_error)
+                    write_task.taskCompleted.connect(lambda task=write_task: self.all_sub_tasks_finished(task))
+                    write_task.taskTerminated.connect(lambda task=write_task: self.all_sub_tasks_finished(task))
                     # set tasks order
-                    self.tasks.append(write_subtask)
+                    self.tasks.append(write_task)
                     self.total_tasks += 1
                 else:
                     message = f"Error writing layer '{layer_data.layer_name}': unknown layer type"
@@ -196,6 +198,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
             layer_data.datasource_layer = uri_components["layers"]
         if "format" in uri_components and uri_components["format"] != None:
             layer_data.format = uri_components["format"]
+
         # ---- API-based layers (WFS-like) ----
         if provider_name in ["oapif", "wfs"]:
             layer_data.layer_type = LayerData.LayerType.API_FEATURES
@@ -208,6 +211,8 @@ class ConvertLayersToZipTask(CustomTaskManager):
         elif isinstance(layer, QgsVectorLayer) and "path" in uri_components:
             layer_data.layer_type = LayerData.LayerType.file_vector
             base_path = Path(uri_components["path"])
+            if base_path.is_dir() and "layerName" in uri_components and bool(uri_components["layerName"]):
+                base_path = base_path / uri_components["layerName"]
             ext = base_path.suffix.lower()
             # --- Zip file ---
             if ext == ".zip":
@@ -318,7 +323,6 @@ class CustomWriteVectorLayerTask(CustomQgsTask):
 
     def __init__(self, output_path: Path, layer: QgsVectorLayer):
         super().__init__("Write Vector Layer", QgsTask.CanCancel)
-        print("Write Vector Layer")
         writer_options = QgsVectorFileWriter.SaveVectorOptions()
         writer_options.driverName = "GeoJSON"
         writer_options.layerName = layer.name()
@@ -333,7 +337,6 @@ class CustomWriteVectorLayerTask(CustomQgsTask):
     def run(self):
         if self.isCanceled():
             return False
-        print("end Write Vector Layer")
         return True
 
 
@@ -392,5 +395,4 @@ class compressFilesToZipTask(CustomQgsTask):
             self.error_occur(str(e), MESSAGE_CATEGORY)
             self.setProgress(100)
             return False
-        print("end Compress Layer", self.current_step)
         return True

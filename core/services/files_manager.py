@@ -53,14 +53,12 @@ class FilesUploadManager(QObject):
             return False
 
         total_steps = len(self.layer_files)
-        print("run files upload manager", total_steps)
         if len(self.layer_files) == 0:
             self.progress_changed.emit(100.0)
             self.upload_finished.emit(self.layers_data)
             return True
         self.step_changed.emit(f"Uploading layers files")
         for i, layer_file in enumerate(self.layer_files):
-            print(f"uploading {layer_file.file_path}")
             file_uploader = FileUploader(layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
@@ -72,14 +70,11 @@ class FilesUploadManager(QObject):
                 self.progress[ref] = progress
                 total_progress = sum(self.progress) / len(self.progress)
                 self.progress_changed.emit(total_progress)
-                print(f"progress {ref}: {progress}, total : {sum(self.progress) / len(self.progress)}")
 
             file_uploader.error_occurred.connect(error_occurred)
             file_uploader.progress_changed.connect(lambda progress, ref=i: progress_changed(progress, ref))
-            print("layer file upload", layer_file.file_path)
 
             def next_func(jmc_file_id):
-                print("layer file upload", jmc_file_id)
                 self.is_all_files_uploaded(jmc_file_id)
 
             file_uploader.requests_finished.connect(next_func)
@@ -93,7 +88,6 @@ class FilesUploadManager(QObject):
             file_uploader.cancel()
 
     def is_all_files_uploaded(self, jmc_file_id: str):
-        print("is_all_files_uploaded")
         self._num_file_uploaded += 1
         self.files_to_analyze.append(jmc_file_id)
         if self._num_file_uploaded == len(self.layer_files) and not self._cancel:
@@ -118,7 +112,6 @@ class FilesUploadManager(QObject):
             elif response.content["status"] == "ANALYZED":
                 self.files_to_analyze.remove(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
-                print("all files analyzed")
                 self.recurring_event.stop()
                 self._num_file_uploaded = 0
                 self.upload_finished.emit(self.layers_data)
@@ -126,7 +119,6 @@ class FilesUploadManager(QObject):
         def poke_all_not_analyzed_files():
             if self._cancel:
                 self.recurring_event.stop()
-            print("poke_all_not_analyzed_files")
 
             for jmc_file_id in self.files_to_analyze:
                 url = f"{API_FUS_URL}/organizations/{self.organization_id}/files/{jmc_file_id}"
@@ -208,7 +200,6 @@ class FileUploader(QObject):
         url_array = location.split("/")
         file_id = url_array[-1]
         self.layer_file.jmc_file_id = file_id
-        print("file_id", file_id, self.layer_file.jmc_file_id)
         self.url = f"{url}/{file_id}"
         self.progress_changed.emit(self.step / self.total_steps * 100.0)
         self.execute_next_request(response)
@@ -218,7 +209,6 @@ class FileUploader(QObject):
         """
         this function must be call after upload initialization
         """
-        print("next", self, self.layer_file.jmc_file_id)
         if self._cancel:
             return False
         if response != None:
@@ -247,7 +237,6 @@ class FileUploader(QObject):
                 self.step += 1  # first call will be on initialization
                 self.progress_changed.emit(self.step / self.total_steps * 100.0)
             if self.file_offset >= self.file_length:
-                print("all requests finished", self.layer_file.jmc_file_id)
                 self.pending_requests = []
                 self.requests_finished.emit(self.layer_file.jmc_file_id)
                 return True
@@ -270,7 +259,6 @@ class FileUploader(QObject):
             "content-length": f"{content_length}",
             "Upload-Offset": f"{self.file_offset}",
         }
-        print("next request", self.layer_file.jmc_file_id)
         return RequestManager.RequestData(
             self.url,
             headers,
@@ -310,7 +298,6 @@ class DatasourceManager(QObject):
             self.create_datasource(layer_data)
 
     def create_datasource(self, layer_data: LayerData) -> bool:
-        print("create_datasource", layer_data.layer_name)
         # prepare request data
         request_DTO = DatasourceDTO()
         request_DTO.description = ""  # TODO
@@ -374,7 +361,6 @@ class DatasourceManager(QObject):
         return True
 
     def read_datasource_creation_response(self, response: RequestManager.ResponseData, layer_data: LayerData):
-        print("read_datasource_creation_response", layer_data.layer_name)
         if response.status == QNetworkReply.NetworkError.NoError and "id" in response.content:
             datasource_id = response.content["id"]
             layer_data.datasource_id = datasource_id
@@ -384,13 +370,11 @@ class DatasourceManager(QObject):
         self.is_all_datasources_created(layer_data)
 
     def is_all_datasources_created(self, layer_data: LayerData):
-        print("is_all_datasources_created")
         self._num_datasource_created += 1
         self.progress_changed.emit(self._num_datasource_created / len(self.layers_data) * 100)
         if layer_data.status == LayerData.Status.no_error:
             self.datasource_to_analyze.append(layer_data)
         if self._num_datasource_created == len(self.layers_data):
-            print("all datasources created")
             self._num_datasource_created = 0
             self.start_poking_jmc_datasource_analyzers()
 
@@ -410,12 +394,10 @@ class DatasourceManager(QObject):
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.datasource_id = response.content["id"]
             if len(self.datasource_to_analyze) == 0:
-                print("all datasources analyzed")
                 recurring_event.stop()
                 self.datasources_creation_finished.emit(self.layers_data)
 
         def poke_all_not_analyzed_datasources():
-            print("poke_all_not_analyzed_datasources", len(self.datasource_to_analyze))
 
             for layer_data in self.datasource_to_analyze:
                 url = f"{API_MCS_URL}/organizations/{self.organization_id}/datasources/{layer_data.datasource_id}"
@@ -423,7 +405,6 @@ class DatasourceManager(QObject):
                 next_func = lambda response, layer_data=layer_data: is_datasource_analyzed(response, layer_data)
                 self.request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
-                print("all datasources analyzed")
                 recurring_event.stop()
                 self.datasources_creation_finished.emit(self.layers_data)
 

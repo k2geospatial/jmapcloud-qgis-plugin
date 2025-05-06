@@ -90,10 +90,7 @@ class ExportProjectManager(QObject):
     def _upload_layer_files(self, layers_data: list[LayerData], layer_files: list[LayerFile]):
         if self._cancel:
             return
-        for layer_file in layer_files:
-            print(layer_file.file_path, layer_file.upload_status)
-        for layer_data in layers_data:
-            print(layer_data.layer_name, layer_data.status)
+
         if len(layers_data) == 0:
             self._finish(False)
             return
@@ -164,7 +161,6 @@ class ExportProjectManager(QObject):
 
         self.current_step += 1
         self.action_dialog.set_text("Exporting layer styles")
-        print("exporting layer styles")
 
         export_layer_styles_task = ExportLayersStyleTask(layers_data, self.project_data)
         export_layer_styles_task.layer_styles_exportation_finished.connect(self._finish)

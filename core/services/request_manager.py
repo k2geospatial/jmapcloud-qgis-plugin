@@ -95,7 +95,6 @@ class RequestManager(QObject):
     def add_requests(self, request: "RequestManager.RequestData") -> pyqtSignal:
         """add a request to the queue"""
         signal_obj = TemporarySignalObject()
-        print("new signal object", signal_obj)
         self.queue.append((request, signal_obj))
         self.trigger_next_request.emit()
 
@@ -106,11 +105,9 @@ class RequestManager(QObject):
         while self.queue and self.active_requests < self.max_concurrent:
 
             request, signal_obj = self.queue.pop(0)
-            print("ejected signal object", signal_obj)
 
             def _handle_queue_response(response: RequestManager.ResponseData, signal_obj=signal_obj):
                 self.pending_request.pop(response.id)
-                print(signal_obj.signal, response.id)
                 signal_obj.signal.emit(response)
                 self.active_requests -= 1
                 self._send_next_request()
@@ -234,7 +231,6 @@ class RequestManager(QObject):
             def on_finished(reply=reply, id=request_data.id):
                 reply.disconnect()
                 response_data = RequestManager._handle_reply(reply, id)
-                print(id, "finished, response_data:", response_data.id)
                 callback(response_data)
 
             reply.finished.connect(on_finished)

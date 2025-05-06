@@ -26,7 +26,6 @@ from qgis.core import (
     QgsRuleBasedRenderer,
     QgsSingleSymbolRenderer,
     QgsSymbol,
-    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
@@ -47,6 +46,7 @@ from JMapCloud.core.plugin_util import (
     convert_jmap_datetime,
     convert_scale_to_zoom,
     opacity_to_transparency,
+    transparency_to_opacity,
 )
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
@@ -396,6 +396,16 @@ class ExportLayerStyleTask(CustomQgsTask):
             initial_type = "POLYGON"
         else:
             raise
+
+        # patch layer opacity
+        for style in styles:
+            style.transparency = opacity_to_transparency(
+                transparency_to_opacity(style.transparency) * self.layer_data.layer.opacity()
+            )
+            if isinstance(style, PolygonStyleDTO):
+                style.borderTransparency = opacity_to_transparency(
+                    transparency_to_opacity(style.borderTransparency) * self.layer_data.layer.opacity()
+                )
 
         style_ids = []
 

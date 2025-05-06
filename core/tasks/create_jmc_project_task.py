@@ -75,7 +75,6 @@ class CreateJMCProjectTask(CustomQgsTask):
         self.project_data.project_id = content["id"]
 
         for layer_data in self.layers_data:
-            print("create layer : ", layer_data.layer_name)
             request = self.define_next_post_layer_request(layer_data)
             if request:
                 reply = self.request_manager.custom_request(request)
@@ -148,7 +147,6 @@ class CreateJMCProjectTask(CustomQgsTask):
         return RequestManager.RequestData(url, type="POST", body=body, id=layer_data.layer_id)
 
     def is_all_layers_exported(self, reply: RequestManager.ResponseData, layer_data: LayerData):
-        print("is_all_layers_created")
         if reply.status != QNetworkReply.NetworkError.NoError:
             layer_data.status = LayerData.Status.layer_creation_error
             self.error_occur(reply.error_message, MESSAGE_CATEGORY)
@@ -171,19 +169,15 @@ class CreateJMCProjectTask(CustomQgsTask):
                     ids_list_order.append(layer_data.jmc_layer_id)
                     break
 
-        print("update layers order")
         url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-order"
         body = {"ids": ids_list_order}
         request = RequestManager.RequestData(url, body=body, type="PUT")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
-            print("error")
             return False
-        print("success")
         return True
 
     def _update_layer_groups(self, root: QgsLayerTreeNode, id: str = "root") -> bool:
-        print("update layer groups", root.name() or "root")
         url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-groups"
         layer_groups_ids = []
         root.children()
@@ -211,7 +205,5 @@ class CreateJMCProjectTask(CustomQgsTask):
         request = RequestManager.RequestData(f"{url}/{id}", body=body, type="PATCH")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
-            print("error")
             return False
-        print("success")
         return True
