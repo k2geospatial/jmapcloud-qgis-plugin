@@ -21,7 +21,6 @@ from JMapCloud.core.plugin_util import (
     image_to_base64,
     opacity_to_transparency,
     symbol_to_SVG_base64,
-    transparency_to_opacity,
 )
 
 

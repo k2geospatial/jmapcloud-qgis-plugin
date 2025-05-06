@@ -25,7 +25,6 @@ from JMapCloud.core.constant import (
 )
 from JMapCloud.core.DTOS.project_dto import ProjectDTO
 from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.signal_object import TemporarySignalObject
 
 
 class JMapMCS:

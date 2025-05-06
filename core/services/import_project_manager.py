@@ -11,14 +11,12 @@
 # -----------------------------------------------------------
 
 
-import re
 from enum import Enum
 
 from qgis.core import (
     Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
-    QgsFeedback,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,

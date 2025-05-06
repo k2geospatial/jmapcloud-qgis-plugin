@@ -21,10 +21,7 @@ from JMapCloud.core.DTOS import (
     MouseOverConfigDTO,
     ProjectDTO,
 )
-from JMapCloud.core.plugin_util import (
-    convert_QGIS_text_expression_to_JMap,
-    opacity_to_transparency,
-)
+from JMapCloud.core.plugin_util import convert_QGIS_text_expression_to_JMap
 from JMapCloud.core.services.jmap_services_access import JMapMCS
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
