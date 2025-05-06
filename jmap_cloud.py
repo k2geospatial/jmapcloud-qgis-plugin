@@ -84,7 +84,7 @@ class JMap:
         self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")  # could use locale eventually
 
     # noinspection PyMethodMayBeStatic
-    def translate(self, message):
+    def tr(self, message):
         """Get the translation for a string using Qt translation API.
 
         We implement this ourselves since we do not inherit QObject.
@@ -92,11 +92,11 @@ class JMap:
         :param message: String for translation.
         :type message: str, QString
 
-        :returns: Translated version of message.
+        :returns: trd version of message.
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate("JMap", message)
+        return QCoreApplication.translate("JMap Cloud", message)
 
     def create_actions(
         self,
@@ -171,22 +171,22 @@ class JMap:
         # -----------------------------------------------
 
         self.connection_action = self.create_actions(
-            text=self.translate("Connection"),
+            text=self.tr("Connection"),
             callback=self.open_connection_dialog,
             parent=self.iface.mainWindow(),
         )
         self.load_project_action = self.create_actions(
-            text=self.translate("Open project"),
+            text=self.tr("Open project"),
             callback=self.open_load_project_dialog,
             parent=self.iface.mainWindow(),
         )
         self.export_project_action = self.create_actions(
-            text=self.translate("Export project"),
+            text=self.tr("Export project"),
             callback=self.open_export_project_dialog,
             parent=self.iface.mainWindow(),
         )
         self.trigger_refresh_token_action = self.create_actions(
-            text=self.translate("Refresh token"),
+            text=self.tr("Refresh token"),
             callback=self.auth_manager.refresh_auth_settings,
             parent=self.iface.mainWindow(),
         )

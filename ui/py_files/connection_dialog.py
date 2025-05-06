@@ -61,6 +61,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         self.email_input.setText(QgsSettings().value(f"{SETTINGS_PREFIX}/{EMAIL_SUFFIX}", ""))
         self.show_password_checkBox.stateChanged.connect(self.set_echo_mode)
         self.accept_button.clicked.connect(self.choose_organization)
+        self.tr("Hello")
 
     def login(self):
         self.connection_button.setEnabled(False)
