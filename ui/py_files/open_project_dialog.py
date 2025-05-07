@@ -38,7 +38,10 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         self.setupUi(self)
         self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")
 
-    def list_projects(self, organization_id: str):
+    def list_projects(self) -> bool:
+        """
+        Populate the list widget with projects from the specified organization.
+        """
         self.open_project_pushButton.setEnabled(False)
         self.project_List_listWidget.clear()
         item = QtWidgets.QListWidgetItem()
@@ -49,8 +52,16 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         def next_func(reply: RequestManager.ResponseData):
             if reply.status == QNetworkReply.NetworkError.NoError:
                 self.add_project_item_to_list(reply.content)
+            else:
+                self.project_List_listWidget.clear()
+                item = QtWidgets.QListWidgetItem()
+                item.setText("Error loading projects, please try again")
+                self.project_List_listWidget.addItem(item)
 
-        JMapMCS.get_projects_async(organization_id).connect(next_func)
+        if not JMapMCS.get_projects_async().connect(next_func):
+            return False
+
+        return True
 
     def add_project_item_to_list(self, projects: list):
         if projects:

@@ -36,8 +36,7 @@ MESSAGE_CATEGORY = "WriteLayerTask"
 
 
 class ConvertLayersToZipTask(CustomTaskManager):
-    convert_layers_completed = pyqtSignal((list, list))
-    progress_changed = pyqtSignal((float))
+    tasks_completed = pyqtSignal((list, list))
 
     def __init__(self, dir_path, layers: list[QgsMapLayer]):
         super().__init__("ConvertLayersToZipTask")
@@ -163,7 +162,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
             self.layers_data.append(layer_data)
         if len(self.tasks) == 0:
             self.progress_changed.emit(100)
-            self.convert_layers_completed.emit(self.layers_data, self.layer_files)
+            self.tasks_completed.emit(self.layers_data, self.layer_files)
         else:
             for task in self.tasks:
                 QgsApplication.taskManager().addTask(task)
@@ -175,7 +174,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         self.tasks.remove(task)
         self.progress_changed.emit((self.total_tasks - len(self.tasks)) / self.total_tasks * 100)
         if len(self.tasks) == 0:
-            self.convert_layers_completed.emit(self.layers_data, self.layer_files)
+            self.tasks_completed.emit(self.layers_data, self.layer_files)
 
     def cancel(self):
         pass

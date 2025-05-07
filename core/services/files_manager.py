@@ -23,20 +23,19 @@ from JMapCloud.core.DTOS.datasource_dto import DatasourceDTO
 from JMapCloud.core.plugin_util import convert_crs_to_epsg, qgis_data_type_name_to_mysql
 from JMapCloud.core.recurring_event import RecurringEvent
 from JMapCloud.core.services.request_manager import RequestManager
+from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
 from JMapCloud.core.views import LayerData, LayerFile, SupportedFileType
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 MESSAGE_CATEGORY = "FilesUploadManager"
 
 
-class FilesUploadManager(QObject):
-    error_occurred = pyqtSignal(str)
-    progress_changed = pyqtSignal(float)
-    upload_finished = pyqtSignal(list)
-    step_changed = pyqtSignal(str)
+class FilesUploadManager(CustomTaskManager):
+    tasks_completed = pyqtSignal(list)
+    step_title_changed = pyqtSignal(str)
 
     def __init__(self, layers_data: list[LayerData], layer_files: list[LayerFile], organization_id: str):
-        super().__init__()
+        super().__init__("FilesUploadManager")
         self.layers_data: list[LayerData] = layers_data
         self.layer_files = layer_files
         self.files_to_analyze: list[str] = []
@@ -52,19 +51,19 @@ class FilesUploadManager(QObject):
         if self._cancel:
             return False
 
-        total_steps = len(self.layer_files)
+        self.set_total_steps(len(self.layer_files))
         if len(self.layer_files) == 0:
             self.progress_changed.emit(100.0)
-            self.upload_finished.emit(self.layers_data)
+            self.tasks_completed.emit(self.layers_data)
             return True
-        self.step_changed.emit(f"Uploading layers files")
+        self.step_title_changed.emit(f"Uploading layers files")
         for i, layer_file in enumerate(self.layer_files):
             file_uploader = FileUploader(layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
                 layer_file.upload_status = LayerFile.Status.uploading_error
                 error_message = f"Error uploading file {layer_file.file_path}: {error_message}"
-                QgsMessageLog.logMessage(error_message, MESSAGE_CATEGORY, Qgis.Critical)
+                self.error_occur(error_message, MESSAGE_CATEGORY)
 
             def progress_changed(progress, ref):
                 self.progress[ref] = progress
@@ -77,7 +76,7 @@ class FilesUploadManager(QObject):
             def next_func(jmc_file_id):
                 self.is_all_files_uploaded(jmc_file_id)
 
-            file_uploader.requests_finished.connect(next_func)
+            file_uploader.tasks_completed.connect(next_func)
             self.file_uploaders.append(file_uploader)
             file_uploader.init_upload()
         return True
@@ -96,7 +95,7 @@ class FilesUploadManager(QObject):
             self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
-        self.step_changed.emit(f"Server is analyzing files")
+        self.step_title_changed.emit(f"Server is analyzing files")
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
             if (
@@ -114,7 +113,7 @@ class FilesUploadManager(QObject):
             if len(self.files_to_analyze) == 0 and not self._cancel:
                 self.recurring_event.stop()
                 self._num_file_uploaded = 0
-                self.upload_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         def poke_all_not_analyzed_files():
             if self._cancel:
@@ -134,21 +133,19 @@ class FilesUploadManager(QObject):
         pass
 
 
-class FileUploader(QObject):
+class FileUploader(CustomTaskManager):
     """
     Send a list of requests and wait for all responses.
     This class is used to upload a file in chunks.
     Multiple instances of this class will upload multiple files in parallel.
-    :requests_finished: signal emit when all requests are finished
+    :tasks_completed: signal emit when all requests are finished
     """
 
-    requests_finished = pyqtSignal(str)
+    tasks_completed = pyqtSignal(str)
     """returns jmc_file_id"""
-    progress_changed = pyqtSignal(float)
-    error_occurred = pyqtSignal(str)
 
     def __init__(self, layer_file: LayerFile, organization_id: str):
-        super().__init__()
+        super().__init__("FileUploader")
         self.layer_file: LayerFile = layer_file
         self.organization_id: str = organization_id
 
@@ -216,11 +213,11 @@ class FileUploader(QObject):
                 self.upload_safer_counter += 1
                 if self.upload_safer_counter >= 5:
                     error_message = "Request failed: " f"{response.error_message}" f"{response.content}"
-                    self.error_occurred.emit(error_message)
+                    self.error_occur(error_message, MESSAGE_CATEGORY)
                     self.responses.append(response)
                     self.pending_requests = []
                     self.layer_file.upload_status = LayerFile.Status.uploading_error
-                    self.requests_finished.emit(self.layer_file.jmc_file_id)
+                    self.tasks_completed.emit(self.layer_file.jmc_file_id)
                     self.progress_changed.emit(100.0)
                     return False
 
@@ -238,7 +235,7 @@ class FileUploader(QObject):
                 self.progress_changed.emit(self.step / self.total_steps * 100.0)
             if self.file_offset >= self.file_length:
                 self.pending_requests = []
-                self.requests_finished.emit(self.layer_file.jmc_file_id)
+                self.tasks_completed.emit(self.layer_file.jmc_file_id)
                 return True
         self.request = self.define_next_request()
         self.file_offset += CHUNK_SIZE
@@ -271,14 +268,11 @@ class FileUploader(QObject):
         self._cancel = True
 
 
-class DatasourceManager(QObject):
-    datasources_creation_finished = pyqtSignal(list)
-    error_occurred = pyqtSignal(str)
-    progress_changed = pyqtSignal(float)
-    step_changed = pyqtSignal(str)
+class DatasourceManager(CustomTaskManager):
+    tasks_completed = pyqtSignal(list)
 
     def __init__(self, layers_data: list[LayerData], organization_id: str):
-        super().__init__()
+        super().__init__("DatasourceManager")
         self.layers_data = layers_data
         self.organization_id = organization_id
         self._num_datasource_created = 0
@@ -293,7 +287,7 @@ class DatasourceManager(QObject):
         self._cancel = True
 
     def create_datasources(self):
-        self.step_changed.emit("Creating datasources")
+        self.step_title_changed.emit("Creating datasources")
         for layer_data in self.layers_data:
             self.create_datasource(layer_data)
 
@@ -366,7 +360,7 @@ class DatasourceManager(QObject):
             layer_data.datasource_id = datasource_id
         else:
             layer_data.status = LayerData.Status.creating_datasource_error
-            self.error_occurred.emit(response.error_message)
+            self.error_occur(response.error_message, MESSAGE_CATEGORY)
         self.is_all_datasources_created(layer_data)
 
     def is_all_datasources_created(self, layer_data: LayerData):
@@ -379,23 +373,23 @@ class DatasourceManager(QObject):
             self.start_poking_jmc_datasource_analyzers()
 
     def start_poking_jmc_datasource_analyzers(self):
-        self.step_changed.emit("Server is analyzing datasources")
+        self.step_title_changed.emit("Server is analyzing datasources")
 
         def is_datasource_analyzed(response: RequestManager.ResponseData, layer_data: LayerData = None):
             if response.status != QNetworkReply.NetworkError.NoError:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.unknown_error
-                self.error_occurred.emit(f"JMap server error : {response.error_message}")
+                self.error_occur(f"Unknown error : {response.error_message}", MESSAGE_CATEGORY)
             elif "status" not in response.content or response.content["status"] == "ERROR":
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.datasource_analyzing_error
-                self.error_occurred.emit(f"JMap server error : {response.error_message}")
+                self.error_occur(f"JMap server error : {response.error_message}", MESSAGE_CATEGORY)
             elif response.content["status"] in ["READY"]:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.datasource_id = response.content["id"]
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.datasources_creation_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         def poke_all_not_analyzed_datasources():
 
@@ -406,7 +400,7 @@ class DatasourceManager(QObject):
                 self.request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.datasources_creation_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_datasources, False, 200)
         recurring_event.call_count_exceeded.connect(self.timeout)

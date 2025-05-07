@@ -127,7 +127,7 @@ def image_to_base64(path: str) -> str:
 
 
 def symbol_to_SVG_base64(symbol: QgsSymbol) -> str:
-    temp_dir = tempfile.TemporaryDirectory()
+    temp_dir = tempfile.TemporaryDirectory(delete=True)
     temp_file = temp_dir.name + "/MarkerSymbol.svg"
     size = math.ceil(convert_measurement_to_pixel(symbol.size(), symbol.sizeUnit()))
     symbol.exportImage(temp_file, "SVG", QSize(size, size))

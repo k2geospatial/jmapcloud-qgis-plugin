@@ -54,6 +54,7 @@ class ExportProjectManager(QObject):
 
     def export_project(self, project_data: ProjectData):
         if not self.exporting_project:
+            self._cancel = False
             self.exporting_project = True
             self.project_data = project_data
             self.action_dialog.show_dialog()
@@ -72,7 +73,7 @@ class ExportProjectManager(QObject):
             self._finish(False)
             return
         self.action_dialog.set_text("Converting layers to zip")
-        self.dir = tempfile.TemporaryDirectory()
+        self.dir = tempfile.TemporaryDirectory(delete=True)
         convert_layer_to_zip_task = ConvertLayersToZipTask(self.dir.name, self.project_data.layers)
         convert_layer_to_zip_task.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
@@ -81,7 +82,7 @@ class ExportProjectManager(QObject):
             self._error_handler(layers_data, "convert layer to zip"), layer_files
         )
 
-        convert_layer_to_zip_task.convert_layers_completed.connect(next_step)
+        convert_layer_to_zip_task.tasks_completed.connect(next_step)
 
         convert_layer_to_zip_task.error_occurred.connect(self.errors.append)
         self.feedback.canceled.connect(convert_layer_to_zip_task.cancel)
@@ -101,9 +102,9 @@ class ExportProjectManager(QObject):
         files_upload_manager.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
         )
-        files_upload_manager.step_changed.connect(self.action_dialog.set_text)
+        files_upload_manager.step_title_changed.connect(self.action_dialog.set_text)
         files_upload_manager.error_occurred.connect(self.errors.append)
-        files_upload_manager.upload_finished.connect(next_step)
+        files_upload_manager.tasks_completed.connect(next_step)
         self.feedback.canceled.connect(files_upload_manager.cancel)
         files_upload_manager.run()
 
@@ -120,12 +121,12 @@ class ExportProjectManager(QObject):
 
         datasource_manager = DatasourceManager(layers_data, self.project_data.organization_id)
         next_step = lambda layers_data: self._create_jmc_project(self._error_handler(layers_data, "Create datasource"))
-        datasource_manager.datasources_creation_finished.connect(next_step)
+        datasource_manager.tasks_completed.connect(next_step)
         datasource_manager.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
         )
         datasource_manager.error_occurred.connect(self.errors.append)
-        datasource_manager.step_changed.connect(self.action_dialog.set_text)
+        datasource_manager.step_title_changed.connect(self.action_dialog.set_text)
         self.feedback.canceled.connect(datasource_manager.cancel)
 
         datasource_manager.run()

@@ -121,12 +121,12 @@ class ImportProjectManager(QObject):
         self.nodes: dict[str:QgsLayerTreeNode] = {}
 
         def next_function(replies):
-            self.project_layers_data = self.check_project_layers_data(replies)
-            self.load_project()
+            self.project_layers_data = self._check_project_layers_data(replies)
+            self._load_project()
 
-        self.get_project_layers_data().connect(next_function)
+        self._get_project_layers_data().connect(next_function)
 
-    def get_project_layers_data(self) -> pyqtSignal:
+    def _get_project_layers_data(self) -> pyqtSignal:
         self.action_dialog.set_text("Getting project data")
         urls = {
             # "project-data": f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}",
@@ -170,7 +170,7 @@ class ImportProjectManager(QObject):
         )
         return RequestManager.multi_request_async(requests)
 
-    def check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
+    def _check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
         layers_data = replies["layers-data"].content
         self.total_steps = len(layers_data) + NUM_STEPS
         self._next_step("Checking project data")
@@ -197,7 +197,7 @@ class ImportProjectManager(QObject):
         self.project_layers_data.layers_properties = formatted_layers_properties
         return self.project_layers_data
 
-    def load_project(self):
+    def _load_project(self):
         """
         Load the jmap project in QGIS
         this method call all the other method to load the project
@@ -218,12 +218,12 @@ class ImportProjectManager(QObject):
             # load WMS layer. They are not serve by JMap Cloud
             if layer_data["type"].upper() == "WMS":
                 layer_properties = layers_properties[layer_data["id"]]
-                self.load_wms_layer(layer_data, layer_properties["sources"])
-                self.is_all_layer_loaded()
+                self._load_wms_layer(layer_data, layer_properties["sources"])
+                self._is_all_layer_loaded()
             # load raster layer
             elif layer_data["type"].upper() == "RASTER":
-                self.load_raster_layer(layer_data)
-                self.is_all_layer_loaded()
+                self._load_raster_layer(layer_data)
+                self._is_all_layer_loaded()
             elif layer_data["type"].upper() == "VECTOR":
                 layer_properties = layers_properties[layer_data["id"]]
                 # if vector layer can be modified (allowClientSideEditing = True), they are serve as MVT else As geojson
@@ -233,13 +233,13 @@ class ImportProjectManager(QObject):
                 ):
 
                     def on_finish(renderers, labeling, layer_data=layer_data, mouse_over=layer_properties["mouseOver"]):
-                        self.load_geojson_layer(layer_data, renderers, labeling, mouse_over)
-                        self.is_all_layer_loaded()
+                        self._load_geojson_layer(layer_data, renderers, labeling, mouse_over)
+                        self._is_all_layer_loaded()
 
                     task = LoadVectorStyleTask(layer_properties)
                     task.import_style_completed.connect(on_finish)
                     task.error_occurred.connect(self._error_occur)
-                    task.taskTerminated.connect(self.is_all_layer_loaded)
+                    task.taskTerminated.connect(self._is_all_layer_loaded)
                     QgsApplication.taskManager().addTask(task)
                 # load MVT layer
                 elif self.project_vector_type == ProjectVectorType.VectorTiles or (
@@ -247,23 +247,23 @@ class ImportProjectManager(QObject):
                 ):
 
                     def on_finish(renderers, labeling, layer_data=layer_data):
-                        self.load_mvt_layer(layer_data, renderers, labeling)
-                        self.is_all_layer_loaded()
+                        self._load_mvt_layer(layer_data, renderers, labeling)
+                        self._is_all_layer_loaded()
 
                     task = LoadVectorTilesStyleTask(layer_properties)
                     task.import_style_completed.connect(on_finish)
-                    task.taskTerminated.connect(self.is_all_layer_loaded)
+                    task.taskTerminated.connect(self._is_all_layer_loaded)
                     task.error_occurred.connect(self._error_occur)
                     QgsApplication.taskManager().addTask(task)
                 else:
                     message = f"Unknown error when loading vector layer : {layer_data['name'][self.project_data.default_language]}"
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    self.is_all_layer_loaded()
+                    self._error_occur(message, MESSAGE_CATEGORY)
+                    self._is_all_layer_loaded()
             else:
                 message = f"Unsupported layer {layer_data['name'][self.project_data.default_language]} of type {layer_data['type']}"
-                self.error_occur(message, MESSAGE_CATEGORY)
+                self._error_occur(message, MESSAGE_CATEGORY)
 
-    def load_wms_layer(self, layer_data: dict, sources) -> bool:
+    def _load_wms_layer(self, layer_data: dict, sources) -> bool:
 
         # create group of layer because QGIS cannot get all selected sub-layer at once
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
@@ -277,7 +277,7 @@ class ImportProjectManager(QObject):
 
         if not bool(layer_data["layers"]):
             message = f"Error getting Layer {layer_data['name'][self.project_data.default_language]}"
-            self.error_occur(message, MESSAGE_CATEGORY)
+            self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
         # add sub-layer in group
@@ -285,7 +285,7 @@ class ImportProjectManager(QObject):
             raster_layer = QgsRasterLayer(uri, layer_name, "wms")
             if not raster_layer.isValid():
                 message = f"Layer {name} is not a valid wms layer"
-                self.error_occur(message, MESSAGE_CATEGORY)
+                self._error_occur(message, MESSAGE_CATEGORY)
                 continue
             self.project.addMapLayer(raster_layer, addToLegend=False)
             group.insertChildNode(0, QgsLayerTreeLayer(raster_layer))
@@ -296,7 +296,7 @@ class ImportProjectManager(QObject):
         else:
             return False
 
-    def load_raster_layer(self, layer_data: dict) -> bool:
+    def _load_raster_layer(self, layer_data: dict) -> bool:
         uri = JMapMIS.get_raster_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
         raster_layer = QgsRasterLayer(uri, name, "wms")
@@ -306,10 +306,10 @@ class ImportProjectManager(QObject):
             return True
         else:
             message = f"Layer {name} is not valid"
-            self.error_occur(message, MESSAGE_CATEGORY)
+            self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
-    def load_geojson_layer(self, layer_data: dict, renderer, labeling, mouse_over=None) -> bool:
+    def _load_geojson_layer(self, layer_data: dict, renderer, labeling, mouse_over=None) -> bool:
         uri = JMapDAS.get_vector_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
         vector_layer = QgsVectorLayer(uri, name, "oapif")
@@ -342,7 +342,7 @@ class ImportProjectManager(QObject):
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
-    def load_mvt_layer(self, layer_data: dict, renderers, labeling) -> bool:
+    def _load_mvt_layer(self, layer_data: dict, renderers, labeling) -> bool:
         uri = JMapDAS.get_vector_tile_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
 
         # We need to create a new layer for each style because rule based styles are not supported by MVT
@@ -379,14 +379,14 @@ class ImportProjectManager(QObject):
                 )
             else:
                 message = f"Layer {base_name} is not valid"
-                self.error_occur(message, MESSAGE_CATEGORY)
+                self._error_occur(message, MESSAGE_CATEGORY)
         if len(group.children()) > 0:
             self.nodes[layer_data["id"]] = group
             return True
         else:
             return False
 
-    def is_all_layer_loaded(self):
+    def _is_all_layer_loaded(self):
         self.layer_to_load -= 1
         self._next_step()
         if self.layer_to_load == 0:

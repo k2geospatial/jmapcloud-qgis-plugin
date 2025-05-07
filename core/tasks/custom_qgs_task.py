@@ -114,12 +114,13 @@ class CustomTaskManager(QObject):
     error_occurred = pyqtSignal(str)
     step_title_changed = pyqtSignal(str)
     canceled = pyqtSignal()
+    progress_changed = pyqtSignal(float)
+    tasks_completed = pyqtSignal(bool)
 
     name: str
     exceptions: list[Exception]
     current_step: int
     total_steps: int
-    feedback: QgsFeedback
     is_cancel: bool
     tasks: list[CustomQgsTask]
 
@@ -133,7 +134,7 @@ class CustomTaskManager(QObject):
         self.tasks = []
         if feedback:
             self.feedback = feedback
-            self.progressChanged.connect(self.feedback.setProgress)
+            self.progress_changed.connect(self.feedback.setProgress)
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
@@ -183,7 +184,7 @@ class CustomTaskManager(QObject):
     def next_steps(self, step_title: str = None):
         self.step_title_changed.emit(step_title)
         self.current_step += 1
-        self.setProgress(self.current_step / self.total_steps * 100)
+        self.progress_changed.emit(self.current_step / self.total_steps * 100)
 
     def add_exception(self, exception: Exception):
         self.exceptions.append(exception)

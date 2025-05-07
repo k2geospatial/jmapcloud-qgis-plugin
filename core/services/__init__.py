@@ -14,7 +14,7 @@ from .auth_manager import JMapAuth
 from .export_project_manager import ExportProjectManager
 from .files_manager import DatasourceManager, FilesUploadManager, FileUploader
 from .import_project_manager import ImportProjectManager
-from .jmap_services_access import JMapDAS, JMapMCS, JMapMIS, JMapVTCS
+from .jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from .request_manager import RequestManager
 from .session_manager import SessionManager
 from .style_manager import StyleManager
@@ -31,6 +31,5 @@ __all__ = [
     "SessionManager",
     "JMapMCS",
     "JMapMIS",
-    "JMapVTCS",
     "JMapDAS",
 ]
