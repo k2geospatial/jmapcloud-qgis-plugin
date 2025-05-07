@@ -1,92 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="fr_CA" sourcelanguage="en_CA">
 <context>
     <name>Dialog</name>
     <message>
         <location filename="../ui/ui_files/action_dialog_base.ui" line="14"/>
         <source>Action</source>
-        <translation type="unfinished"></translation>
+        <translation>Action</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/warning_dialog_base.ui" line="83"/>
         <source>Close</source>
-        <translation type="unfinished"></translation>
+        <translation>Fermer</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="14"/>
         <source>Connection to JMap Cloud</source>
-        <translation type="unfinished"></translation>
+        <translation>Connection à JMap Cloud</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="37"/>
         <source>Email : </source>
-        <translation type="unfinished"></translation>
+        <translation>Email</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="67"/>
         <source>Password :</source>
-        <translation type="unfinished"></translation>
+        <translation>Mot de passe</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="106"/>
         <source>login</source>
-        <translation type="unfinished"></translation>
+        <translation>Connexion</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="131"/>
         <source>Choose organization :</source>
-        <translation type="unfinished"></translation>
+        <translation>Choisissez une organisation</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/connection_dialog_base.ui" line="150"/>
         <source>OK</source>
-        <translation type="unfinished"></translation>
+        <translation>OK</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/export_project_dialog_base.ui" line="163"/>
         <source>Export project</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporter le projet</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/export_project_dialog_base.ui" line="76"/>
         <source>Export a project to JMap Cloud</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporter un projet dans JMap Cloud</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/export_project_dialog_base.ui" line="95"/>
         <source>Project title :</source>
-        <translation type="unfinished"></translation>
+        <translation>Titre du projet</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/load_project_dialog_base.ui" line="70"/>
         <source>Open project</source>
-        <translation type="unfinished"></translation>
+        <translation>Ouvrir un projet</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/load_project_dialog_base.ui" line="113"/>
         <source> Vector layer type :</source>
-        <translation type="unfinished"></translation>
+        <translation>Type de couches vectorielles</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/load_project_dialog_base.ui" line="134"/>
         <source>Default</source>
-        <translation type="unfinished"></translation>
+        <translation>Par Défaut</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/load_project_dialog_base.ui" line="139"/>
         <source>All in GeoJSON</source>
-        <translation type="unfinished"></translation>
+        <translation>En GeoJSON</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/load_project_dialog_base.ui" line="144"/>
         <source>All in Vector Tiles</source>
-        <translation type="unfinished"></translation>
+        <translation>En tuile vectorielle</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/warning_dialog_base.ui" line="14"/>
         <source>Warning</source>
-        <translation type="unfinished"></translation>
+        <translation>Attention</translation>
     </message>
     <message>
         <location filename="../ui/ui_files/warning_dialog_base.ui" line="62"/>
@@ -95,7 +95,7 @@
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;MS Shell Dlg 2&apos;; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p align=&quot;center&quot; style=&quot;-qt-paragraph-type:empty; margin-top:18px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
 </context>
 <context>
@@ -103,22 +103,45 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../jmap_cloud.py" line="173"/>
         <source>Connection</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Connexion</translation>
     </message>
     <message>
         <location filename="../jmap_cloud.py" line="178"/>
         <source>Open project</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Ouvrir un projet</translation>
     </message>
     <message>
         <location filename="../jmap_cloud.py" line="183"/>
         <source>Export project</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Exporter un projet</translation>
     </message>
     <message>
         <location filename="../jmap_cloud.py" line="188"/>
         <source>Refresh token</source>
+        <translation type="obsolete">Rafraichir le token</translation>
+    </message>
+</context>
+<context>
+    <name>JMapCloud</name>
+    <message>
+        <location filename="../jmap_cloud.py" line="167"/>
+        <source>Connection</source>
+        <translation type="unfinished">Connexion</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="172"/>
+        <source>Open project</source>
+        <translation type="unfinished">Ouvrir un projet</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="177"/>
+        <source>Export project</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="182"/>
+        <source>Refresh token</source>
+        <translation type="unfinished">Rafraichir le token</translation>
     </message>
 </context>
 <context>
@@ -126,7 +149,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../jmap_cloud.py" line="99"/>
         <source>JMap Cloud</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">JMap Cloud</translation>
     </message>
 </context>
 </TS>
