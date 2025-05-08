@@ -4,7 +4,7 @@
 <context>
     <name>@default</name>
     <message>
-        <location filename="../core/services/request_manager.py" line="322"/>
+        <location filename="../core/services/request_manager.py" line="325"/>
         <source>Error occurred {}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59,6 +59,12 @@
         <source>Authentication error</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../ui/py_files/connection_dialog.py" line="96"/>
+        <source>
+Connected to: {}</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ConvertLayersToZipTask</name>
@@ -88,12 +94,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="310"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="312"/>
         <source>Unsupported file type {} for layer {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="315"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="317"/>
         <source>Unsupported layer: {} ({}), the provider is not supported</source>
         <translation type="unfinished"></translation>
     </message>
@@ -101,12 +107,12 @@
 <context>
     <name>CreateJMCProjectTask</name>
     <message>
-        <location filename="../core/tasks/create_jmc_project_task.py" line="68"/>
+        <location filename="../core/tasks/create_jmc_project_task.py" line="69"/>
         <source>Error creating project : {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/create_jmc_project_task.py" line="131"/>
+        <location filename="../core/tasks/create_jmc_project_task.py" line="132"/>
         <source>Error creating labeling for layer {}, JMap Cloud only support single rule labeling</source>
         <translation type="unfinished"></translation>
     </message>
@@ -153,22 +159,22 @@
 <context>
     <name>DatasourceManager</name>
     <message>
-        <location filename="../core/services/files_manager.py" line="290"/>
+        <location filename="../core/services/files_manager.py" line="292"/>
         <source>Creating datasources</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="376"/>
+        <location filename="../core/services/files_manager.py" line="378"/>
         <source>Server is analyzing datasources</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="382"/>
+        <location filename="../core/services/files_manager.py" line="384"/>
         <source>Unknown error : {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="386"/>
+        <location filename="../core/services/files_manager.py" line="388"/>
         <source>JMap server error : {}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -333,12 +339,12 @@ p, li { white-space: pre-wrap; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="505"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="511"/>
         <source>Error getting style for layer &apos;{}&apos;: {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="514"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="520"/>
         <source>Error patching style for layer &apos;{}&apos;: {}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -443,113 +449,113 @@ p, li { white-space: pre-wrap; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="163"/>
+        <location filename="../core/services/import_project_manager.py" line="173"/>
         <source>Checking project data</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="179"/>
+        <location filename="../core/services/import_project_manager.py" line="189"/>
         <source>error formatting properties</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="192"/>
+        <location filename="../core/services/import_project_manager.py" line="202"/>
         <source>Loading project layers...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="246"/>
+        <location filename="../core/services/import_project_manager.py" line="260"/>
         <source>Unknown error when loading vector layer : {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="252"/>
+        <location filename="../core/services/import_project_manager.py" line="266"/>
         <source>Unsupported layer {} of type {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="270"/>
+        <location filename="../core/services/import_project_manager.py" line="285"/>
         <source>Error getting Layer {}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="278"/>
+        <location filename="../core/services/import_project_manager.py" line="293"/>
         <source>Layer {} is not a valid wms layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="372"/>
+        <location filename="../core/services/import_project_manager.py" line="400"/>
         <source>Layer {} is not valid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="396"/>
+        <location filename="../core/services/import_project_manager.py" line="424"/>
         <source>Loading layer groups</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="406"/>
+        <location filename="../core/services/import_project_manager.py" line="434"/>
         <source>Loading layer order</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="462"/>
+        <location filename="../core/services/import_project_manager.py" line="490"/>
         <source>&lt;h1&gt;Warning&lt;/h1&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="462"/>
+        <location filename="../core/services/import_project_manager.py" line="490"/>
         <source>&lt;p&gt;You don&apos;t have all the right to edit this layer&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="462"/>
+        <location filename="../core/services/import_project_manager.py" line="490"/>
         <source>&lt;p&gt;Some changes made on this layer may not be pushed to the JMap Cloud project&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="462"/>
+        <location filename="../core/services/import_project_manager.py" line="490"/>
         <source>&lt;p&gt;Here are the rights you have on this layer:&lt;/p&gt;&lt;br&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="524"/>
+        <location filename="../core/services/import_project_manager.py" line="554"/>
         <source>Finalization...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="526"/>
+        <location filename="../core/services/import_project_manager.py" line="556"/>
         <source>&lt;h3&gt;Project loaded successfully&lt;/h3&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="531"/>
+        <location filename="../core/services/import_project_manager.py" line="561"/>
         <source>&lt;h4&gt;Warning&lt;/h4&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="531"/>
+        <location filename="../core/services/import_project_manager.py" line="561"/>
         <source>&lt;p&gt;The JMap Cloud project crs is different from the actual crs of the project&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="531"/>
+        <location filename="../core/services/import_project_manager.py" line="561"/>
         <source>&lt;p&gt;The crs set in JMap Cloud project is : {}&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/services/import_project_manager.py" line="538"/>
+        <location filename="../core/services/import_project_manager.py" line="568"/>
         <source>&lt;h4&gt;Some errors occurred during the import:&lt;/h4&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../core/services/import_project_manager.py" line="314"/>
+        <source>Layer {} is not a valid wmts layer</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>JMapAuth</name>
-    <message>
-        <location filename="../core/services/auth_manager.py" line="182"/>
-        <source>Authentication Error</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <location filename="../core/services/auth_manager.py" line="204"/>
         <source>Logout Error</source>
@@ -559,22 +565,22 @@ p, li { white-space: pre-wrap; }
 <context>
     <name>JMapCloud</name>
     <message>
-        <location filename="../jmap_cloud.py" line="167"/>
+        <location filename="../jmap_cloud.py" line="164"/>
         <source>Connection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../jmap_cloud.py" line="172"/>
+        <location filename="../jmap_cloud.py" line="169"/>
         <source>Open project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../jmap_cloud.py" line="177"/>
+        <location filename="../jmap_cloud.py" line="174"/>
         <source>Export project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../jmap_cloud.py" line="182"/>
+        <location filename="../jmap_cloud.py" line="179"/>
         <source>Refresh token</source>
         <translation type="unfinished"></translation>
     </message>
@@ -600,12 +606,12 @@ p, li { white-space: pre-wrap; }
 <context>
     <name>compressFilesToZipTask</name>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="369"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="371"/>
         <source>Converting layers to zip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="390"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="392"/>
         <source>Error: {} is not a valid file or folder.</source>
         <translation type="unfinished"></translation>
     </message>
