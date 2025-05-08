@@ -36,7 +36,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         """Constructor."""
         super(OpenProjectDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
-        self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")
+        self.language = QSettings().value("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), "en")
 
     def list_projects(self) -> bool:
         """
@@ -89,7 +89,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                     "",
                 )
                 crs = project["mapCrs"]
-                text = name + (f"\n{description}" if description else "") + f"\nCRS : {crs}"
+                text = name + ("\n{}".format(description) if description else "") + "\nCRS : {}".format(crs)
                 item.setText(text)
                 item.metadata = {
                     "id": project["id"],

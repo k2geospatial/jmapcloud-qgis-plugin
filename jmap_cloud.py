@@ -51,15 +51,14 @@ class JMapCloud:
         self.plugin_dir = Path(__file__).parent
 
         # initialize locale
-        locale = QSettings().value("locale/userLocale")
-        if locale:
-            locale = locale[0:2]
-            locale_path = Path(self.plugin_dir, "i18n", "jmap_cloud_{}.qm".format(locale))
-
-            if Path.exists(locale_path):
-                self.translator = QTranslator()
-                self.translator.load(str(locale_path))
-                QCoreApplication.installTranslator(self.translator)
+        locale = QSettings().value("locale/userLocale", "en")
+        self.language = locale[0:2]
+        QSettings().setValue("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), self.language)
+        locale_path = Path(self.plugin_dir, "i18n", "jmap_cloud_{}.qm".format(self.language))
+        if Path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(str(locale_path))
+            QCoreApplication.installTranslator(self.translator)
 
         # Declare instance attributes
         self.actions = []
@@ -79,8 +78,6 @@ class JMapCloud:
         self.load_project_dialog.open_project_pushButton.clicked.connect(self.load_project)
         self.export_project_dialog = ExportProjectDialog()
         self.export_project_dialog.export_project_pushButton.clicked.connect(self.export_project)
-
-        self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")  # could use locale eventually
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -308,8 +305,7 @@ class JMapCloud:
         if not self.export_project_dialog.validate_input():
             return
         project_data = self.export_project_dialog.get_input_data()
-        project_data["language"] = self.language
-        project_data["description"] = "lorm ipsum"
+        project_data["description"] = ""
         if project_data:
             auth_state = self.auth_manager.get_auth_state()
             if auth_state == AuthState.AUTHENTICATED:
@@ -317,7 +313,7 @@ class JMapCloud:
                 project_data = ProjectData(
                     name=project_data["projectTitle"],
                     description=project_data["description"],
-                    default_language=project_data["language"],
+                    default_language=self.language,
                     organization_id=self.session_manager.get_organization_id(),
                 )
                 project_data.setup_with_QGS_project(QgsProject.instance())

@@ -214,7 +214,7 @@ class ExportProjectManager(QObject):
         if len(self.errors) > 0:
             message += self.tr("<h4>Some errors occurred during the process:</h4>")
             for error in self.errors:
-                message += f"<p>{error.replace('\n', '<br>')}</p>"
+                message += "<p>{}</p>".format(error.replace("\n", "<br>"))
         self.action_dialog.action_finished(message)
         self.project_exportation_finished.emit(success)
         self.exporting_project = False

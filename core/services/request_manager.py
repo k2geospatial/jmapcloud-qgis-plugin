@@ -70,6 +70,10 @@ class RequestManager(QObject):
             self.error_message = error_message
             self.id = id
 
+        @classmethod
+        def no_reply(cls):
+            return cls(None, None, None, QNetworkReply.NetworkError.UnknownContentError)
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(RequestManager, cls).__new__(cls)
@@ -141,12 +145,11 @@ class RequestManager(QObject):
 
         except Exception as e:
             QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
-            return cls.ResponseData(None, None)
+            return cls.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
-            QgsMessageBarHandler.send_message_to_message_bar(
-                str(reply.content(), "utf-8"), prefix=error_prefix, level=Qgis.Warning
-            )
+            message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
+            QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
         response_data = cls._handle_reply(reply)
         reply.clear()
         return response_data
@@ -178,12 +181,12 @@ class RequestManager(QObject):
             reply = request_manager.reply()
 
         except Exception as e:
-            QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
-            return cls.ResponseData(None, None)
+            # QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
+            return cls.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
-            message = f"{reply.content()}, {reply.errorString()}"
-            QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
+            message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
+            # QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
         response_data = cls._handle_reply(reply)
         reply.clear()
         return response_data
@@ -273,7 +276,7 @@ class RequestManager(QObject):
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         if not no_auth:
             request.setRawHeader(
-                "Authorization".encode(), f"Bearer {SessionManager.instance().get_access_token()}".encode()
+                "Authorization".encode(), "Bearer {}".format(SessionManager.instance().get_access_token()).encode()
             )
         for key, value in headers.items():
             request.setRawHeader(key.encode(), value.encode())
@@ -324,9 +327,9 @@ class RequestManager(QObject):
             )
             reply_error_string = reply.errorString()
             if bool(reply_error_string):
-                error_string += f"reply : {reply_error_string}\n"
+                error_string += "reply : {}\n".format(reply_error_string)
             if bool(content):
-                error_string += f"content : {content}\n"
+                error_string += "content : {}\n".format(content)
 
         headers = cls._get_headers(reply)
 

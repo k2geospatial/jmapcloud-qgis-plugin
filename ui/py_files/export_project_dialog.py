@@ -31,7 +31,7 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         self.set_export_project_enable_action(True)
 
     def get_input_data(self) -> dict:
-        return {"projectTitle": self.project_title_lineEdit.text(), "language": "en"}
+        return {"projectTitle": self.project_title_lineEdit.text()}
 
     def set_export_project_enable_action(self, enable: bool):
         self.project_title_lineEdit.setEnabled(enable)

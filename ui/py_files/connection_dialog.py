@@ -58,7 +58,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
             self.message_label.setText("")
             self.set_login_input_enable(True)
             self.set_choose_organization_layout_enable(False)
-        self.email_input.setText(QgsSettings().value(f"{SETTINGS_PREFIX}/{EMAIL_SUFFIX}", ""))
+        self.email_input.setText(QgsSettings().value("{}/{}".format(SETTINGS_PREFIX, EMAIL_SUFFIX), ""))
         self.show_password_checkBox.stateChanged.connect(self.set_echo_mode)
         self.accept_button.clicked.connect(self.choose_organization)
 
@@ -69,7 +69,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
             self.message_label.setText("")
             self.list_organizations()
             self.password_input.clear()
-            QgsSettings().setValue(f"{SETTINGS_PREFIX}/{EMAIL_SUFFIX}", self.email_input.text())
+            QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, EMAIL_SUFFIX), self.email_input.text())
         else:
             self.message_label.setStyleSheet("color: red;")
             self.message_label.setText("wrong email or password")
@@ -77,7 +77,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def logout(self):
         self.logout_signal.emit()
-        QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
+        QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), "")
         self.connection_button.clicked.disconnect()
         self.connection_button.setText(self.tr("login"))
         self.connection_button.clicked.connect(self.login)
@@ -91,9 +91,9 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         if result != None:
             self.message_label.setStyleSheet("font-size: 18px;")
             welcome_message = self.tr("Welcome {}<br />").format(result["name"])
-            organization_name = QgsSettings().value(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
+            organization_name = QgsSettings().value("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), "")
             if organization_name != "":
-                welcome_message += self.re("\nConnected to: {}").format(organization_name)
+                welcome_message += self.tr("\nConnected to: {}").format(organization_name)
             self.message_label.setText(welcome_message)
             organizations = result["organizations"]
             # to modify ui for ask for organization
@@ -120,7 +120,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         if auth_state != AuthState.NOT_AUTHENTICATED and self.auth_manager.refresh_auth_settings(
             org_id=organization_data["id"]
         ):
-            QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", organization_data["name"])
+            QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), organization_data["name"])
             self.password_input.clear()
             self.set_login_input_enable(False)
             self.accept_button.setEnabled(True)

@@ -71,10 +71,10 @@ class ConvertLayersToZipTask(CustomTaskManager):
 
             if not sources:  # create a geojson file and write it to zip
                 if layer_data.layer_type == LayerData.LayerType.file_vector:
-                    sources = [Path(self.dir_path, f"{layer.name()}.geojson")]
-                    output_path = Path(self.dir_path, f"{layer.name()}.zip")
+                    sources = [Path(self.dir_path, "{}.geojson".format(layer_data.layer_name))]
+                    output_path = Path(self.dir_path, "{}.zip".format(layer_data.layer_name))
                     layer_data.layer_file = LayerFile(
-                        file_path=str(output_path), file_name=layer.name(), file_type=layer_data.file_type
+                        file_path=str(output_path), file_name=layer_data.layer_name, file_type=layer_data.file_type
                     )
                     self.layer_files.append(layer_data.layer_file)
 
@@ -92,7 +92,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     self.tasks.append(compress_task)
                     self.total_tasks += 1
                 elif layer_data.layer_type == LayerData.LayerType.file_raster:
-                    sources = [Path(self.dir_path, f"{layer.name()}.tiff")]
+                    sources = [Path(self.dir_path, "{}.tiff".format(layer_data.layer_name))]
                     layer_data.layer_file = LayerFile(
                         file_path=str(sources[0]), file_name=layer.name(), file_type=layer_data.file_type
                     )
@@ -118,7 +118,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     if layer_data.file_type == SupportedFileType.zip:
                         output_path = sources[0]
                     else:
-                        output_path = Path(self.dir_path, f"{sources[0].stem}.zip")
+                        output_path = Path(self.dir_path, "{}.zip".format(sources[0].stem))
                     for layer_file in self.layer_files:
                         if layer_file.file_path == str(output_path):
                             layer_data.layer_file = layer_file
@@ -186,16 +186,14 @@ class ConvertLayersToZipTask(CustomTaskManager):
 
         provider_name = layer.dataProvider().name().lower()
         uri_components = QgsProviderRegistry.instance().decodeUri(provider_name, layer.publicSource())
+        layer_data.uri_components = uri_components
+        if "layerName" not in layer_data.uri_components or layer_data.uri_components["layerName"] == None:
+            layer_data.uri_components["layerName"] = "defaultLayer"
 
         # if "layerName" in uri_components and uri_components["layerName"] != None:
         #    layer_data.layer_name = uri_components["layerName"]
         # else:
         #    layer_data.layer_name = layer.name()
-
-        if "layers" in uri_components and uri_components["layers"] != None:
-            layer_data.datasource_layer = uri_components["layers"]
-        if "format" in uri_components and uri_components["format"] != None:
-            layer_data.format = uri_components["format"]
 
         # ---- API-based layers (WFS-like) ----
         if provider_name in ["oapif", "wfs"]:
@@ -288,7 +286,9 @@ class ConvertLayersToZipTask(CustomTaskManager):
         elif provider_name in ["wms", "wmts"] and "url" in uri_components:
             layer_data.layer_type = LayerData.LayerType.WMS_WMTS
             return {
-                "capabilitiesUrl": f"{urllib.parse.unquote_plus(uri_components['url'])}&SERVICE=WMS&REQUEST=GetCapabilities"
+                "capabilitiesUrl": "{}&SERVICE=WMS&REQUEST=GetCapabilities".format(
+                    urllib.parse.unquote_plus(uri_components["url"])
+                )
             }
 
         # ---- File-based Raster layers ----

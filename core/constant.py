@@ -24,12 +24,12 @@ from JMapCloud.config import CONFIG
 _base_url = CONFIG["API_URL"]
 
 # api URLs
-API_AUTH_URL = f"{_base_url}/api/ss/rest/v1"
-API_MCS_URL = f"{_base_url}/api/mcs/rest/v1"
-API_VTCS_URL = f"{_base_url}/api/vtcs/rest/v1"
-API_MIS_URL = f"{_base_url}/api/mis/wms"
-API_DAS_URL = f"{_base_url}/api/das/rest/v1"
-API_FUS_URL = f"{_base_url}/api/fus/rest/v1"
+API_AUTH_URL = "{}/api/ss/rest/v1".format(_base_url)
+API_MCS_URL = "{}/api/mcs/rest/v1".format(_base_url)
+API_VTCS_URL = "{}/api/vtcs/rest/v1".format(_base_url)
+API_MIS_URL = "{}/api/mis/wms".format(_base_url)
+API_DAS_URL = "{}/api/das/rest/v1".format(_base_url)
+API_FUS_URL = "{}/api/fus/rest/v1".format(_base_url)
 
 # auth setting id
 ACCESS_TOKEN_SETTING_ID = "JMapCf1"

@@ -111,9 +111,9 @@ class JMapAuth(QObject):
         elif "organizationId" not in claims:
             return None
 
-        url = f"{API_AUTH_URL}/refresh-token"
+        url = "{}/refresh-token".format(API_AUTH_URL)
         body = {
-            "refreshToken": f"{claims['refreshToken']}",
+            "refreshToken": "{}".format(claims["refreshToken"]),
             "organizationId": claims["organizationId"],
         }
         prefix = "Authentication Error"
@@ -152,7 +152,7 @@ class JMapAuth(QObject):
         :return: An access token if the authentication is successful, otherwise None
         """
 
-        url = f"{API_AUTH_URL}/authenticate"
+        url = "{}/authenticate".format(API_AUTH_URL)
         body = {"username": email, "password": password}
         prefix = "Authentication Error"
         response = RequestManager.post_request(url, body, error_prefix=prefix, no_auth=True)
@@ -178,8 +178,8 @@ class JMapAuth(QObject):
         :param access_token: An access token obtained by calling JMapAuth.get_access_token
         :return: A dictionary with the user information and all his organization ids if the request is successful, otherwise None
         """
-        url = f"{API_AUTH_URL}/users/self"
-        prefix = self.tr("Authentication Error")
+        url = "{}/users/self".format(API_AUTH_URL)
+        prefix = "Authentication Error"
         response = RequestManager.get_request(url, error_prefix=prefix)
 
         if response.status == QNetworkReply.NetworkError.NoError:
@@ -199,7 +199,7 @@ class JMapAuth(QObject):
         self.refresh_auth_event.stop()
         refresh_token = auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True) or None
         if refresh_token:
-            url = f"{API_AUTH_URL}/revoke-token"
+            url = "{}/revoke-token".format(API_AUTH_URL)
             body = {"refreshToken": refresh_token}
             prefix = self.tr("Logout Error")
             RequestManager.post_request(url, body, error_prefix=prefix, no_auth=True)

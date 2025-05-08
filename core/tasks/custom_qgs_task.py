@@ -65,9 +65,9 @@ class CustomQgsTask(QgsTask):
                     Qgis.Warning,
                 )
             else:
-                message = f"{self.name} Exception:"
+                message = "{} Exception:".format(self.name)
                 for exception in self.exceptions:
-                    message += f"\n{exception}"
+                    message += "\n{}".format(exception)
                 QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Critical)
                 raise Exception(message)
 
@@ -143,7 +143,7 @@ class CustomTaskManager(QObject):
 
     def cancel(self):
         QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.name), MESSAGE_CATEGORY, Qgis.Info)
-        self.canceled = True
+        self.is_cancel = True
         self.canceled.emit()
 
     def is_canceled(self) -> bool:
@@ -163,7 +163,7 @@ class CustomTaskManager(QObject):
 
     def finished(self, result):
         if result:
-            QgsMessageLog.logMessage(f"{self.name} completed successfully", MESSAGE_CATEGORY, Qgis.Success)
+            QgsMessageLog.logMessage("{} completed successfully".format(self.name), MESSAGE_CATEGORY, Qgis.Success)
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
@@ -178,9 +178,9 @@ class CustomTaskManager(QObject):
                     Qgis.Warning,
                 )
             else:
-                message = f"{self.name} Exception:"
+                message = "{} Exception:".format(self.name)
                 for exception in self.exceptions:
-                    message += f"\n{exception}"
+                    message += "\n{}".format(exception)
                 QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Critical)
                 raise Exception(message)
 

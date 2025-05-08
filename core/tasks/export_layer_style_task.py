@@ -413,7 +413,7 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         style_ids = []
 
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/styles"
+        url = "{}/organizations/{}/styles".format(API_MCS_URL, self.project_data.organization_id)
 
         # create every style (post Style)
         for style in styles:
@@ -455,7 +455,9 @@ class ExportLayerStyleTask(CustomQgsTask):
             ).format(self.layer_data.layer_name)
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers/{self.layer_data.jmc_layer_id}/style-rules"
+        url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+        )
 
         body = style_rule_dto.to_json()
         request = RequestManager.RequestData(url, type="POST", body=body)
@@ -463,7 +465,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         return True
 
     def _delete_default_style_rules(self):
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers/{self.layer_data.jmc_layer_id}/style-rules"
+        url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+        )
 
         request = RequestManager.RequestData(url, type="GET")
         response = self.request_manager.custom_request(request)
@@ -472,13 +476,13 @@ class ExportLayerStyleTask(CustomQgsTask):
         content = response.content
         default_style_rule = None
         for style_rule in content:
-            if style_rule["name"]["en"] == "Default rule":
+            if style_rule["name"][self.project_data.default_language] == "Default rule":
                 if not default_style_rule or convert_jmap_datetime(
                     default_style_rule["creationDate"]
                 ) > convert_jmap_datetime(style_rule["creationDate"]):
                     default_style_rule = style_rule
         id = default_style_rule["id"]
-        request = RequestManager.RequestData(f"{url}/{id}", type="DELETE")
+        request = RequestManager.RequestData("{}/{}".format(url, id), type="DELETE")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False
@@ -489,7 +493,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         dto = StyleDTO(StyleDTO.StyleDTOType.IMAGE)
         dto.transparency = opacity_to_transparency(layer.opacity())
 
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers/{self.layer_data.jmc_layer_id}/style-rules"
+        url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+        )
         request_data = RequestManager.RequestData(url, type="GET")
         response = self.request_manager.custom_request(request_data)
         if response.status != QNetworkReply.NetworkError.NoError:
@@ -506,7 +512,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
 
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/styles/{style_id}"
+        url = "{}/organizations/{}/styles/{}".format(API_MCS_URL, self.project_data.organization_id, style_id)
         body = dto.to_json()
         request = RequestManager.RequestData(url, type="PATCH", body=body)
         response = self.request_manager.custom_request(request)

@@ -56,13 +56,13 @@ class FilesUploadManager(CustomTaskManager):
             self.progress_changed.emit(100.0)
             self.tasks_completed.emit(self.layers_data)
             return True
-        self.step_title_changed.emit(f"Uploading layers files")
+        self.step_title_changed.emit("Uploading layers files")
         for i, layer_file in enumerate(self.layer_files):
             file_uploader = FileUploader(layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
                 layer_file.upload_status = LayerFile.Status.uploading_error
-                error_message = f"Error uploading file {layer_file.file_path}: {error_message}"
+                error_message = "Error uploading file {}: {}".format(layer_file.file_path, error_message)
                 self.error_occur(error_message, MESSAGE_CATEGORY)
 
             def progress_changed(progress, ref):
@@ -95,7 +95,7 @@ class FilesUploadManager(CustomTaskManager):
             self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
-        self.step_title_changed.emit(f"Server is analyzing files")
+        self.step_title_changed.emit("Server is analyzing files")
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
             if (
@@ -109,6 +109,11 @@ class FilesUploadManager(CustomTaskManager):
                         break
                 self.files_to_analyze.remove(jmc_file_id)
             elif response.content["status"] == "ANALYZED":
+                for layer_file in self.layer_files:
+                    if layer_file.jmc_file_id == jmc_file_id:
+                        for layer in response.content["metadata"]["layers"]:
+                            layer_file.fields[layer["name"]] = layer["fileAttributes"]
+                        break
                 self.files_to_analyze.remove(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
                 self.recurring_event.stop()
@@ -120,7 +125,7 @@ class FilesUploadManager(CustomTaskManager):
                 self.recurring_event.stop()
 
             for jmc_file_id in self.files_to_analyze:
-                url = f"{API_FUS_URL}/organizations/{self.organization_id}/files/{jmc_file_id}"
+                url = "{}/organizations/{}/files/{}".format(API_FUS_URL, self.organization_id, jmc_file_id)
                 request = RequestManager.RequestData(url, type="GET", id=jmc_file_id)
                 next_func = lambda response, _jmc_file_id=jmc_file_id: is_file_analyzed(response, _jmc_file_id)
                 self.request_manager.add_requests(request).connect(next_func)
@@ -177,10 +182,12 @@ class FileUploader(CustomTaskManager):
             file_type64 = base64.b64encode("application/x-zip-compressed".encode("ascii")).decode("ascii")
             jmc_file_type64 = base64.b64encode("VECTOR_DATA".encode("ascii")).decode("ascii")
 
-        url = f"{API_FUS_URL}/organizations/{self.organization_id}/upload"
+        url = "{}/organizations/{}/upload".format(API_FUS_URL, self.organization_id)
         headers = {
-            "Upload-Length": f"{self.file_length}",
-            "Upload-Metadata": f"filename {file_name64},filetype {file_type64},JMC-fileType {jmc_file_type64}",
+            "Upload-Length": "{}".format(self.file_length),
+            "Upload-Metadata": "filename {},filetype {},JMC-fileType {}".format(
+                file_name64, file_type64, jmc_file_type64
+            ),
             "Tus-Resumable": "1.0.0",
         }
         error_prefix = "Error uploading file"
@@ -197,7 +204,7 @@ class FileUploader(CustomTaskManager):
         url_array = location.split("/")
         file_id = url_array[-1]
         self.layer_file.jmc_file_id = file_id
-        self.url = f"{url}/{file_id}"
+        self.url = "{}/{}".format(url, file_id)
         self.progress_changed.emit(self.step / self.total_steps * 100.0)
         self.execute_next_request(response)
         return True
@@ -212,7 +219,7 @@ class FileUploader(CustomTaskManager):
             if response.status != QNetworkReply.NetworkError.NoError:
                 self.upload_safer_counter += 1
                 if self.upload_safer_counter >= 5:
-                    error_message = "Request failed: " f"{response.error_message}" f"{response.content}"
+                    error_message = "Request failed: {}".format(response.error_message)
                     self.error_occur(error_message, MESSAGE_CATEGORY)
                     self.responses.append(response)
                     self.pending_requests = []
@@ -253,8 +260,8 @@ class FileUploader(CustomTaskManager):
         headers = {
             "content-type": "application/offset+octet-stream",
             "Tus-Resumable": "1.0.0",
-            "content-length": f"{content_length}",
-            "Upload-Offset": f"{self.file_offset}",
+            "content-length": "{}".format(content_length),
+            "Upload-Offset": "{}".format(self.file_offset),
         }
         return RequestManager.RequestData(
             self.url,
@@ -300,26 +307,28 @@ class DatasourceManager(CustomTaskManager):
         request_DTO.type = layer_data.layer_type.value
 
         if layer_data.layer_type == LayerData.LayerType.file_vector:
+            uri_layer_name = layer_data.uri_components["layerName"]
             crs = convert_crs_to_epsg(layer_data.layer.crs())
             request_DTO.crs = crs.authid()
+
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
             request_DTO.indexedAttributes = []
-            request_DTO.layer = layer_data.layer_name
-            request_DTO.layers = [{"id": 0, "name": layer_data.layer_name}]
+            request_DTO.layer = uri_layer_name
+            request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
             request_DTO.params = {}
 
-            request_DTO.params["attributes"] = []
-            fields = layer_data.layer.fields()
-            for field in fields:
-                if field.name().lower() == "annotation_height_3857":  # annotation_height_3857 is reserved
-                    continue
-                request_DTO.params["attributes"].append(
-                    {
-                        "originalName": field.name(),
-                        "standardizedName": field.name(),
-                        "type": qgis_data_type_name_to_mysql(field.type()),
-                    }
-                )
+            fields = layer_data.layer_file.fields[uri_layer_name]
+            request_DTO.params["attributes"] = fields
+            # for field in fields:
+            #    if field.name().lower() == "annotation_height_3857":  # annotation_height_3857 is reserved
+            #        continue
+            #    request_DTO.params["attributes"].append(
+            #        {
+            #            "originalName": field.name(),
+            #            "standardizedName": field.name(),
+            #            "type": qgis_data_type_name_to_mysql(field.type()),
+            #        }
+            #    )
             if layer_data.file_type in [
                 SupportedFileType.GML,
                 SupportedFileType.FileGeoDatabase,
@@ -329,7 +338,7 @@ class DatasourceManager(CustomTaskManager):
                 SupportedFileType.KML,
                 SupportedFileType.MapInfo,
             ]:
-                request_DTO.params["layers"] = [layer_data.layer_name]
+                request_DTO.params["layers"] = [uri_layer_name]
             if layer_data.file_type == SupportedFileType.CSV:
                 request_DTO.params["columnX"] = layer_data.longitude
                 request_DTO.params["columnY"] = layer_data.latitude
@@ -347,7 +356,7 @@ class DatasourceManager(CustomTaskManager):
             return False
 
         # request
-        url = f"{API_MCS_URL}/organizations/{self.organization_id}/datasources"
+        url = "{}/organizations/{}/datasources".format(API_MCS_URL, self.organization_id)
         body = request_DTO.to_json()
         request = RequestManager.RequestData(url, body=body, type="POST", id=layer_data.layer_id)
         response = RequestManager.custom_request(request)
@@ -394,7 +403,9 @@ class DatasourceManager(CustomTaskManager):
         def poke_all_not_analyzed_datasources():
 
             for layer_data in self.datasource_to_analyze:
-                url = f"{API_MCS_URL}/organizations/{self.organization_id}/datasources/{layer_data.datasource_id}"
+                url = "{}/organizations/{}/datasources/{}".format(
+                    API_MCS_URL, self.organization_id, layer_data.datasource_id
+                )
                 request = RequestManager.RequestData(url, type="GET", id=layer_data.datasource_id)
                 next_func = lambda response, layer_data=layer_data: is_datasource_analyzed(response, layer_data)
                 self.request_manager.add_requests(request).connect(next_func)

@@ -116,12 +116,12 @@ def convert_measurement_to_pixel(value: any, unit: Qgis.RenderUnit) -> float:
         elif unit == Qgis.RenderUnit.Unknown:
             raise ValueError("Unknown unit")
         else:
-            raise ValueError(f"Unknown unit: {unit}")
+            raise ValueError("Unknown unit: {}".format(unit))
 
 
 def image_to_base64(path: str) -> str:
     if not pathlib.Path(path).is_file():
-        raise ValueError(f"The file {path} does not exist.")
+        raise ValueError("The file {} does not exist.".format(path))
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -188,7 +188,7 @@ def convert_jmap_text_expression(text: str) -> str:
 
     def quote(group) -> str:
         if not re.search(r"\{\d+\}", group):
-            group = f"'{group}'"
+            group = "'{}'".format(group)
         return group
 
     # 🔹 **Step 1: Process one match at a time until no more matches are found**
@@ -224,7 +224,7 @@ def convert_jmap_text_expression(text: str) -> str:
         if re.match(r"\{\d+\}", part):
             formatted_parts.append(part)
         else:
-            formatted_parts.append(f"'{part}'")
+            formatted_parts.append("'{}'".format(part))
 
     # 🔹 **Step 3: Join with `+`**
     new_text = " + ".join(formatted_parts)

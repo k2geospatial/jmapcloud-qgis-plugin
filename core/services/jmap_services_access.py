@@ -34,7 +34,7 @@ class JMapMCS:
         organization_id = SessionManager().get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
+        url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
         request = RequestManager.RequestData(url, type="GET")
 
         return RequestManager.instance().add_requests(request)
@@ -51,7 +51,7 @@ class JMapMCS:
         match = re.search(r"(https?:\/\/.+\..+\?)", source)
         if match:
             url = match.group(0)
-            url = f"{url}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities"
+            url = "{}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities".format(url)
         else:
             return None
         match2 = re.search(r"&?LAYERS=(\w+(,\w+)*)&?", source)
@@ -63,16 +63,19 @@ class JMapMCS:
         safe_string = urllib.parse.quote_plus(url)
         layer_uris = {}
         for layer in layers:
-            layer_uris[layer] = f"format=image/png&layers={layer}&styles&url={safe_string}"
+            layer_uris[layer] = "format=image/png&layers={}&styles&url={}".format(layer, safe_string)
         return layer_uris
+
+    def get_wmts_layer_uri(url: str, minZoom: int = 0, maxZoom: int = 21) -> str:
+        return "http-header:referer=&type=xyz&url={}&zmax={}&zmin={}".format(url, maxZoom, minZoom)
 
     @staticmethod
     def get_project_sprites(url: str) -> tuple[dict, bytes]:
         organization_id = SessionManager().get_organization_id()
         if organization_id is None:
             return None
-        json_url = f"{url}.json"
-        png_url = f"{url}.png"
+        json_url = "{}.json".format(url)
+        png_url = "{}.png".format(url)
         prefix = "Error loading sprites"
         json_sprites = RequestManager.get_request(json_url, error_prefix=prefix).content
         if not bool(json_sprites):
@@ -83,7 +86,7 @@ class JMapMCS:
     @staticmethod
     def post_project(organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
 
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
+        url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
         prefix = "error creating project"
         body = project_data.to_json()
         return RequestManager.post_request(url, body, error_prefix=prefix)
@@ -97,17 +100,17 @@ class JMapMIS:
         if organization_id is None:
             return None
 
-        safe_string = urllib.parse.quote_plus(f"organizationId={organization_id}&VERSION=1.3.0")
+        safe_string = urllib.parse.quote_plus("organizationId={}&VERSION=1.3.0".format(organization_id))
         uri = (
-            f"authcfg={AUTH_CONFIG_ID}"
-            "&crs=EPSG:3857"
-            "&dpiMode=0"
-            "&format=image/png"
-            f"&layers={layer_id}"
-            "&styles"
-            "&tilePixelRatio=0"
-            f"&url={API_MIS_URL}?{safe_string}"
-            "&request=GetMap"
+            "authcfg={}".format(AUTH_CONFIG_ID)
+            + "&crs=EPSG:3857"
+            + "&dpiMode=0"
+            + "&format=image/png"
+            + "&layers={}".format(layer_id)
+            + "&styles"
+            + "&tilePixelRatio=0"
+            + "&url={}?{}".format(API_MCS_URL, safe_string)
+            + "&request=GetMap"
         )
         return uri
 
@@ -120,11 +123,11 @@ class JMapDAS:
         if organization_id is None:
             return None
         uri = (
-            f"authcfg={AUTH_CONFIG_ID} "
-            "pagingEnabled='true' "
-            "preferCoordinatesForWfsT11='false' "
-            f"typename='{layer_id}' "
-            f"url='{API_DAS_URL}/organizations/{organization_id}'"
+            "authcfg={} ".format(AUTH_CONFIG_ID)
+            + "pagingEnabled='true' "
+            + "preferCoordinatesForWfsT11='false' "
+            + "typename='{}' ".format(layer_id)
+            + "url='{}/organizations/{}'".format(API_DAS_URL, organization_id)
         )
         return uri
 
@@ -134,10 +137,10 @@ class JMapDAS:
             return None
         uri = (
             "type=xyz"
-            f"&url={API_DAS_URL}/organizations/{organization_id}/mvt/datasources/{spatial_datasource_id}"
-            "/{x}/{y}/{z}"
-            f"&zmax=23"
-            "&zmin=0"
-            f"&authcfg={AUTH_CONFIG_ID}"
+            + "&url={}/organizations/{}/mvt/datasources/{}".format(API_DAS_URL, organization_id, spatial_datasource_id)
+            + "/{x}/{y}/{z}"
+            + "&zmax=23"
+            + "&zmin=0"
+            + "&authcfg={}".format(AUTH_CONFIG_ID)
         )
         return uri
