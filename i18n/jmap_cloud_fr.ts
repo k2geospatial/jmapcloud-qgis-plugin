@@ -42,7 +42,7 @@
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="93"/>
         <source>Welcome {}&lt;br /&gt;</source>
-        <translation>Bienvenue ^{}&lt;br/&gt;</translation>
+        <translation>Bienvenue {}&lt;br/&gt;</translation>
     </message>
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="110"/>
@@ -63,7 +63,8 @@
         <location filename="../ui/py_files/connection_dialog.py" line="96"/>
         <source>
 Connected to: {}</source>
-        <translation>Connecté à: {}</translation>
+        <translation>
+Connecté à: {}</translation>
     </message>
 </context>
 <context>
@@ -147,7 +148,7 @@ Connected to: {}</source>
     <message>
         <location filename="../core/tasks/custom_qgs_task.py" line="145"/>
         <source>{} was canceled</source>
-        <translation>{} à été annulé(e)</translation>
+        <translation>{} a été annulé(e)</translation>
     </message>
     <message>
         <location filename="../core/tasks/custom_qgs_task.py" line="169"/>
