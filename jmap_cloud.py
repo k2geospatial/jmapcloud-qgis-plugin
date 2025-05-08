@@ -54,11 +54,11 @@ class JMapCloud:
         locale = QSettings().value("locale/userLocale")
         if locale:
             locale = locale[0:2]
-            locale_path = Path(self.plugin_dir, "i18n", "JMap Cloud_{}.qm".format(locale))
+            locale_path = Path(self.plugin_dir, "i18n", "jmap_cloud_{}.qm".format(locale))
 
             if Path.exists(locale_path):
                 self.translator = QTranslator()
-                self.translator.load(locale_path)
+                self.translator.load(str(locale_path))
                 QCoreApplication.installTranslator(self.translator)
 
         # Declare instance attributes
@@ -84,18 +84,13 @@ class JMapCloud:
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: trd version of message.
-        :rtype: QString
+        """Translate a string.
+        :param message: String to translate.
+        :return: Translated string.
         """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate("JMap Cloud", message)
+        translated_message = QCoreApplication.translate("JMapCloud", message)
+        print(translated_message)
+        return translated_message
 
     def create_actions(
         self,

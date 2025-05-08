@@ -49,19 +49,6 @@ from JMapCloud.ui.py_files.warning_dialog import WarningDialog
 MESSAGE_CATEGORY = "LoadProjectTask"
 
 NUM_STEPS = 4
-"""
-get project data\n
-check project data\n
-load project (variable)\n
-  load MVT_Style\n
-  load MVT\n
-  load Vector_Style\n
-  load Vector\n
-  load raster\n
-  load wms\n
-order layer rendering\n
-order layer groups\n
-"""
 
 
 class ProjectVectorType(Enum):
@@ -111,9 +98,9 @@ class ImportProjectManager(QObject):
         self._cancel = False
         self.importing_project = True
         self.action_dialog.show_dialog()
-        self.action_dialog.set_progress(0, "Initializing loading")
+        self.action_dialog.set_progress(0, self.tr("Initializing loading"))
         self.action_dialog.progressBar.setFormat("%p%")
-        self.action_dialog.set_cancelable_mode("<h3>Project importation canceled</h3>")
+        self.action_dialog.set_cancelable_mode(self.tr("<h3>Project importation canceled</h3>"))
         self.feedback.canceled.connect(self.cancel)
 
         self.project_data = project_data
@@ -173,7 +160,7 @@ class ImportProjectManager(QObject):
     def _check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
         layers_data = replies["layers-data"].content
         self.total_steps = len(layers_data) + NUM_STEPS
-        self._next_step("Checking project data")
+        self._next_step(self.tr("Checking project data"))
         self.project_layers_data = ProjectLayersData()
 
         for reply in replies.values():
@@ -189,7 +176,7 @@ class ImportProjectManager(QObject):
 
         formatted_layers_properties = StyleManager.format_properties(mapbox_styles, graphql_style_data, layers_data)
         if formatted_layers_properties == None:
-            message = "error formatting properties"
+            message = self.tr("error formatting properties")
             self._unmanageable_error_occur(message)
             return None
             # -------
@@ -202,7 +189,7 @@ class ImportProjectManager(QObject):
         Load the jmap project in QGIS
         this method call all the other method to load the project
         """
-        self.action_dialog.set_text(f"Loading project layers...")
+        self.action_dialog.set_text(self.tr("Loading project layers..."))
         self.project_vector_type = ProjectVectorType(self.project_vector_type)
         self.project = QgsProject.instance()
         layers_data = self.project_layers_data.layers_data
@@ -256,11 +243,15 @@ class ImportProjectManager(QObject):
                     task.error_occurred.connect(self._error_occur)
                     QgsApplication.taskManager().addTask(task)
                 else:
-                    message = f"Unknown error when loading vector layer : {layer_data['name'][self.project_data.default_language]}"
+                    message = self.tr("Unknown error when loading vector layer : {}").format(
+                        layer_data["name"][self.project_data.default_language]
+                    )
                     self._error_occur(message, MESSAGE_CATEGORY)
                     self._is_all_layer_loaded()
             else:
-                message = f"Unsupported layer {layer_data['name'][self.project_data.default_language]} of type {layer_data['type']}"
+                message = self.tr("Unsupported layer {} of type {}").format(
+                    layer_data["name"][self.project_data.default_language], layer_data["type"]
+                )
                 self._error_occur(message, MESSAGE_CATEGORY)
 
     def _load_wms_layer(self, layer_data: dict, sources) -> bool:
@@ -276,7 +267,7 @@ class ImportProjectManager(QObject):
         layer_data["layers"] = JMapMCS.get_wms_layer_uri(sources[0])
 
         if not bool(layer_data["layers"]):
-            message = f"Error getting Layer {layer_data['name'][self.project_data.default_language]}"
+            message = self.tr("Error getting Layer {}").format(layer_data["name"][self.project_data.default_language])
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
@@ -284,7 +275,7 @@ class ImportProjectManager(QObject):
         for layer_name, uri in layer_data["layers"].items():
             raster_layer = QgsRasterLayer(uri, layer_name, "wms")
             if not raster_layer.isValid():
-                message = f"Layer {name} is not a valid wms layer"
+                message = self.tr("Layer {} is not a valid wms layer").format(name)
                 self._error_occur(message, MESSAGE_CATEGORY)
                 continue
             self.project.addMapLayer(raster_layer, addToLegend=False)
@@ -305,7 +296,7 @@ class ImportProjectManager(QObject):
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(raster_layer)
             return True
         else:
-            message = f"Layer {name} is not valid"
+            message = self.tr("Layer {} is not valid").format(name)
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
@@ -378,7 +369,7 @@ class ImportProjectManager(QObject):
                     ":/images/themes/default/styleicons/singlebandpseudocolor.svg",
                 )
             else:
-                message = f"Layer {base_name} is not valid"
+                message = self.tr("Layer {} is not valid").format(base_name)
                 self._error_occur(message, MESSAGE_CATEGORY)
         if len(group.children()) > 0:
             self.nodes[layer_data["id"]] = group
@@ -402,7 +393,7 @@ class ImportProjectManager(QObject):
         layer_order = self.project_layers_data.layer_order
         project = QgsProject.instance()
 
-        self._next_step("Loading layer groups")
+        self._next_step(self.tr("Loading layer groups"))
 
         # get and initialize the root node for sorting
         root = project.layerTreeRoot()
@@ -412,7 +403,7 @@ class ImportProjectManager(QObject):
         # sort layer groups
         self._sort_layer_tree(root, layer_groups)
 
-        self._next_step("Loading layer order")
+        self._next_step(self.tr("Loading layer order"))
 
         # order layers rendering
         new_layer_order = []
@@ -468,11 +459,12 @@ class ImportProjectManager(QObject):
         return edit_right, all_rights
 
     def _layer_editing_warning(self, layer_permissions: list) -> None:
-        message = """
-            <h1>Warning</h1>
-            <p>You don't have all the right to edit this layer</p>
-            <p>Some changes made on this layer may not be pushed to the JMap Cloud project</p>
-            <p>Here are the rights you have on this layer:</p><br>
+        message = (
+            self.tr("<h1>Warning</h1>"),
+            self.tr("<p>You don't have all the right to edit this layer</p>"),
+            self.tr("<p>Some changes made on this layer may not be pushed to the JMap Cloud project</p>"),
+            self.tr("<p>Here are the rights you have on this layer:</p><br>"),
+            """
             <style>
               table {border-collapse: collapse;}
               td {
@@ -480,8 +472,8 @@ class ImportProjectManager(QObject):
                 padding: 10px;
               }
             </style>
-            <table>
-            """
+            <table>""",
+        )
         for permission in VECTOR_LAYER_EDIT_PERMISSIONS:
             message += f"<tr><td>{permission}</td><td>{'O' if permission in layer_permissions else'X'}</td></tr>"
         message += "</table>"
@@ -529,21 +521,21 @@ class ImportProjectManager(QObject):
 
     def finish(self):
         project = QgsProject.instance()
-        self.action_dialog.set_text(f"Finalization...")
+        self.action_dialog.set_text(self.tr("Finalization..."))
 
-        message = "<h3>Project loaded successfully</h3>"
+        message = self.tr("<h3>Project loaded successfully</h3>")
 
         crs = QgsCoordinateReferenceSystem(self.project_data.crs)
         actual_crs = project.crs()
         if crs.authid() != actual_crs.authid():
             message += (
-                "<h4>Warning</h4>"
-                "<p>The JMap Cloud project crs is different from the actual crs of the project</p>"
-                f"<p>The crs set in JMap Cloud project is : {crs.authid()}</p>"
+                self.tr("<h4>Warning</h4>"),
+                self.tr("<p>The JMap Cloud project crs is different from the actual crs of the project</p>"),
+                self.tr("<p>The crs set in JMap Cloud project is : {}</p>").format(crs.authid()),
             )
 
         if len(self.errors) > 0:
-            message += "<h4>Some errors occurred during the import:</h4>"
+            message += self.tr("<h4>Some errors occurred during the import:</h4>")
             for error in self.errors:
                 message += f"<p>{error}</p>"
 

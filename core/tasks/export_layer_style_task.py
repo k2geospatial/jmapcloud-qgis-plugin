@@ -199,7 +199,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         elif isinstance(renderer, QgsNullSymbolRenderer):
             return True
         else:
-            message = f"Error for layer {self.layer_data.layer_name}. Renderer type {type(renderer)}, not supported"
+            message = self.tr("Error for layer {}. Renderer type {}, not supported").format(
+                self.layer_data.layer_name, type(renderer)
+            )
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
 
@@ -256,7 +258,7 @@ class ExportLayerStyleTask(CustomQgsTask):
         symbol = rule.symbol()
         if symbol:
             if not style_rule_dto:
-                message = f"Unexpected rule '{rule.label()}' have symbol but no parent rule were found"
+                message = self.tr("Unexpected rule '{}' have symbol but no parent rule were found").format(rule.label())
                 self.error_occur(message, MESSAGE_CATEGORY)
                 self.add_exception(Exception(message))
                 return False
@@ -334,7 +336,7 @@ class ExportLayerStyleTask(CustomQgsTask):
         def _split_operator(expression: str) -> list[str]:
             parts = re.split(any_operator_pattern, expression)
             if len(parts) != 2:
-                message = f"invalid expression '{expression}', too many or no valid operators"
+                message = self.tr("invalid expression '{}', too many or no valid operators").format(expression)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
             parts.append(re.search(any_operator_pattern, expression).group(0))
@@ -344,7 +346,7 @@ class ExportLayerStyleTask(CustomQgsTask):
         criterias: list[CriteriaDTO] = []
         # or operator not supported
         if re.search(r"\b[oO][rR]\b", expression):
-            message = f"error in expression '{expression}'. 'OR' operator not supported in JMap Cloud"
+            message = self.tr("error in expression '{}'. 'OR' operator not supported in JMap Cloud").format(expression)
             self.error_occur(message, MESSAGE_CATEGORY)
             return []
         # split and expression for multiple conditions
@@ -353,13 +355,13 @@ class ExportLayerStyleTask(CustomQgsTask):
             # split expression when find any operator
             parts = _split_operator(condition)
             if parts is None:
-                message = f"invalid expression '{expression}'"
+                message = self.tr("invalid expression '{}'").format(expression)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return []
             # get operator
             operator = JMCOperator.translate(parts[2].strip())
             if operator is None:
-                message = f"invalid operator {parts[2].strip()} in expression '{expression}'"
+                message = self.tr("invalid operator {} in expression '{}'").format(parts[2].strip(), expression)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return []
             # find attribute
@@ -367,7 +369,9 @@ class ExportLayerStyleTask(CustomQgsTask):
             if not attribute:
                 attribute = _find_attribute(parts[1].strip())
                 if not attribute:
-                    message = f"invalid attribute in expression '{expression}'. Attributes: not in fileds : {fields}"
+                    message = self.tr("invalid attribute in expression '{}'. Attributes: not in fileds : {}").format(
+                        expression, fields
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return []
                 operator = JMCOperator.reverse(operator)
@@ -375,7 +379,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             else:
                 value = _find_value(parts[1].strip())
             if not bool(value) and operator not in [JMCOperator.IS_NULL.name, JMCOperator.IS_NOT_NULL.name]:
-                message = f"invalid value {value} in expression '{expression}' "
+                message = self.tr("invalid value {} in expression '{}' ").format(value, expression)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return []
             criteria_dto = CriteriaDTO(attribute, operator, value)
@@ -414,7 +418,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         # create every style (post Style)
         for style in styles:
             if style is None:
-                message = f"Export style error for layer '{self.layer_data.layer_name}'. Unsupported symbol layer"
+                message = self.tr("Export style error for layer '{}'. Unsupported symbol layer").format(
+                    self.layer_data.layer_name
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 continue
             body = style.to_json()
@@ -423,7 +429,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             if reply.status == QNetworkReply.NetworkError.NoError:
                 style_ids.append(reply.content["id"])
             else:
-                message = f"Export style error: {reply.content}"
+                message = self.tr("Export style error: {}").format(reply.error_message)
                 self.error_occur(message, MESSAGE_CATEGORY)
         if initial_type != "POLYGON" and len(style_ids) > 1:
             style_ids.reverse()  # reverse order for compound style
@@ -434,7 +440,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             if reply.status == QNetworkReply.NetworkError.NoError:
                 style_ids = [reply.content["id"]]
             else:
-                message = f"Export style error: {reply.content}"
+                message = self.tr("Export style error: {}").format(reply.error_message)
                 self.error_occur(message, MESSAGE_CATEGORY)
 
             # -----------------------
@@ -444,7 +450,9 @@ class ExportLayerStyleTask(CustomQgsTask):
 
     def _export_style_rules(self, style_rule_dto: StyleRuleDTO):
         if len(style_rule_dto.conditions) == 0:
-            message = f"Error exporting style rule for layer '{self.layer_data.layer_name}': no condition in style rule to export with"
+            message = self.tr(
+                "Error exporting style rule for layer '{}': no condition in style rule to export with"
+            ).format(self.layer_data.layer_name)
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
         url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers/{self.layer_data.jmc_layer_id}/style-rules"
@@ -485,14 +493,16 @@ class ExportLayerStyleTask(CustomQgsTask):
         request_data = RequestManager.RequestData(url, type="GET")
         response = self.request_manager.custom_request(request_data)
         if response.status != QNetworkReply.NetworkError.NoError:
-            error_message = f"Error getting style for layer '{self.layer_data.layer_name}': {response.error_message}"
+            error_message = self.tr("Error getting style for layer '{}': {}").format(
+                self.layer_data.layer_name, response.error_message
+            )
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
         style_id = None
         try:
             style_id = response.content[0]["conditions"][0]["styleMapScales"][0]["styleId"]
         except Exception as e:
-            error_message = f"Error getting style for layer '{self.layer_data.layer_name}': {e}"
+            error_message = self.tr("Error getting style for layer '{}': {}").format(self.layer_data.layer_name, e)
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
 
@@ -501,7 +511,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         request = RequestManager.RequestData(url, type="PATCH", body=body)
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
-            error_message = f"Error patching style for layer '{self.layer_data.layer_name}': {response.error_message}"
+            error_message = self.tr("Error patching style for layer '{}': {}").format(
+                self.layer_data.layer_name, response.error_message
+            )
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
         return True

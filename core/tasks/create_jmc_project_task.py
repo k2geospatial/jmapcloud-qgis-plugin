@@ -65,7 +65,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         )
         reply = JMapMCS.post_project(self.project_data.organization_id, project_dto)
         if reply.status != QNetworkReply.NetworkError.NoError:
-            self.error_occur(f"Error creating project : {reply.error_message}", MESSAGE_CATEGORY)
+            self.error_occur(self.tr("Error creating project : {}").format(reply.error_message), MESSAGE_CATEGORY)
             return False
         content = reply.content
         self.next_steps()
@@ -128,7 +128,9 @@ class CreateJMCProjectTask(CustomQgsTask):
                 labeling = layer.labeling()
                 labeling_dto = LabelingConfigDTO.from_qgs_labeling(labeling, self.project_data.default_language)
                 if labeling_dto == None:
-                    message = f"Error creating labeling for layer {layer_data.layer_name}, JMap Cloud only support single rule labeling"
+                    message = self.tr(
+                        "Error creating labeling for layer {}, JMap Cloud only support single rule labeling"
+                    ).format(layer_data.layer_name)
                     self.error_occur(message, MESSAGE_CATEGORY)
                 else:
                     layer_dto.labellingConfiguration = labeling_dto
@@ -196,7 +198,7 @@ class CreateJMCProjectTask(CustomQgsTask):
                         layer_groups_ids.append(layer_data.jmc_layer_id)
                         break
             else:
-                raise Exception("not implemented")
+                raise NotImplementedError
         # update layer groups order
         body = {"id": id, "children": layer_groups_ids, "nodeType": "GROUP"}
         request = RequestManager.RequestData(f"{url}/{id}", body=body, type="PATCH")

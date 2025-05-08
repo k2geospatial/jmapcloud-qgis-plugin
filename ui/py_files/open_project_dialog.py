@@ -12,7 +12,7 @@
 
 
 from qgis.PyQt import QtGui, QtWidgets
-from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
@@ -45,7 +45,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         self.open_project_pushButton.setEnabled(False)
         self.project_List_listWidget.clear()
         item = QtWidgets.QListWidgetItem()
-        item.setText("loading...")
+        item.setText(self.tr("loading..."))
         self.project_List_listWidget.addItem(item)
         self.project_List_listWidget.setEnabled(False)
 
@@ -55,7 +55,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
             else:
                 self.project_List_listWidget.clear()
                 item = QtWidgets.QListWidgetItem()
-                item.setText("Error loading projects, please try again")
+                item.setText(self.tr("Error loading projects, please try again"))
                 self.project_List_listWidget.addItem(item)
 
         if not JMapMCS.get_projects_async().connect(next_func):
@@ -104,7 +104,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         else:
             self.open_project_pushButton.setEnabled(False)
             item = QtWidgets.QListWidgetItem()
-            item.setText("No project found")
+            item.setText(self.tr("No project found"))
             self.project_List_listWidget.clear()
             self.project_List_listWidget.addItem(item)
             self.project_List_listWidget.setEnabled(False)

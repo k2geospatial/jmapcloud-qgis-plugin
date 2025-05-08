@@ -40,7 +40,7 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
     def validate_input(self) -> bool:
 
         if not self.project_title_lineEdit.text():
-            self.error_label.setText("Project title needed")
+            self.error_label.setText(self.tr("Project title needed"))
             return False
 
         self.error_label.clear()

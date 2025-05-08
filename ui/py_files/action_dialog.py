@@ -74,12 +74,12 @@ class ActionDialog(QtWidgets.QDialog, Ui_Dialog):
         if message is not None:
             self.action_finished(message)
         else:
-            self.action_finished("Action canceled")
+            self.action_finished(self.tr("Action canceled"))
         self.reset_feedback()
 
     def set_cancelable_mode(self, cancel_message: str = None):
         self.exit_pushButton.disconnect()
-        self.exit_pushButton.setText("Cancel")
+        self.exit_pushButton.setText(self.tr("Cancel"))
         self.exit_pushButton.setEnabled(True)
 
         def callback():
@@ -89,7 +89,7 @@ class ActionDialog(QtWidgets.QDialog, Ui_Dialog):
         self.exit_pushButton.clicked.connect(callback)
 
     def set_close_mode(self):
-        self.exit_pushButton.setText("Close")
+        self.exit_pushButton.setText(self.tr("Close"))
         self.exit_pushButton.setEnabled(True)
         self.exit_pushButton.disconnect()
         self.exit_pushButton.clicked.connect(self.close)

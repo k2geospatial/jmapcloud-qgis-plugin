@@ -18,6 +18,8 @@ from qgis.core import (
     QgsFillSymbol,
     QgsFillSymbolLayer,
     QgsFontMarkerSymbolLayer,
+    QgsLabelLineSettings,
+    QgsLabelThinningSettings,
     QgsLineSymbol,
     QgsLineSymbolLayer,
     QgsMarkerSymbol,
@@ -38,13 +40,11 @@ from qgis.core import (
     QgsVectorTileBasicLabeling,
     QgsVectorTileBasicLabelingStyle,
     QgsVectorTileBasicRendererStyle,
-    QgsLabelLineSettings,
-    QgsLabelThinningSettings
-    
 )
 from qgis.PyQt.QtCore import QPointF, QSizeF, Qt
 from qgis.PyQt.QtGui import QColor, QFont, QPixmap
 
+from JMapCloud.core.constant import ElementTypeWrapper
 from JMapCloud.core.plugin_util import (
     convert_jmap_text_expression,
     convert_zoom_to_scale,
@@ -52,7 +52,6 @@ from JMapCloud.core.plugin_util import (
 )
 from JMapCloud.core.qgs_message_bar_handler import QgsMessageBarHandler
 from JMapCloud.core.services.jmap_services_access import JMapMCS
-from JMapCloud.core.constant import ElementTypeWrapper
 
 
 class StyleManager:
@@ -119,9 +118,7 @@ class StyleManager:
             return {}
         if "text" in layer_data["labellingConfiguration"]:
             text = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
-            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(
-                text
-            )
+            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(text)
         return layer_data["labellingConfiguration"]
 
     @staticmethod
@@ -164,7 +161,7 @@ class StyleManager:
                     "styleRules": {},
                     "label": {},
                     "mouseOver": None,
-                    "elementType" : None,
+                    "elementType": None,
                 }
             layer = layer_styles[layer_id]
 
@@ -257,7 +254,9 @@ class StyleManager:
             layer_styles[layer_data["id"]]["label"] = labeling_config
             layer_styles[layer_data["id"]]["mouseOver"] = mouse_over_config
             if layer_data["elementType"] in ElementTypeWrapper:
-                layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[layer_data["elementType"]].to_qgis_geometry_type()
+                layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[
+                    layer_data["elementType"]
+                ].to_qgis_geometry_type()
             else:
                 layer_styles[layer_data["id"]]["elementType"] = Qgis.GeometryType.Unknown
 
@@ -268,7 +267,7 @@ class StyleManager:
         if not bool(labeling_data):
             return QgsRuleBasedLabeling(QgsRuleBasedLabeling.Rule(None))
 
-        rule_settings = cls._get_pal_layer_settings(labeling_data,element_type)
+        rule_settings = cls._get_pal_layer_settings(labeling_data, element_type)
 
         # set rule settings
         rule = QgsRuleBasedLabeling.Rule(rule_settings)
@@ -822,11 +821,10 @@ class StyleManager:
         rule_settings.isExpression = True
         rule_settings.layerType = element_type
 
-        
         if "text" in labeling_data:
             rule_settings.fieldName = labeling_data["text"]
 
-        #set position settings
+        # set position settings
         offset_y = 0
         if "offset" in labeling_data:
             text_translate = labeling_data["offset"]
@@ -836,28 +834,35 @@ class StyleManager:
             #    )
             # else:
             offset_x, offset_y = cls._convert_jmap_offset(text_translate)
-            
 
         # line label are not handled by point on map but rather by line itself
         if element_type == Qgis.GeometryType.Line:
             line_settings = QgsLabelLineSettings()
             line_settings.setAnchorClipping(QgsLabelLineSettings.AnchorClipping.UseEntireLine)
-            #line render settings
+            # line render settings
             if "labelSpacing" in labeling_data:
                 rule_settings.repeatDistance = labeling_data["labelSpacing"]
                 rule_settings.repeatDistanceUnit = Qgis.RenderUnit.Pixels
-            #--------------------
+            # --------------------
 
             if "followMapRotation" in labeling_data and labeling_data["followMapRotation"]:
                 rule_settings.placement = Qgis.LabelPlacement.Line
                 if "anchor" in labeling_data:
-                    if "top" in labeling_data["anchor"].lower(): # Maplibre top is bottom in qgis and vice versa
+                    if "top" in labeling_data["anchor"].lower():  # Maplibre top is bottom in qgis and vice versa
                         offset_y = -offset_y
-                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.BelowLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+                        line_settings.setPlacementFlags(
+                            Qgis.LabelLinePlacementFlags(
+                                Qgis.LabelLinePlacementFlag.BelowLine | Qgis.LabelLinePlacementFlag.MapOrientation
+                            )
+                        )
                     else:
                         if "bottom" not in labeling_data["anchor"].lower():
                             offset_y -= 6
-                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.AboveLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+                        line_settings.setPlacementFlags(
+                            Qgis.LabelLinePlacementFlags(
+                                Qgis.LabelLinePlacementFlag.AboveLine | Qgis.LabelLinePlacementFlag.MapOrientation
+                            )
+                        )
 
                     rule_settings.dist = offset_y
                     rule_settings.distUnits = Qgis.RenderUnit.Pixels
@@ -867,7 +872,7 @@ class StyleManager:
             rule_settings.setLineSettings(line_settings)
 
         # label is handled as point
-        else: 
+        else:
             rule_settings.placement = Qgis.LabelPlacement.OverPoint
             rule_settings.xOffset = offset_x
             rule_settings.yOffset = -offset_y
@@ -915,7 +920,6 @@ class StyleManager:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.AllowOverlapAtNoCost)
             else:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.PreventOverlap)
-        
 
         # set label setting text format
         text_format = QgsTextFormat()

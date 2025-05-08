@@ -179,7 +179,7 @@ class JMapAuth(QObject):
         :return: A dictionary with the user information and all his organization ids if the request is successful, otherwise None
         """
         url = f"{API_AUTH_URL}/users/self"
-        prefix = "Authentication Error"
+        prefix = self.tr("Authentication Error")
         response = RequestManager.get_request(url, error_prefix=prefix)
 
         if response.status == QNetworkReply.NetworkError.NoError:
@@ -201,7 +201,7 @@ class JMapAuth(QObject):
         if refresh_token:
             url = f"{API_AUTH_URL}/revoke-token"
             body = {"refreshToken": refresh_token}
-            prefix = "Logout Error"
+            prefix = self.tr("Logout Error")
             RequestManager.post_request(url, body, error_prefix=prefix, no_auth=True)
         self.session_manager.revoke_session()
         self.logged_out_signal.emit()

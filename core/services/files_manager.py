@@ -287,7 +287,7 @@ class DatasourceManager(CustomTaskManager):
         self._cancel = True
 
     def create_datasources(self):
-        self.step_title_changed.emit("Creating datasources")
+        self.step_title_changed.emit(self.tr("Creating datasources"))
         for layer_data in self.layers_data:
             self.create_datasource(layer_data)
 
@@ -373,17 +373,17 @@ class DatasourceManager(CustomTaskManager):
             self.start_poking_jmc_datasource_analyzers()
 
     def start_poking_jmc_datasource_analyzers(self):
-        self.step_title_changed.emit("Server is analyzing datasources")
+        self.step_title_changed.emit(self.tr("Server is analyzing datasources"))
 
         def is_datasource_analyzed(response: RequestManager.ResponseData, layer_data: LayerData = None):
             if response.status != QNetworkReply.NetworkError.NoError:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.unknown_error
-                self.error_occur(f"Unknown error : {response.error_message}", MESSAGE_CATEGORY)
+                self.error_occur(self.tr("Unknown error : {}").format(response.error_message), MESSAGE_CATEGORY)
             elif "status" not in response.content or response.content["status"] == "ERROR":
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.datasource_analyzing_error
-                self.error_occur(f"JMap server error : {response.error_message}", MESSAGE_CATEGORY)
+                self.error_occur(self.tr("JMap server error : {}").format(response.error_message), MESSAGE_CATEGORY)
             elif response.content["status"] in ["READY"]:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.datasource_id = response.content["id"]

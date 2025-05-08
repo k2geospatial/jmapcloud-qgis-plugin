@@ -43,20 +43,24 @@ class CustomQgsTask(QgsTask):
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(f"{self.description()} was canceled", MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.description()), MESSAGE_CATEGORY, Qgis.Info)
         super().cancel()
 
     def finished(self, result):
         if result:
-            QgsMessageLog.logMessage(f"{self.description()} completed successfully", MESSAGE_CATEGORY, Qgis.Success)
+            QgsMessageLog.logMessage(
+                self.tr("{} completed successfully").format(self.description()), MESSAGE_CATEGORY, Qgis.Success
+            )
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    f"""
-                    {self.name} not successful but without 
-                    exception (probably the task was manually 
-                    canceled by the user)
-                    """,
+                    self.tr(
+                        """
+                        {} not successful but without 
+                        exception (probably the task was manually 
+                        canceled by the user)
+                        """
+                    ).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.Warning,
                 )
@@ -138,7 +142,7 @@ class CustomTaskManager(QObject):
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(f"{self.description()} was canceled", MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.name), MESSAGE_CATEGORY, Qgis.Info)
         self.canceled = True
         self.canceled.emit()
 
@@ -163,11 +167,13 @@ class CustomTaskManager(QObject):
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    f"""
-                    {self.name} not successful but without 
-                    exception (probably the task was manually 
-                    canceled by the user)
-                    """,
+                    self.tr(
+                        """
+                        {} not successful but without 
+                        exception (probably the task was manually 
+                        canceled by the user)
+                        """
+                    ).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.Warning,
                 )

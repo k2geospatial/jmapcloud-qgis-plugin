@@ -52,7 +52,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
             return False
         for layer in self.layers:
             if not isinstance(layer, QgsRasterLayer) and not isinstance(layer, QgsVectorLayer):
-                message = f"Layer {layer.name()} of type {type(layer)} is not supported for export"
+                message = self.tr("Layer {} of type {} is not supported for export").format(layer.name(), type(layer))
                 self.error_occur(message, MESSAGE_CATEGORY)
                 continue
             layer_data = LayerData(layer=layer, layer_id=layer.id(), layer_name=layer.name())
@@ -66,7 +66,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.layer_file = None
 
                 layer_data.status = LayerData.Status.file_compressing_error
-                message = f"Error writing layer for layer {layer_data.layer_name}: {message or ''}"
+                message = self.tr("Error writing layer for layer {}: {}").format(layer_data.layer_name, message or "")
                 self.error_occur(message, MESSAGE_CATEGORY)
 
             if not sources:  # create a geojson file and write it to zip
@@ -106,7 +106,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     self.tasks.append(write_task)
                     self.total_tasks += 1
                 else:
-                    message = f"Error writing layer '{layer_data.layer_name}': unknown layer type"
+                    message = self.tr("Error writing layer '{}': unknown layer type").format(layer_data.layer_name)
                     self.error_occur(message, MESSAGE_CATEGORY)
                     layer_data.status = LayerData.Status.file_creation_error
                     continue
@@ -144,7 +144,9 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 elif layer_data.layer_type == LayerData.LayerType.file_raster:
 
                     if layer_data.file_type == SupportedFileType.zip:
-                        message = f"Error writing layer {layer_data.layer_name}: zip raster not supported"
+                        message = self.tr("Error writing layer {}: zip raster not supported").format(
+                            layer_data.layer_name
+                        )
                         self.error_occur(message, MESSAGE_CATEGORY)
                         continue
 
@@ -175,9 +177,6 @@ class ConvertLayersToZipTask(CustomTaskManager):
         self.progress_changed.emit((self.total_tasks - len(self.tasks)) / self.total_tasks * 100)
         if len(self.tasks) == 0:
             self.tasks_completed.emit(self.layers_data, self.layer_files)
-
-    def cancel(self):
-        pass
 
     def get_layer_source(self, layer_data: LayerData) -> list:
         """Retrieve all files or sources associated with a QGIS layer, ensuring required files exist."""
@@ -226,7 +225,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
 
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = f"Missing required files for {base_path.name}: {missing_files}"
+                    message = self.tr("Missing required files for {}: {}").format(base_path.name, missing_files)
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
                 layer_data.file_type = SupportedFileType.SHP
@@ -236,7 +235,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 required_files = [".tab", ".dat", ".map", ".id"]
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = f"Missing required files for {base_path.name}: {missing_files}"
+                    message = self.tr("Missing required files for {}: {}").format(base_path.name, missing_files)
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
                 layer_data.file_type = SupportedFileType.MapInfo
@@ -281,7 +280,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.CAD
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = f"Unsupported file type {ext} for layer {layer_data.layer_name}"
+                message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
 
@@ -308,12 +307,14 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.zip
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = f"Unsupported file type {ext} for layer {layer_data.layer_name}"
+                message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
 
         # ---- Unsupported layers ----
-        message = f"Unsupported layer: {layer_data.layer_name} ({provider_name}), the provider is not supported"
+        message = self.tr("Unsupported layer: {} ({}), the provider is not supported").format(
+            layer_data.layer_name, provider_name
+        )
         self.error_occur(message, MESSAGE_CATEGORY)
         return None
 
@@ -365,6 +366,7 @@ class compressFilesToZipTask(CustomQgsTask):
         super().__init__("Compress Layer", QgsTask.CanCancel)
         self.files_path = files_path
         self.output_path = output_path
+        self.tr("Converting layers to zip")
 
     def run(self) -> bool:
         if self.isCanceled():
@@ -385,7 +387,7 @@ class compressFilesToZipTask(CustomQgsTask):
                                 arcname = file_path.relative_to(input_path)  # Preserve structure
                                 zip_file.write(file_path, arcname=arcname)
                     else:
-                        message = f"Error: {input_path} is not a valid file or folder."
+                        message = self.tr("Error: {} is not a valid file or folder.").format(input_path)
                         raise Exception(message)
                     self.next_steps()
 

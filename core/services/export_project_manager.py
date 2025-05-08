@@ -59,8 +59,8 @@ class ExportProjectManager(QObject):
             self.project_data = project_data
             self.action_dialog.show_dialog()
             self.action_dialog.progressBar.setFormat("%p%")
-            self.action_dialog.progress_info_label.setText("Initializing loading")
-            self.action_dialog.set_cancelable_mode("<h3>Project exportation canceled</h3>")
+            self.action_dialog.progress_info_label.setText(self.tr("Initializing loading"))
+            self.action_dialog.set_cancelable_mode(self.tr("<h3>Project exportation canceled</h3>"))
             self.feedback.canceled.connect(self.cancel)
             self._convert_layer_to_zip()
         else:
@@ -72,14 +72,14 @@ class ExportProjectManager(QObject):
         if len(self.project_data.layers) == 0:
             self._finish(False)
             return
-        self.action_dialog.set_text("Converting layers to zip")
+        self.action_dialog.set_text(self.tr("Converting layers to zip"))
         self.dir = tempfile.TemporaryDirectory(delete=True)
         convert_layer_to_zip_task = ConvertLayersToZipTask(self.dir.name, self.project_data.layers)
         convert_layer_to_zip_task.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
         )
         next_step = lambda layers_data, layer_files: self._upload_layer_files(
-            self._error_handler(layers_data, "convert layer to zip"), layer_files
+            self._error_handler(layers_data, self.tr("convert layer to zip")), layer_files
         )
 
         convert_layer_to_zip_task.tasks_completed.connect(next_step)
@@ -96,9 +96,11 @@ class ExportProjectManager(QObject):
             self._finish(False)
             return
         self.current_step += 1
-        self.action_dialog.set_text("Uploading layers files")
+        self.action_dialog.set_text(self.tr("Uploading layers files"))
         files_upload_manager = FilesUploadManager(layers_data, layer_files, self.project_data.organization_id)
-        next_step = lambda layers_data: self._create_datasource(self._error_handler(layers_data, "Upload layer files"))
+        next_step = lambda layers_data: self._create_datasource(
+            self._error_handler(layers_data, self.tr("Upload layer files"))
+        )
         files_upload_manager.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
         )
@@ -117,10 +119,12 @@ class ExportProjectManager(QObject):
             return
 
         self.current_step += 1
-        self.action_dialog.set_text("Creating datasources")
+        self.action_dialog.set_text(self.tr("Creating datasources"))
 
         datasource_manager = DatasourceManager(layers_data, self.project_data.organization_id)
-        next_step = lambda layers_data: self._create_jmc_project(self._error_handler(layers_data, "Create datasource"))
+        next_step = lambda layers_data: self._create_jmc_project(
+            self._error_handler(layers_data, self.tr("Create datasource"))
+        )
         datasource_manager.tasks_completed.connect(next_step)
         datasource_manager.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
@@ -139,11 +143,11 @@ class ExportProjectManager(QObject):
             return
 
         self.current_step += 1
-        self.action_dialog.set_text("Creating JMap Cloud project")
+        self.action_dialog.set_text(self.tr("Creating JMap Cloud project"))
 
         create_project_task = CreateJMCProjectTask(layers_data, self.project_data)
         next_step = lambda layers_data: self._export_style(
-            self._error_handler(layers_data, "Create JMap Cloud project")
+            self._error_handler(layers_data, self.tr("Create JMap Cloud project"))
         )
         create_project_task.project_creation_finished.connect(next_step)
         create_project_task.error_occurred.connect(self.errors.append)
@@ -161,7 +165,7 @@ class ExportProjectManager(QObject):
             return
 
         self.current_step += 1
-        self.action_dialog.set_text("Exporting layer styles")
+        self.action_dialog.set_text(self.tr("Exporting layer styles"))
 
         export_layer_styles_task = ExportLayersStyleTask(layers_data, self.project_data)
         export_layer_styles_task.layer_styles_exportation_finished.connect(self._finish)
@@ -179,12 +183,19 @@ class ExportProjectManager(QObject):
         message = ""
         for layer_data in layers_data:
             if layer_data.status != LayerData.Status.no_error:
-                new_message = f"\n{layer_data.status} in task {step_string} for layer {layer_data.layer_name}"
+                new_message = self.tr("{} in task {} for layer {}").format(
+                    layer_data.status, step_string, layer_data.layer_name
+                )
                 self.errors.append(new_message)
                 message += new_message
                 other_error.append(layer_data)
             elif layer_data.layer_file != None and layer_data.layer_file.upload_status != LayerFile.Status.no_error:
-                new_message = f"{layer_data.layer_file.upload_status} in task {step_string} for layer {layer_data.layer_name} with file  {layer_data.layer_file.file_name}\n"
+                new_message = self.tr("{} in task {} for layer {} with file {}\n").format(
+                    layer_data.layer_file.upload_status,
+                    step_string,
+                    layer_data.layer_name,
+                    layer_data.layer_file.file_name,
+                )
                 self.errors.append(new_message)
                 message += new_message
                 file_error.append(layer_data)
@@ -199,9 +210,9 @@ class ExportProjectManager(QObject):
         self.action_dialog.set_progress(total_progress)
 
     def _finish(self, success: bool = True):
-        message = "<h3>Project exportation finished<3>"
+        message = self.tr("<h3>Project exportation finished<3>")
         if len(self.errors) > 0:
-            message += "<h4>Some errors occurred during the process:</h4>"
+            message += self.tr("<h4>Some errors occurred during the process:</h4>")
             for error in self.errors:
                 message += f"<p>{error.replace('\n', '<br>')}</p>"
         self.action_dialog.action_finished(message)

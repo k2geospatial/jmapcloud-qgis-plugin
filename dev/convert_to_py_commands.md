@@ -8,7 +8,7 @@ after doing one of these function : update de last line "import resources_rc" to
 # when  login_dialog_base.ui is updated
 pyuic5 ..\ui\ui_files\connection_dialog_base.ui -o ..\ui\py_files\connection_dialog_base.py
 # when  load_project_dialog_base.ui is updated
-pyuic5 ..\ui\ui_files\load_project_dialog_base.ui -o ..\ui\py_files\load_project_dialog_base.py
+pyuic5 ..\ui\ui_files\open_project_dialog_base.ui -o ..\ui\py_files\open_project_dialog_base.py
 # when  export_project_dialog_base.ui is updated
 pyuic5 ..\ui\ui_files\export_project_dialog_base.ui -o ..\ui\py_files\export_project_dialog_base.py
 # when  action_dialog_base.ui is updated
