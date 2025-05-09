@@ -93,7 +93,7 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "Export project"))
         self.title_label.setText(_translate("Dialog", "Export a project to JMap Cloud"))
         self.project_title_label.setText(_translate("Dialog", "Project title :"))
-        self.export_project_pushButton.setText(_translate("Dialog", "Export project"))
+        self.export_project_pushButton.setText(_translate("Dialog", "Export"))
 
 
 from JMapCloud import resources_rc

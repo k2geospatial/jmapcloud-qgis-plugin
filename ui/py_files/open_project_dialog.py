@@ -12,7 +12,7 @@
 
 
 from qgis.PyQt import QtGui, QtWidgets
-from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
@@ -36,21 +36,32 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         """Constructor."""
         super(OpenProjectDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
-        self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")
+        self.language = QSettings().value("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), "en")
 
-    def list_projects(self, organization_id: str):
+    def list_projects(self) -> bool:
+        """
+        Populate the list widget with projects from the specified organization.
+        """
         self.open_project_pushButton.setEnabled(False)
         self.project_List_listWidget.clear()
         item = QtWidgets.QListWidgetItem()
-        item.setText("loading...")
+        item.setText(self.tr("loading..."))
         self.project_List_listWidget.addItem(item)
         self.project_List_listWidget.setEnabled(False)
 
         def next_func(reply: RequestManager.ResponseData):
             if reply.status == QNetworkReply.NetworkError.NoError:
                 self.add_project_item_to_list(reply.content)
+            else:
+                self.project_List_listWidget.clear()
+                item = QtWidgets.QListWidgetItem()
+                item.setText(self.tr("Error loading projects, please try again"))
+                self.project_List_listWidget.addItem(item)
 
-        JMapMCS.get_projects_async(organization_id).connect(next_func)
+        if not JMapMCS.get_projects_async().connect(next_func):
+            return False
+
+        return True
 
     def add_project_item_to_list(self, projects: list):
         if projects:
@@ -78,7 +89,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                     "",
                 )
                 crs = project["mapCrs"]
-                text = name + (f"\n{description}" if description else "") + f"\nCRS : {crs}"
+                text = name + ("\n{}".format(description) if description else "") + "\nCRS : {}".format(crs)
                 item.setText(text)
                 item.metadata = {
                     "id": project["id"],
@@ -93,7 +104,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         else:
             self.open_project_pushButton.setEnabled(False)
             item = QtWidgets.QListWidgetItem()
-            item.setText("No project found")
+            item.setText(self.tr("No project found"))
             self.project_List_listWidget.clear()
             self.project_List_listWidget.addItem(item)
             self.project_List_listWidget.setEnabled(False)

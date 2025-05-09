@@ -70,6 +70,10 @@ class RequestManager(QObject):
             self.error_message = error_message
             self.id = id
 
+        @classmethod
+        def no_reply(cls):
+            return cls(None, None, None, QNetworkReply.NetworkError.UnknownContentError)
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(RequestManager, cls).__new__(cls)
@@ -115,9 +119,9 @@ class RequestManager(QObject):
             self.pending_request[request.id] = self.custom_request_async(request, _handle_queue_response)
             self.active_requests += 1
 
-    @staticmethod
+    @classmethod
     def get_request(
-        url: str, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
+        cls, url: str, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
     ) -> ResponseData:
         """
         Perform an blocking GET request to a given URL.
@@ -130,7 +134,7 @@ class RequestManager(QObject):
         request_manager = QgsBlockingNetworkRequest()
         if not no_auth:
             request_manager.setAuthCfg(AUTH_CONFIG_ID)
-        request = RequestManager._prepare_request(url, headers, True)
+        request = cls._prepare_request(url, headers, True)
         try:
             response = request_manager.get(request, forceRefresh=True)
             reply = request_manager.reply()
@@ -141,19 +145,18 @@ class RequestManager(QObject):
 
         except Exception as e:
             QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
-            return RequestManager.ResponseData(None, None)
+            return cls.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
-            QgsMessageBarHandler.send_message_to_message_bar(
-                str(reply.content(), "utf-8"), prefix=error_prefix, level=Qgis.Warning
-            )
-        response_data = RequestManager._handle_reply(reply)
+            message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
+            QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
+        response_data = cls._handle_reply(reply)
         reply.clear()
         return response_data
 
-    @staticmethod
+    @classmethod
     def post_request(
-        url: str, body=None, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
+        cls, url: str, body=None, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
     ) -> ResponseData:
         """
         Perform an blocking POST request to a given URL.
@@ -167,29 +170,29 @@ class RequestManager(QObject):
         request_manager = QgsBlockingNetworkRequest()
         if not no_auth:
             request_manager.setAuthCfg(AUTH_CONFIG_ID)
-        request = RequestManager._prepare_request(url, headers, True)
+        request = cls._prepare_request(url, headers, True)
         try:
             response = request_manager.post(
                 request,
-                RequestManager._encode_body(body),
+                cls._encode_body(body),
                 forceRefresh=True,
             )
 
             reply = request_manager.reply()
 
         except Exception as e:
-            QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
-            return RequestManager.ResponseData(None, None)
+            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Warning)
+            return cls.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
-            message = f"{reply.content()}, {reply.errorString()}"
-            QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
-        response_data = RequestManager._handle_reply(reply)
+            message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
+            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Warning)
+        response_data = cls._handle_reply(reply)
         reply.clear()
         return response_data
 
-    @staticmethod
-    def custom_request(request_data: RequestData) -> ResponseData:
+    @classmethod
+    def custom_request(cls, request_data: RequestData) -> ResponseData:
         """
         Perform a blocking custom request to a given URL.
 
@@ -206,11 +209,11 @@ class RequestManager(QObject):
         loop = QEventLoop()
         reply.finished.connect(loop.quit)
         loop.exec()
-        response_data = RequestManager._handle_reply(reply, request_data.id)
+        response_data = cls._handle_reply(reply, request_data.id)
         return response_data
 
-    @staticmethod
-    def custom_request_async(request_data: RequestData, callback: callable = None) -> QNetworkReply:
+    @classmethod
+    def custom_request_async(cls, request_data: RequestData, callback: callable = None) -> QNetworkReply:
         """
         Perform an async custom request to a given URL.
 
@@ -230,14 +233,14 @@ class RequestManager(QObject):
 
             def on_finished(reply=reply, id=request_data.id):
                 reply.disconnect()
-                response_data = RequestManager._handle_reply(reply, id)
+                response_data = cls._handle_reply(reply, id)
                 callback(response_data)
 
             reply.finished.connect(on_finished)
         return reply
 
-    @staticmethod
-    def multi_request_async(requests_data: list[RequestData]) -> pyqtSignal:
+    @classmethod
+    def multi_request_async(cls, requests_data: list[RequestData]) -> pyqtSignal:
         """
         Perform multiple async custom requests to given URLs. and emit a signal when all requests are finished
 
@@ -246,7 +249,7 @@ class RequestManager(QObject):
         """
         no_request_finished = 0
         replies = {}
-        request_manager = RequestManager.instance()
+        request_manager = cls.instance()
         signal_object = TemporarySignalObject()
 
         def request_counter(reply, id: str):
@@ -262,7 +265,7 @@ class RequestManager(QObject):
 
         for request_data in requests_data:
             recursive_callback = lambda reply, id=request_data.id: request_counter(reply, id)
-            request_manager.pending_request[request_data.id] = RequestManager.custom_request_async(
+            request_manager.pending_request[request_data.id] = cls.custom_request_async(
                 request_data, recursive_callback
             )
         return signal_object.signal
@@ -273,7 +276,7 @@ class RequestManager(QObject):
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         if not no_auth:
             request.setRawHeader(
-                "Authorization".encode(), f"Bearer {SessionManager.instance().get_access_token()}".encode()
+                "Authorization".encode(), "Bearer {}".format(SessionManager.instance().get_access_token()).encode()
             )
         for key, value in headers.items():
             request.setRawHeader(key.encode(), value.encode())
@@ -296,8 +299,8 @@ class RequestManager(QObject):
         else:
             return body
 
-    @staticmethod
-    def _handle_reply(reply, id=None):
+    @classmethod
+    def _handle_reply(cls, reply, id=None):
         if isinstance(reply, QgsNetworkReplyContent):
             content = reply.content()
             error_string = reply.errorString()
@@ -319,13 +322,15 @@ class RequestManager(QObject):
         error_code = reply.error()
         error_string = ""
         if error_code != QNetworkReply.NoError:
-            QgsMessageLog.logMessage(f"Error occurred {content}", MESSAGE_CATEGORY, Qgis.Critical)
+            QgsMessageLog.logMessage(
+                cls.instance().tr("Error occurred {}").format(content), MESSAGE_CATEGORY, Qgis.Critical
+            )
             reply_error_string = reply.errorString()
             if bool(reply_error_string):
-                error_string += f"reply : {reply_error_string}\n"
+                error_string += "reply : {}\n".format(reply_error_string)
             if bool(content):
-                error_string += f"content : {content}\n"
+                error_string += "content : {}\n".format(content)
 
-        headers = RequestManager._get_headers(reply)
+        headers = cls._get_headers(reply)
 
-        return RequestManager.ResponseData(content, headers, error_code, error_string, id)
+        return cls.ResponseData(content, headers, error_code, error_string, id)

@@ -49,12 +49,14 @@ class LayerFile:
         file_name: str = None,
         file_path: str = None,
         file_type: SupportedFileType = None,
+        fields: dict = None,
     ):
         self.jmc_file_id = jmc_file_id
         self.file_name = file_name
         self.file_path = file_path
         self.upload_status = self.Status.no_error
         self.file_type = file_type
+        self.fields = fields or {}
 
 
 class LayerData:
@@ -104,6 +106,7 @@ class LayerData:
         datasource_layer: str = None,
         format: str = None,
         jmc_layer_id: str = None,
+        uri_components: dict = None,
     ):
         self.datasource = datasource
         self.datasource_creation_status = datasource_creation_status
@@ -119,6 +122,7 @@ class LayerData:
         self.datasource_layer = datasource_layer
         self.format = format
         self.jmc_layer_id = jmc_layer_id
+        self.uri_components = uri_components
 
 
 class ProjectData:

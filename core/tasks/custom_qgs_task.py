@@ -43,27 +43,31 @@ class CustomQgsTask(QgsTask):
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(f"{self.description()} was canceled", MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.description()), MESSAGE_CATEGORY, Qgis.Info)
         super().cancel()
 
     def finished(self, result):
         if result:
-            QgsMessageLog.logMessage(f"{self.description()} completed successfully", MESSAGE_CATEGORY, Qgis.Success)
+            QgsMessageLog.logMessage(
+                self.tr("{} completed successfully").format(self.description()), MESSAGE_CATEGORY, Qgis.Success
+            )
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    f"""
-                    {self.name} not successful but without 
-                    exception (probably the task was manually 
-                    canceled by the user)
-                    """,
+                    self.tr(
+                        """
+                        {} not successful but without 
+                        exception (probably the task was manually 
+                        canceled by the user)
+                        """
+                    ).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.Warning,
                 )
             else:
-                message = f"{self.name} Exception:"
+                message = "{} Exception:".format(self.name)
                 for exception in self.exceptions:
-                    message += f"\n{exception}"
+                    message += "\n{}".format(exception)
                 QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Critical)
                 raise Exception(message)
 
@@ -114,12 +118,13 @@ class CustomTaskManager(QObject):
     error_occurred = pyqtSignal(str)
     step_title_changed = pyqtSignal(str)
     canceled = pyqtSignal()
+    progress_changed = pyqtSignal(float)
+    tasks_completed = pyqtSignal(bool)
 
     name: str
     exceptions: list[Exception]
     current_step: int
     total_steps: int
-    feedback: QgsFeedback
     is_cancel: bool
     tasks: list[CustomQgsTask]
 
@@ -133,12 +138,12 @@ class CustomTaskManager(QObject):
         self.tasks = []
         if feedback:
             self.feedback = feedback
-            self.progressChanged.connect(self.feedback.setProgress)
+            self.progress_changed.connect(self.feedback.setProgress)
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(f"{self.description()} was canceled", MESSAGE_CATEGORY, Qgis.Info)
-        self.canceled = True
+        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.name), MESSAGE_CATEGORY, Qgis.Info)
+        self.is_cancel = True
         self.canceled.emit()
 
     def is_canceled(self) -> bool:
@@ -158,22 +163,24 @@ class CustomTaskManager(QObject):
 
     def finished(self, result):
         if result:
-            QgsMessageLog.logMessage(f"{self.name} completed successfully", MESSAGE_CATEGORY, Qgis.Success)
+            QgsMessageLog.logMessage("{} completed successfully".format(self.name), MESSAGE_CATEGORY, Qgis.Success)
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    f"""
-                    {self.name} not successful but without 
-                    exception (probably the task was manually 
-                    canceled by the user)
-                    """,
+                    self.tr(
+                        """
+                        {} not successful but without 
+                        exception (probably the task was manually 
+                        canceled by the user)
+                        """
+                    ).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.Warning,
                 )
             else:
-                message = f"{self.name} Exception:"
+                message = "{} Exception:".format(self.name)
                 for exception in self.exceptions:
-                    message += f"\n{exception}"
+                    message += "\n{}".format(exception)
                 QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Critical)
                 raise Exception(message)
 
@@ -183,7 +190,7 @@ class CustomTaskManager(QObject):
     def next_steps(self, step_title: str = None):
         self.step_title_changed.emit(step_title)
         self.current_step += 1
-        self.setProgress(self.current_step / self.total_steps * 100)
+        self.progress_changed.emit(self.current_step / self.total_steps * 100)
 
     def add_exception(self, exception: Exception):
         self.exceptions.append(exception)

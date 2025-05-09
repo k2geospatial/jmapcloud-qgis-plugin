@@ -62,10 +62,11 @@ class CreateJMCProjectTask(CustomQgsTask):
             description={self.project_data.default_language: self.project_data.description},
             mapCrs=self.project_data.crs.authid(),
             initialExtent=rectangle,
+            defaultLanguage=self.project_data.default_language,
         )
         reply = JMapMCS.post_project(self.project_data.organization_id, project_dto)
         if reply.status != QNetworkReply.NetworkError.NoError:
-            self.error_occur(f"Error creating project : {reply.error_message}", MESSAGE_CATEGORY)
+            self.error_occur(self.tr("Error creating project : {}").format(reply.error_message), MESSAGE_CATEGORY)
             return False
         content = reply.content
         self.next_steps()
@@ -116,8 +117,9 @@ class CreateJMCProjectTask(CustomQgsTask):
         if layer_data.layer_type in [LayerData.LayerType.API_FEATURES, LayerData.LayerType.file_vector]:
             layer_dto.elementType = layer_data.element_type
             layer_dto.attributes = []
-            for field in layer_data.layer.fields().names():
-                layer_dto.attributes.append({"name": field})
+
+            for field in layer_data.layer_file.fields[layer_data.uri_components["layerName"]]:
+                layer_dto.attributes.append({"name": field["standardizedName"]})
 
             if not bool(map_tip_template):
                 display_expression = layer.displayExpression()
@@ -128,18 +130,22 @@ class CreateJMCProjectTask(CustomQgsTask):
                 labeling = layer.labeling()
                 labeling_dto = LabelingConfigDTO.from_qgs_labeling(labeling, self.project_data.default_language)
                 if labeling_dto == None:
-                    message = f"Error creating labeling for layer {layer_data.layer_name}, JMap Cloud only support single rule labeling"
+                    message = self.tr(
+                        "Error creating labeling for layer {}, JMap Cloud only support single rule labeling"
+                    ).format(layer_data.layer_name)
                     self.error_occur(message, MESSAGE_CATEGORY)
                 else:
                     layer_dto.labellingConfiguration = labeling_dto
         elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
-            layer_dto.layers = [layer_data.datasource_layer]
+            layer_dto.layers = [layer_data.uri_components["layers"]]
             layer_dto.styles = ["default"]
-            layer_dto.imageFormat = layer_data.format
+            layer_dto.imageFormat = layer_data.uri_components["format"]
 
         layer_dto.mouseOverConfiguration = MouseOverConfigDTO(layer.mapTipsEnabled(), mouse_over_text)
 
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers"
+        url = "{}/organizations/{}/projects/{}/layers".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id
+        )
         body = layer_dto.to_json()
         return RequestManager.RequestData(url, type="POST", body=body, id=layer_data.layer_id)
 
@@ -166,7 +172,9 @@ class CreateJMCProjectTask(CustomQgsTask):
                     ids_list_order.append(layer_data.jmc_layer_id)
                     break
 
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-order"
+        url = "{}/organizations/{}/projects/{}/layers-order".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id
+        )
         body = {"ids": ids_list_order}
         request = RequestManager.RequestData(url, body=body, type="PUT")
         response = self.request_manager.custom_request(request)
@@ -175,7 +183,9 @@ class CreateJMCProjectTask(CustomQgsTask):
         return True
 
     def _update_layer_groups(self, root: QgsLayerTreeNode, id: str = "root") -> bool:
-        url = f"{API_MCS_URL}/organizations/{self.project_data.organization_id}/projects/{self.project_data.project_id}/layers-groups"
+        url = "{}/organizations/{}/projects/{}/layers-groups".format(
+            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id
+        )
         layer_groups_ids = []
         root.children()
         # set lengend order and create layer-groups
@@ -196,10 +206,10 @@ class CreateJMCProjectTask(CustomQgsTask):
                         layer_groups_ids.append(layer_data.jmc_layer_id)
                         break
             else:
-                raise Exception("not implemented")
+                raise NotImplementedError
         # update layer groups order
         body = {"id": id, "children": layer_groups_ids, "nodeType": "GROUP"}
-        request = RequestManager.RequestData(f"{url}/{id}", body=body, type="PATCH")
+        request = RequestManager.RequestData("{}/{}".format(url, id), body=body, type="PATCH")
         response = self.request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False

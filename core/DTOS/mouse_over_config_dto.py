@@ -38,12 +38,15 @@ class MouseOverConfigDTO(DTO):
     @staticmethod
     def convert_qgis_map_tip_template(text) -> str:
         while True:
-            match = re.search(r"\[%((?:[^[%]|\[(?!%)|\%(?!]))+?)%\]", text)
+            match = re.search(r"\[%((?:[^[%]|\[(?!%)|%(?!]))+?)%\]", text)
             if not match:
                 break
             part = convert_QGIS_text_expression_to_JMap(match.group(0)[2:-2])
             if not part:
                 part = match.group(0)
-            text = re.sub(r"\[%((?:[^[%]|\[(?!%)|\%(?!]))+?)%\]", part, text, count=1)
+            try:
+                text = re.sub(r"\[%((?:[^[%]|\[(?!%)|%(?!]))+?)%\]", part, text, count=1)
+            except:
+                break
 
         return text

@@ -18,6 +18,8 @@ from qgis.core import (
     QgsFillSymbol,
     QgsFillSymbolLayer,
     QgsFontMarkerSymbolLayer,
+    QgsLabelLineSettings,
+    QgsLabelThinningSettings,
     QgsLineSymbol,
     QgsLineSymbolLayer,
     QgsMarkerSymbol,
@@ -38,13 +40,11 @@ from qgis.core import (
     QgsVectorTileBasicLabeling,
     QgsVectorTileBasicLabelingStyle,
     QgsVectorTileBasicRendererStyle,
-    QgsLabelLineSettings,
-    QgsLabelThinningSettings
-    
 )
 from qgis.PyQt.QtCore import QPointF, QSizeF, Qt
 from qgis.PyQt.QtGui import QColor, QFont, QPixmap
 
+from JMapCloud.core.constant import ElementTypeWrapper
 from JMapCloud.core.plugin_util import (
     convert_jmap_text_expression,
     convert_zoom_to_scale,
@@ -52,7 +52,6 @@ from JMapCloud.core.plugin_util import (
 )
 from JMapCloud.core.qgs_message_bar_handler import QgsMessageBarHandler
 from JMapCloud.core.services.jmap_services_access import JMapMCS
-from JMapCloud.core.constant import ElementTypeWrapper
 
 
 class StyleManager:
@@ -98,7 +97,7 @@ class StyleManager:
 
             icon_image = sprite_sheet.copy(x, y, width, height)
 
-            path = project.createAttachedFile(f"{icon_id}.png")
+            path = project.createAttachedFile("{}.png".format(icon_id))
             icon_image.save(path, "PNG")
 
             icons[icon_id] = {
@@ -119,9 +118,7 @@ class StyleManager:
             return {}
         if "text" in layer_data["labellingConfiguration"]:
             text = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
-            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(
-                text
-            )
+            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(text)
         return layer_data["labellingConfiguration"]
 
     @staticmethod
@@ -133,7 +130,7 @@ class StyleManager:
 
         text_label = convert_jmap_text_expression(text)
         text_label = text_label.replace("\n", "<br>\n")
-        text_label = f"[%{text_label}%]"
+        text_label = "[%{}%]".format(text_label)
 
         return text_label
 
@@ -164,12 +161,12 @@ class StyleManager:
                     "styleRules": {},
                     "label": {},
                     "mouseOver": None,
-                    "elementType" : None,
+                    "elementType": None,
                 }
             layer = layer_styles[layer_id]
 
             if "source" in mapbox_style and "tiles" in mapbox_styles["sources"][mapbox_style["source"]]:
-                layer["sources"] = mapbox_styles["sources"][mapbox_style["source"]]["tiles"]
+                layer["sources"] = mapbox_styles["sources"][mapbox_style["source"]]
 
             # styleRules are symbol groups
             # elif "style-rule-id" in mapbox_style["metadata"]:
@@ -225,7 +222,9 @@ class StyleManager:
                                     properties[key] = 1.0
                                 elif "text-size" in key and "interpolate" in value:
                                     properties[key] = cls.QGISExpression(
-                                        f"{cls._convert_mapbox_expression(value[4][2][1])}/2^(23-  @vector_tile_zoom )"
+                                        "{}/2^(23-  @vector_tile_zoom )".format(
+                                            cls._convert_mapbox_expression(value[4][2][1])
+                                        )
                                     )
                                 # END OF JMAP HARDCODE-------------------------------
                                 elif isinstance(value, list):
@@ -257,7 +256,9 @@ class StyleManager:
             layer_styles[layer_data["id"]]["label"] = labeling_config
             layer_styles[layer_data["id"]]["mouseOver"] = mouse_over_config
             if layer_data["elementType"] in ElementTypeWrapper:
-                layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[layer_data["elementType"]].to_qgis_geometry_type()
+                layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[
+                    layer_data["elementType"]
+                ].to_qgis_geometry_type()
             else:
                 layer_styles[layer_data["id"]]["elementType"] = Qgis.GeometryType.Unknown
 
@@ -268,7 +269,7 @@ class StyleManager:
         if not bool(labeling_data):
             return QgsRuleBasedLabeling(QgsRuleBasedLabeling.Rule(None))
 
-        rule_settings = cls._get_pal_layer_settings(labeling_data,element_type)
+        rule_settings = cls._get_pal_layer_settings(labeling_data, element_type)
 
         # set rule settings
         rule = QgsRuleBasedLabeling.Rule(rule_settings)
@@ -312,7 +313,7 @@ class StyleManager:
                         continue
 
                     rule_name = condition["name"] + (
-                        f' {int(style_map_scale["minimumZoom"])}-{int(style_map_scale["maximumZoom"])}'
+                        " {}-{}".format(int(style_map_scale["minimumZoom"]), int(style_map_scale["maximumZoom"]))
                         if len(condition["styleMapScales"]) > 1
                         else ""
                     )
@@ -397,7 +398,7 @@ class StyleManager:
                     style.setMinZoomLevel(min_zoom)
                     style.setSymbol(symbol)
                     styleName = condition["name"] + (
-                        f" {min_zoom}-{max_zoom}" if len(condition["styleMapScales"]) > 1 else ""
+                        " {}-{}".format(min_zoom, max_zoom) if len(condition["styleMapScales"]) > 1 else ""
                     )
                     style.setStyleName(styleName)
                     styles["style_list"].append(style)
@@ -465,12 +466,12 @@ class StyleManager:
                 icons["path"],
                 size=(icons["width"] + icons["height"]) / 2 / icons["pixelRatio"],
             )
-            symbol_layer.setFixedAspectRatio(icons["width"] / icons["height"])
+            symbol_layer.setFixedAspectRatio(icons["height"] / icons["width"])
             symbol_layer.setSizeUnit(Qgis.RenderUnit.Pixels)
             # set icon properties
             if "icon-opacity" in style:
                 if isinstance(style["icon-opacity"], cls.QGISExpression):
-                    expression = f"({style['icon-opacity'].value}) * 100"
+                    expression = "({}) * 100".format(style["icon-opacity"].value)
                     symbol_layer = cls._set_object_data_define_property_expression(
                         symbol_layer, QgsSymbolLayer.PropertyOpacity, expression
                     )
@@ -585,7 +586,9 @@ class StyleManager:
 
         if "line-dasharray" in style:
             if isinstance(style["line-dasharray"], cls.QGISExpression) or isinstance(line_width, cls.QGISExpression):
-                expression = f"array_to_string( array_foreach({style['line-dasharray'].value},@element*{style['line-width']} ),';')"
+                expression = "array_to_string( array_foreach({},@element*{} ),';')".format(
+                    style["line-dasharray"].value, style["line-width"]
+                )
                 symbol_layer = cls._set_object_data_define_property_expression(
                     symbol_layer, QgsSymbolLayer.PropertyDashVector, expression
                 )
@@ -645,7 +648,7 @@ class StyleManager:
         if not isinstance(condition_expressions, list):
             if isinstance(condition_expressions, str):
                 condition_expressions = condition_expressions.replace("'", r"\'")
-                condition_expressions = f"'{condition_expressions}'"
+                condition_expressions = "'{}'".format(condition_expressions)
             # elif isinstance(condition_expressions, float):
             #    condition_expressions = condition_expressions * 100
             return condition_expressions
@@ -655,7 +658,7 @@ class StyleManager:
             if condition_expressions[0] == "literal":
                 exp = cls._convert_mapbox_expression(condition_expressions[1])
                 exp = str(exp).replace("[", "").replace("]", "")
-                return cls.QGISExpression(f"array({exp})")
+                return cls.QGISExpression("array({})".format(exp))
 
             elif condition_expressions[0] in ["string", "number", "boolean", "object"]:
                 exp = cls._convert_mapbox_expression(condition_expressions[1])
@@ -663,33 +666,33 @@ class StyleManager:
 
             elif condition_expressions[0] == "to-string":
                 exp = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"to_string({exp})")
+                return cls.QGISExpression("to_string({})".format(exp))
 
             elif condition_expressions[0] == "to-number":
                 exp = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"to_real({exp})")
+                return cls.QGISExpression("to_real({})".format(exp))
 
             elif condition_expressions[0] == "to-object":
                 exp = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"to_object({exp})")
+                return cls.QGISExpression("to_object({})".format(exp))
 
             elif condition_expressions[0] == "at":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
                 exp2 = cls._convert_mapbox_expression(condition_expressions[2])
-                return cls.QGISExpression(f"{exp2}[{exp1}]")
+                return cls.QGISExpression("{}[{}]".format(exp2, exp1))
 
             elif condition_expressions[0] == "index-of":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
                 exp2 = cls._convert_mapbox_expression(condition_expressions[2])
-                return cls.QGISExpression(f"array_find({exp1}, {exp2})")
+                return cls.QGISExpression("array_find({}, {})".format(exp1, exp2))
 
             elif condition_expressions[0] == "slice":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
                 exp2 = cls._convert_mapbox_expression(condition_expressions[2])
-                converted_string = f"array_slice({exp1}, {exp2})"
+                converted_string = "array_slice({}, {})".format(exp1, exp2)
                 if len(condition_expressions) > 3:
                     exp3 = cls._convert_mapbox_expression(condition_expressions[3])
-                    converted_string += f", {exp3}"
+                    converted_string += ", {}".format(exp3)
                 return cls.QGISExpression(converted_string)
 
             elif condition_expressions[0] == "get":
@@ -697,21 +700,21 @@ class StyleManager:
 
             elif condition_expressions[0] == "has":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"attribute({exp1}) is not null")
+                return cls.QGISExpression("attribute({}) is not null".format(exp1))
 
             elif condition_expressions[0] == "length":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"array_length({exp1})")
+                return cls.QGISExpression("array_length({})".format(exp1))
 
             elif condition_expressions[0] == "case":
                 converted_expression = "CASE"
                 for i in range(1, len(condition_expressions) - 1, 2):
                     exp_x = cls._convert_mapbox_expression(condition_expressions[i])
                     exp_y = cls._convert_mapbox_expression(condition_expressions[i + 1])
-                    converted_expression += f" WHEN {exp_x} THEN {exp_y}"
+                    converted_expression += " WHEN {} THEN {}".format(exp_x, exp_y)
                 if len(condition_expressions) % 2 == 0:
                     exp1 = cls._convert_mapbox_expression(condition_expressions[-1])
-                    converted_expression += f" ELSE {exp1}"
+                    converted_expression += " ELSE {}".format(exp1)
                 converted_expression += " END"
                 return cls.QGISExpression(converted_expression)
 
@@ -721,46 +724,50 @@ class StyleManager:
                 for i in range(2, len(condition_expressions), 2):
                     exp_x = cls._convert_mapbox_expression(condition_expressions[i])
                     exp_y = cls._convert_mapbox_expression(condition_expressions[i + 1])
-                    converted_expression += f" WHEN {exp1} in {exp_x} THEN {exp_y}"
+                    converted_expression += " WHEN {} in {} THEN {}".format(exp1, exp_x, exp_y)
                 if len(condition_expressions) % 2 == 0:
                     exp2 = cls._convert_mapbox_expression(condition_expressions[-1])
-                    converted_expression += f" ELSE {exp2}"
+                    converted_expression += " ELSE {}".format(exp2)
                 converted_expression += " END"
                 return cls.QGISExpression(converted_expression)
 
             elif condition_expressions[0] in ["==", ">", "<", ">=", "<=", "!=", "in", "/", "%", "^"]:
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
                 exp2 = cls._convert_mapbox_expression(condition_expressions[2])
-                return f'{exp1} {condition_expressions[0] if condition_expressions[0] != "==" else "="} {exp2}'
+                return "{} {} {}".format(
+                    exp1, condition_expressions[0] if condition_expressions[0] != "==" else "=", exp2
+                )
 
             elif condition_expressions[0] in ["+", "*"]:
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
-                converted_expression = f"{exp1}"
+                converted_expression = "{}".format(exp1)
                 for i in range(2, len(condition_expressions)):
                     exp_x = cls._convert_mapbox_expression(condition_expressions[i])
-                    converted_expression += f" {condition_expressions[0]} {exp_x}"
+                    converted_expression += " {} {}".format(condition_expressions[0], exp_x)
                 return cls.QGISExpression(converted_expression)
 
             elif condition_expressions[0] == "-":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
                 if len(condition_expressions) == 3:
                     exp2 = cls._convert_mapbox_expression(condition_expressions[2])
-                    return f"{exp1} - {exp2}"
+                    return "{} - {}".format(exp1, exp2)
                 else:
-                    return cls.QGISExpression(f"-({exp1})")
+                    return cls.QGISExpression("-({})".format(exp1))
 
             elif condition_expressions[0] in ["all", "any"]:
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
-                converted_expression = f"({exp1}"
+                converted_expression = "({}".format(exp1)
                 for i in range(2, len(condition_expressions)):
                     exp_x = cls._convert_mapbox_expression(condition_expressions[i])
-                    converted_expression += f'{" and" if condition_expressions[0] == "all" else " or"} {exp_x}'
+                    converted_expression += "{} {}".format(
+                        " and" if condition_expressions[0] == "all" else " or", exp_x
+                    )
                 converted_expression += ")"
                 return cls.QGISExpression(converted_expression)
 
             elif condition_expressions[0] == "!":
                 exp1 = cls._convert_mapbox_expression(condition_expressions[1])
-                return cls.QGISExpression(f"not {exp1}")
+                return cls.QGISExpression("not {}".format(exp1))
 
             elif condition_expressions[0] == "within":
                 message = "Within expression not supported"
@@ -773,9 +780,9 @@ class StyleManager:
                 return "false"
 
             elif condition_expressions[0] == "format":
-                exp = f"{cls._convert_mapbox_expression(condition_expressions[1])}"
+                exp = "{}".format(cls._convert_mapbox_expression(condition_expressions[1]))
                 for i in range(3, len(condition_expressions), 2):
-                    exp += f"+{cls._convert_mapbox_expression(condition_expressions[i])}"
+                    exp += "+{}".format(cls._convert_mapbox_expression(condition_expressions[i]))
                 return cls.QGISExpression(exp)
 
             else:
@@ -799,7 +806,7 @@ class StyleManager:
                     font_family = font.replace(qgis_font_style, "").strip()
                     return font_family, qgis_font_style
         QgsMessageBarHandler.send_message_to_message_bar(
-            f"Font {font} not supported", prefix="Expression error", level=Qgis.Warning
+            "Font {} not supported".format(font), prefix="Expression error", level=Qgis.Warning
         )
         return "", ""
 
@@ -822,11 +829,10 @@ class StyleManager:
         rule_settings.isExpression = True
         rule_settings.layerType = element_type
 
-        
         if "text" in labeling_data:
             rule_settings.fieldName = labeling_data["text"]
 
-        #set position settings
+        # set position settings
         offset_y = 0
         if "offset" in labeling_data:
             text_translate = labeling_data["offset"]
@@ -836,28 +842,35 @@ class StyleManager:
             #    )
             # else:
             offset_x, offset_y = cls._convert_jmap_offset(text_translate)
-            
 
         # line label are not handled by point on map but rather by line itself
         if element_type == Qgis.GeometryType.Line:
             line_settings = QgsLabelLineSettings()
             line_settings.setAnchorClipping(QgsLabelLineSettings.AnchorClipping.UseEntireLine)
-            #line render settings
+            # line render settings
             if "labelSpacing" in labeling_data:
                 rule_settings.repeatDistance = labeling_data["labelSpacing"]
                 rule_settings.repeatDistanceUnit = Qgis.RenderUnit.Pixels
-            #--------------------
+            # --------------------
 
             if "followMapRotation" in labeling_data and labeling_data["followMapRotation"]:
                 rule_settings.placement = Qgis.LabelPlacement.Line
                 if "anchor" in labeling_data:
-                    if "top" in labeling_data["anchor"].lower(): # Maplibre top is bottom in qgis and vice versa
+                    if "top" in labeling_data["anchor"].lower():  # Maplibre top is bottom in qgis and vice versa
                         offset_y = -offset_y
-                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.BelowLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+                        line_settings.setPlacementFlags(
+                            Qgis.LabelLinePlacementFlags(
+                                Qgis.LabelLinePlacementFlag.BelowLine | Qgis.LabelLinePlacementFlag.MapOrientation
+                            )
+                        )
                     else:
                         if "bottom" not in labeling_data["anchor"].lower():
                             offset_y -= 6
-                        line_settings.setPlacementFlags(Qgis.LabelLinePlacementFlags(Qgis.LabelLinePlacementFlag.AboveLine|Qgis.LabelLinePlacementFlag.MapOrientation))
+                        line_settings.setPlacementFlags(
+                            Qgis.LabelLinePlacementFlags(
+                                Qgis.LabelLinePlacementFlag.AboveLine | Qgis.LabelLinePlacementFlag.MapOrientation
+                            )
+                        )
 
                     rule_settings.dist = offset_y
                     rule_settings.distUnits = Qgis.RenderUnit.Pixels
@@ -867,7 +880,7 @@ class StyleManager:
             rule_settings.setLineSettings(line_settings)
 
         # label is handled as point
-        else: 
+        else:
             rule_settings.placement = Qgis.LabelPlacement.OverPoint
             rule_settings.xOffset = offset_x
             rule_settings.yOffset = -offset_y
@@ -915,7 +928,6 @@ class StyleManager:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.AllowOverlapAtNoCost)
             else:
                 rule_settings.placementSettings().setOverlapHandling(Qgis.LabelOverlapHandling.PreventOverlap)
-        
 
         # set label setting text format
         text_format = QgsTextFormat()
@@ -1037,9 +1049,9 @@ class StyleManager:
 
         if opacity:
             if color_is_expression or opacity_is_expression:
-                color = color.value if color_is_expression else f"'{color}'"
+                color = color.value if color_is_expression else "'{}'".format(color)
                 opacity = opacity.value if opacity_is_expression else opacity
-                expressionString = f"set_color_part(({color}),'alpha',to_int(255*({opacity})))"
+                expressionString = "set_color_part(({}),'alpha',to_int(255*({})))".format(color, opacity)
                 return cls.QGISExpression(expressionString)
             else:
                 color = QColor(color)

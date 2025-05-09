@@ -14,29 +14,27 @@ import base64
 import math
 from pathlib import Path
 
-from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QObject, QTimer, pyqtSignal
+from qgis.PyQt.QtCore import QTimer, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
 from JMapCloud.core.constant import API_FUS_URL, API_MCS_URL
 from JMapCloud.core.DTOS.datasource_dto import DatasourceDTO
-from JMapCloud.core.plugin_util import convert_crs_to_epsg, qgis_data_type_name_to_mysql
+from JMapCloud.core.plugin_util import convert_crs_to_epsg
 from JMapCloud.core.recurring_event import RecurringEvent
 from JMapCloud.core.services.request_manager import RequestManager
+from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
 from JMapCloud.core.views import LayerData, LayerFile, SupportedFileType
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 MESSAGE_CATEGORY = "FilesUploadManager"
 
 
-class FilesUploadManager(QObject):
-    error_occurred = pyqtSignal(str)
-    progress_changed = pyqtSignal(float)
-    upload_finished = pyqtSignal(list)
-    step_changed = pyqtSignal(str)
+class FilesUploadManager(CustomTaskManager):
+    tasks_completed = pyqtSignal(list)
+    step_title_changed = pyqtSignal(str)
 
     def __init__(self, layers_data: list[LayerData], layer_files: list[LayerFile], organization_id: str):
-        super().__init__()
+        super().__init__("FilesUploadManager")
         self.layers_data: list[LayerData] = layers_data
         self.layer_files = layer_files
         self.files_to_analyze: list[str] = []
@@ -52,19 +50,19 @@ class FilesUploadManager(QObject):
         if self._cancel:
             return False
 
-        total_steps = len(self.layer_files)
+        self.set_total_steps(len(self.layer_files))
         if len(self.layer_files) == 0:
             self.progress_changed.emit(100.0)
-            self.upload_finished.emit(self.layers_data)
+            self.tasks_completed.emit(self.layers_data)
             return True
-        self.step_changed.emit(f"Uploading layers files")
+        self.step_title_changed.emit("Uploading layers files")
         for i, layer_file in enumerate(self.layer_files):
             file_uploader = FileUploader(layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
                 layer_file.upload_status = LayerFile.Status.uploading_error
-                error_message = f"Error uploading file {layer_file.file_path}: {error_message}"
-                QgsMessageLog.logMessage(error_message, MESSAGE_CATEGORY, Qgis.Critical)
+                error_message = "Error uploading file {}: {}".format(layer_file.file_path, error_message)
+                self.error_occur(error_message, MESSAGE_CATEGORY)
 
             def progress_changed(progress, ref):
                 self.progress[ref] = progress
@@ -77,7 +75,7 @@ class FilesUploadManager(QObject):
             def next_func(jmc_file_id):
                 self.is_all_files_uploaded(jmc_file_id)
 
-            file_uploader.requests_finished.connect(next_func)
+            file_uploader.tasks_completed.connect(next_func)
             self.file_uploaders.append(file_uploader)
             file_uploader.init_upload()
         return True
@@ -96,7 +94,7 @@ class FilesUploadManager(QObject):
             self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
-        self.step_changed.emit(f"Server is analyzing files")
+        self.step_title_changed.emit("Server is analyzing files")
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
             if (
@@ -110,18 +108,24 @@ class FilesUploadManager(QObject):
                         break
                 self.files_to_analyze.remove(jmc_file_id)
             elif response.content["status"] == "ANALYZED":
+                for layer_file in self.layer_files:
+                    if layer_file.jmc_file_id == jmc_file_id:
+                        if layer_file.file_type != SupportedFileType.raster:
+                            for layer in response.content["metadata"]["layers"]:
+                                layer_file.fields[layer["name"]] = layer["fileAttributes"]
+                        break
                 self.files_to_analyze.remove(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
                 self.recurring_event.stop()
                 self._num_file_uploaded = 0
-                self.upload_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         def poke_all_not_analyzed_files():
             if self._cancel:
                 self.recurring_event.stop()
 
             for jmc_file_id in self.files_to_analyze:
-                url = f"{API_FUS_URL}/organizations/{self.organization_id}/files/{jmc_file_id}"
+                url = "{}/organizations/{}/files/{}".format(API_FUS_URL, self.organization_id, jmc_file_id)
                 request = RequestManager.RequestData(url, type="GET", id=jmc_file_id)
                 next_func = lambda response, _jmc_file_id=jmc_file_id: is_file_analyzed(response, _jmc_file_id)
                 self.request_manager.add_requests(request).connect(next_func)
@@ -134,21 +138,19 @@ class FilesUploadManager(QObject):
         pass
 
 
-class FileUploader(QObject):
+class FileUploader(CustomTaskManager):
     """
     Send a list of requests and wait for all responses.
     This class is used to upload a file in chunks.
     Multiple instances of this class will upload multiple files in parallel.
-    :requests_finished: signal emit when all requests are finished
+    :tasks_completed: signal emit when all requests are finished
     """
 
-    requests_finished = pyqtSignal(str)
+    tasks_completed = pyqtSignal(str)
     """returns jmc_file_id"""
-    progress_changed = pyqtSignal(float)
-    error_occurred = pyqtSignal(str)
 
     def __init__(self, layer_file: LayerFile, organization_id: str):
-        super().__init__()
+        super().__init__("FileUploader")
         self.layer_file: LayerFile = layer_file
         self.organization_id: str = organization_id
 
@@ -172,18 +174,20 @@ class FileUploader(QObject):
     def init_upload(self) -> None:
         if self._cancel:
             return False
-        file_name64 = base64.b64encode(self.file_path.name.encode("ascii")).decode("ascii")
+        file_name64 = base64.b64encode(self.file_path.name.encode("utf-8")).decode("utf-8")
         if self.layer_file.file_type == SupportedFileType.raster:
-            file_type64 = base64.b64encode("image/tiff".encode("ascii")).decode("ascii")
-            jmc_file_type64 = base64.b64encode("RASTER_DATA".encode("ascii")).decode("ascii")
+            file_type64 = base64.b64encode("image/tiff".encode("utf-8")).decode("utf-8")
+            jmc_file_type64 = base64.b64encode("RASTER_DATA".encode("utf-8")).decode("utf-8")
         else:
-            file_type64 = base64.b64encode("application/x-zip-compressed".encode("ascii")).decode("ascii")
-            jmc_file_type64 = base64.b64encode("VECTOR_DATA".encode("ascii")).decode("ascii")
+            file_type64 = base64.b64encode("application/x-zip-compressed".encode("utf-8")).decode("utf-8")
+            jmc_file_type64 = base64.b64encode("VECTOR_DATA".encode("utf-8")).decode("utf-8")
 
-        url = f"{API_FUS_URL}/organizations/{self.organization_id}/upload"
+        url = "{}/organizations/{}/upload".format(API_FUS_URL, self.organization_id)
         headers = {
-            "Upload-Length": f"{self.file_length}",
-            "Upload-Metadata": f"filename {file_name64},filetype {file_type64},JMC-fileType {jmc_file_type64}",
+            "Upload-Length": "{}".format(self.file_length),
+            "Upload-Metadata": "filename {},filetype {},JMC-fileType {}".format(
+                file_name64, file_type64, jmc_file_type64
+            ),
             "Tus-Resumable": "1.0.0",
         }
         error_prefix = "Error uploading file"
@@ -200,7 +204,7 @@ class FileUploader(QObject):
         url_array = location.split("/")
         file_id = url_array[-1]
         self.layer_file.jmc_file_id = file_id
-        self.url = f"{url}/{file_id}"
+        self.url = "{}/{}".format(url, file_id)
         self.progress_changed.emit(self.step / self.total_steps * 100.0)
         self.execute_next_request(response)
         return True
@@ -215,12 +219,12 @@ class FileUploader(QObject):
             if response.status != QNetworkReply.NetworkError.NoError:
                 self.upload_safer_counter += 1
                 if self.upload_safer_counter >= 5:
-                    error_message = "Request failed: " f"{response.error_message}" f"{response.content}"
-                    self.error_occurred.emit(error_message)
+                    error_message = "Request failed: {}".format(response.error_message)
+                    self.error_occur(error_message, MESSAGE_CATEGORY)
                     self.responses.append(response)
                     self.pending_requests = []
                     self.layer_file.upload_status = LayerFile.Status.uploading_error
-                    self.requests_finished.emit(self.layer_file.jmc_file_id)
+                    self.tasks_completed.emit(self.layer_file.jmc_file_id)
                     self.progress_changed.emit(100.0)
                     return False
 
@@ -238,7 +242,7 @@ class FileUploader(QObject):
                 self.progress_changed.emit(self.step / self.total_steps * 100.0)
             if self.file_offset >= self.file_length:
                 self.pending_requests = []
-                self.requests_finished.emit(self.layer_file.jmc_file_id)
+                self.tasks_completed.emit(self.layer_file.jmc_file_id)
                 return True
         self.request = self.define_next_request()
         self.file_offset += CHUNK_SIZE
@@ -256,8 +260,8 @@ class FileUploader(QObject):
         headers = {
             "content-type": "application/offset+octet-stream",
             "Tus-Resumable": "1.0.0",
-            "content-length": f"{content_length}",
-            "Upload-Offset": f"{self.file_offset}",
+            "content-length": "{}".format(content_length),
+            "Upload-Offset": "{}".format(self.file_offset),
         }
         return RequestManager.RequestData(
             self.url,
@@ -271,14 +275,11 @@ class FileUploader(QObject):
         self._cancel = True
 
 
-class DatasourceManager(QObject):
-    datasources_creation_finished = pyqtSignal(list)
-    error_occurred = pyqtSignal(str)
-    progress_changed = pyqtSignal(float)
-    step_changed = pyqtSignal(str)
+class DatasourceManager(CustomTaskManager):
+    tasks_completed = pyqtSignal(list)
 
     def __init__(self, layers_data: list[LayerData], organization_id: str):
-        super().__init__()
+        super().__init__("DatasourceManager")
         self.layers_data = layers_data
         self.organization_id = organization_id
         self._num_datasource_created = 0
@@ -293,7 +294,7 @@ class DatasourceManager(QObject):
         self._cancel = True
 
     def create_datasources(self):
-        self.step_changed.emit("Creating datasources")
+        self.step_title_changed.emit(self.tr("Creating datasources"))
         for layer_data in self.layers_data:
             self.create_datasource(layer_data)
 
@@ -306,26 +307,28 @@ class DatasourceManager(QObject):
         request_DTO.type = layer_data.layer_type.value
 
         if layer_data.layer_type == LayerData.LayerType.file_vector:
+            uri_layer_name = layer_data.uri_components["layerName"]
             crs = convert_crs_to_epsg(layer_data.layer.crs())
             request_DTO.crs = crs.authid()
+
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
             request_DTO.indexedAttributes = []
-            request_DTO.layer = layer_data.layer_name
-            request_DTO.layers = [{"id": 0, "name": layer_data.layer_name}]
+            request_DTO.layer = uri_layer_name
+            request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
             request_DTO.params = {}
 
-            request_DTO.params["attributes"] = []
-            fields = layer_data.layer.fields()
-            for field in fields:
-                if field.name().lower() == "annotation_height_3857":  # annotation_height_3857 is reserved
-                    continue
-                request_DTO.params["attributes"].append(
-                    {
-                        "originalName": field.name(),
-                        "standardizedName": field.name(),
-                        "type": qgis_data_type_name_to_mysql(field.type()),
-                    }
-                )
+            fields = layer_data.layer_file.fields[uri_layer_name]
+            request_DTO.params["attributes"] = fields
+            # for field in fields:
+            #    if field.name().lower() == "annotation_height_3857":  # annotation_height_3857 is reserved
+            #        continue
+            #    request_DTO.params["attributes"].append(
+            #        {
+            #            "originalName": field.name(),
+            #            "standardizedName": field.name(),
+            #            "type": qgis_data_type_name_to_mysql(field.type()),
+            #        }
+            #    )
             if layer_data.file_type in [
                 SupportedFileType.GML,
                 SupportedFileType.FileGeoDatabase,
@@ -335,7 +338,7 @@ class DatasourceManager(QObject):
                 SupportedFileType.KML,
                 SupportedFileType.MapInfo,
             ]:
-                request_DTO.params["layers"] = [layer_data.layer_name]
+                request_DTO.params["layers"] = [uri_layer_name]
             if layer_data.file_type == SupportedFileType.CSV:
                 request_DTO.params["columnX"] = layer_data.longitude
                 request_DTO.params["columnY"] = layer_data.latitude
@@ -353,7 +356,7 @@ class DatasourceManager(QObject):
             return False
 
         # request
-        url = f"{API_MCS_URL}/organizations/{self.organization_id}/datasources"
+        url = "{}/organizations/{}/datasources".format(API_MCS_URL, self.organization_id)
         body = request_DTO.to_json()
         request = RequestManager.RequestData(url, body=body, type="POST", id=layer_data.layer_id)
         response = RequestManager.custom_request(request)
@@ -366,7 +369,7 @@ class DatasourceManager(QObject):
             layer_data.datasource_id = datasource_id
         else:
             layer_data.status = LayerData.Status.creating_datasource_error
-            self.error_occurred.emit(response.error_message)
+            self.error_occur(response.error_message, MESSAGE_CATEGORY)
         self.is_all_datasources_created(layer_data)
 
     def is_all_datasources_created(self, layer_data: LayerData):
@@ -379,34 +382,36 @@ class DatasourceManager(QObject):
             self.start_poking_jmc_datasource_analyzers()
 
     def start_poking_jmc_datasource_analyzers(self):
-        self.step_changed.emit("Server is analyzing datasources")
+        self.step_title_changed.emit(self.tr("Server is analyzing datasources"))
 
         def is_datasource_analyzed(response: RequestManager.ResponseData, layer_data: LayerData = None):
             if response.status != QNetworkReply.NetworkError.NoError:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.unknown_error
-                self.error_occurred.emit(f"JMap server error : {response.error_message}")
+                self.error_occur(self.tr("Unknown error : {}").format(response.error_message), MESSAGE_CATEGORY)
             elif "status" not in response.content or response.content["status"] == "ERROR":
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.status = LayerData.Status.datasource_analyzing_error
-                self.error_occurred.emit(f"JMap server error : {response.error_message}")
+                self.error_occur(self.tr("JMap server error : {}").format(response.error_message), MESSAGE_CATEGORY)
             elif response.content["status"] in ["READY"]:
                 self.datasource_to_analyze.remove(layer_data)
                 layer_data.datasource_id = response.content["id"]
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.datasources_creation_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         def poke_all_not_analyzed_datasources():
 
             for layer_data in self.datasource_to_analyze:
-                url = f"{API_MCS_URL}/organizations/{self.organization_id}/datasources/{layer_data.datasource_id}"
+                url = "{}/organizations/{}/datasources/{}".format(
+                    API_MCS_URL, self.organization_id, layer_data.datasource_id
+                )
                 request = RequestManager.RequestData(url, type="GET", id=layer_data.datasource_id)
                 next_func = lambda response, layer_data=layer_data: is_datasource_analyzed(response, layer_data)
                 self.request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.datasources_creation_finished.emit(self.layers_data)
+                self.tasks_completed.emit(self.layers_data)
 
         recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_datasources, False, 200)
         recurring_event.call_count_exceeded.connect(self.timeout)

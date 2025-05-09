@@ -19,6 +19,6 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
 
-    from .jmap_cloud import JMap
+    from .jmap_cloud import JMapCloud
 
-    return JMap(iface)
+    return JMapCloud(iface)

@@ -34,8 +34,7 @@ from JMapCloud.ui.py_files.export_project_dialog import ExportProjectDialog
 from JMapCloud.ui.py_files.open_project_dialog import OpenProjectDialog
 
 
-class JMap:
-    """QGIS Plugin Implementation."""
+class JMapCloud:
 
     def __init__(self, iface: QgisInterface):
         """Constructor.
@@ -52,15 +51,14 @@ class JMap:
         self.plugin_dir = Path(__file__).parent
 
         # initialize locale
-        locale = QSettings().value("locale/userLocale")
-        if locale:
-            locale = locale[0:2]
-            locale_path = Path(self.plugin_dir, "i18n", "JMap Cloud_{}.qm".format(locale))
-
-            if Path.exists(locale_path):
-                self.translator = QTranslator()
-                self.translator.load(locale_path)
-                QCoreApplication.installTranslator(self.translator)
+        locale = QSettings().value("locale/userLocale", "en")
+        self.language = locale[0:2]
+        QSettings().setValue("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), self.language)
+        locale_path = Path(self.plugin_dir, "i18n", "jmap_cloud_{}.qm".format(self.language))
+        if Path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(str(locale_path))
+            QCoreApplication.installTranslator(self.translator)
 
         # Declare instance attributes
         self.actions = []
@@ -81,22 +79,15 @@ class JMap:
         self.export_project_dialog = ExportProjectDialog()
         self.export_project_dialog.export_project_pushButton.clicked.connect(self.export_project)
 
-        self.language = QSettings().value(f"{SETTINGS_PREFIX}/{LANGUAGE_SUFFIX}", "en")  # could use locale eventually
-
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: trd version of message.
-        :rtype: QString
+        """Translate a string.
+        :param message: String to translate.
+        :return: Translated string.
         """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate("JMap Cloud", message)
+        translated_message = QCoreApplication.translate("JMapCloud", message)
+        print(translated_message)
+        return translated_message
 
     def create_actions(
         self,
@@ -207,7 +198,7 @@ class JMap:
     def unload(self):
         """
         Removes the plugin menu item and icon from QGIS GUI.
-        This function must exist.
+        This function must exist for the plugin to load.
         """
         self.iface.webMenu().removeAction(self.menu.menuAction())
         self.auth_manager.refresh_auth_event.stop()
@@ -225,7 +216,6 @@ class JMap:
 
         :param authState: The current authentication state, determining whether
                           the user is authenticated and has an organization.
-        :type authState: AuthState
         """
         isAuthenticated = authState == AuthState.AUTHENTICATED
         self.load_project_action.setEnabled(isAuthenticated)
@@ -233,23 +223,34 @@ class JMap:
         self.trigger_refresh_token_action.setEnabled(isAuthenticated)
 
     def open_connection_dialog(self):
+        """
+        Show the connection dialog.
+        """
         auth_state = self.auth_manager.get_auth_state()
         if auth_state != AuthState.NOT_AUTHENTICATED:
             self.connection_dialog.list_organizations()
         self.connection_dialog.show()
 
     def open_load_project_dialog(self):
+        """
+        Show the load project dialog if the user is authenticated.
+        If the user is already importing a project, show the
+        import project action dialog instead.
+        """
         if not self.import_project_manager.is_importing_project():
-            claims = self.session_manager.get_claims()
-            if claims and "organizationId" in claims:
+            if self.load_project_dialog.list_projects():
                 self.load_project_dialog.show()
-                self.load_project_dialog.list_projects(claims["organizationId"])
             else:
                 self.auth_manager.logout("Error : Authentication failed")
         else:
             self.import_project_manager.action_dialog.show()
 
     def open_export_project_dialog(self):
+        """
+        Show the export project dialog if the user is authenticated and not exporting
+        a project right now. If the user is already exporting a project, show the
+        export project action dialog instead.
+        """
         if not self.export_project_manager.is_exporting_project():
             claims = self.session_manager.get_claims()
             if claims and "organizationId" in claims:
@@ -274,7 +275,9 @@ class JMap:
         action_dialog.action_finished("Login successful", False)
 
     def load_project(self):
-        """Load the selected project in QGIS"""
+        """
+        Start the process to load a selected project in QGIS
+        """
         project_data = self.load_project_dialog.get_selected_project_data()
         if project_data:
             auth_state = self.auth_manager.get_auth_state()
@@ -295,13 +298,14 @@ class JMap:
                 self.import_project_manager.init_import(project_data, vector_layer_type)
 
     def export_project(self):
-        """Export the selected project from QGIS to JMap Cloud."""
+        """
+        start the exportation of a selected project from QGIS to JMap Cloud.
+        """
 
         if not self.export_project_dialog.validate_input():
             return
         project_data = self.export_project_dialog.get_input_data()
-        project_data["language"] = self.language
-        project_data["description"] = "lorm ipsum"
+        project_data["description"] = ""
         if project_data:
             auth_state = self.auth_manager.get_auth_state()
             if auth_state == AuthState.AUTHENTICATED:
@@ -309,7 +313,7 @@ class JMap:
                 project_data = ProjectData(
                     name=project_data["projectTitle"],
                     description=project_data["description"],
-                    default_language=project_data["language"],
+                    default_language=self.language,
                     organization_id=self.session_manager.get_organization_id(),
                 )
                 project_data.setup_with_QGS_project(QgsProject.instance())

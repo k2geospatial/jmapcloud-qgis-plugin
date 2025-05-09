@@ -100,7 +100,7 @@ class SessionManager(QObject):
         auth_config = QgsAuthMethodConfig("APIHeader")
         auth_config.setId(AUTH_CONFIG_ID)
         auth_config.setName("JMap_Session")
-        auth_config.setConfig("Authorization", f"Bearer {access_token}")
+        auth_config.setConfig("Authorization", "Bearer {}".format(access_token))
         QgsApplication.authManager().storeAuthenticationConfig(auth_config, True)
 
     @staticmethod
