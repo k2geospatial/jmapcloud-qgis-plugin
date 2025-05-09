@@ -293,8 +293,7 @@ class JMapCloud:
                     organization_id=self.session_manager.get_organization_id(),
                     crs=crs,
                 )
-                # pm = QGISProjectManager(project_data, vector_layer_type)
-                # pm.load_project_data()
+
                 self.import_project_manager.init_import(project_data, vector_layer_type)
 
     def export_project(self):
