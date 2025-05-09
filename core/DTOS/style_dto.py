@@ -39,14 +39,18 @@ class StyleDTO(DTO):
         self.name = "Symbol Layer"
         self.description = ""
         self.tags = []
+        self.transparency = 0
 
     @classmethod
     def from_symbol(cls, symbol: QgsSymbol) -> list["StyleDTO"]:
-        dtos = [cls.from_symbol_layer(symbol_layer) for symbol_layer in symbol.symbolLayers()]
-        for dto in dtos:
-            if isinstance(dto, cls):
-                dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
+        dtos = []
+        for symbol_layer in symbol.symbolLayers():
+            dto = cls.from_symbol_layer(symbol_layer)
+            dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
+            dtos.append(dto)
+
         return dtos
 
+    @classmethod
     def from_symbol_layer(cls, symbol_layer) -> "StyleDTO":
         return None
