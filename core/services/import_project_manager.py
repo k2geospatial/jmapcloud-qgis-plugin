@@ -38,6 +38,7 @@ from JMapCloud.core.plugin_util import find_value_in_dict_or_first
 from JMapCloud.core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.services.style_manager import StyleManager
+from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
 from JMapCloud.core.tasks.load_style_task import (
     LoadVectorStyleTask,
     LoadVectorTilesStyleTask,
@@ -57,13 +58,11 @@ class ProjectVectorType(Enum):
     VectorTiles = 2
 
 
-class ImportProjectManager(QObject):
+class ImportProjectManager(CustomTaskManager):
     """
     class that handle  JMap project transfer
     """
 
-    project_loaded = pyqtSignal()
-    error_occurred = pyqtSignal(str)
     _instance = None
 
     current_step: int
@@ -80,7 +79,7 @@ class ImportProjectManager(QObject):
 
     def __init__(self):
         if not self._initialized:
-            super().__init__()
+            super().__init__("ImportProjectManager")
             self.action_dialog = ActionDialog()
             self.feedback = self.action_dialog.feedback()
             self.errors = []
@@ -572,7 +571,7 @@ class ImportProjectManager(QObject):
         self.action_dialog.action_finished(message, False)
 
         self.importing_project = False
-        self.project_loaded.emit()
+        self.tasks_completed.emit(True)
         self.action_dialog = ActionDialog()
         self.feedback = self.action_dialog.feedback()
         self.current_step = 0

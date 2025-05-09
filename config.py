@@ -10,8 +10,8 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-_env = "dev"
-# _env = "prod"
+# _env = "dev"
+_env = "prod"
 
 if _env == "dev":
     CONFIG = {"API_URL": "https://api.qa.jmapcloud.io"}
