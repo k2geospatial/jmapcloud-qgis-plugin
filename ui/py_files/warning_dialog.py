@@ -17,6 +17,8 @@ from .warning_dialog_base_ui import Ui_Dialog
 
 
 class WarningDialog(QtWidgets.QDialog, Ui_Dialog):
+    """Dialog to show warnings."""
+
     def __init__(self, html: str = ""):
         """Constructor."""
         super(WarningDialog, self).__init__(iface.mainWindow())
@@ -26,4 +28,10 @@ class WarningDialog(QtWidgets.QDialog, Ui_Dialog):
         self.warning_textBrowser.setHtml(html)
 
     def set_html(self, html: str = ""):
+        """
+        Sets the HTML content of the warning text browser.
+
+        :param html: The HTML string to be displayed.
+        """
+
         self.warning_textBrowser.setHtml(html)

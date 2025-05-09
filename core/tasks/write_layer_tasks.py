@@ -207,15 +207,23 @@ class ConvertLayersToZipTask(CustomTaskManager):
         elif isinstance(layer, QgsVectorLayer) and "path" in uri_components:
             layer_data.layer_type = LayerData.LayerType.file_vector
             base_path = Path(uri_components["path"])
-            if base_path.is_dir() and "layerName" in uri_components and bool(uri_components["layerName"]):
-                base_path = base_path / uri_components["layerName"]
+
             ext = base_path.suffix.lower()
+            if (
+                base_path.is_dir()
+                and ext not in [".gdb", "mdb"]
+                and "layerName" in uri_components
+                and bool(uri_components["layerName"])
+            ):
+                base_path = base_path / uri_components["layerName"]
+                ext = base_path.suffix.lower()
             # --- Zip file ---
             if ext == ".zip":
                 layer_data.file_type = SupportedFileType.zip
                 return [Path(base_path)] if base_path.exists() else None
             # --- ESRI Shapefile (requires multiple files) ---
             if ext == ".shp":
+                layer_data.uri_components["layerName"] = base_path.stem
 
                 required_files = [".shp", ".shx", ".dbf"]
                 optional_files = [".prj", ".cpg", ".qpj", ".fix"]
@@ -230,6 +238,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 return [Path(base_path.with_suffix(e)) for e in all_files if base_path.with_suffix(e).exists()]
             # --- MapInfo TAB (requires all files) ---
             elif ext == ".tab":
+                layer_data.uri_components["layerName"] = base_path.stem
                 required_files = [".tab", ".dat", ".map", ".id"]
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
@@ -240,6 +249,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 return [Path(base_path.with_suffix(e)) for e in required_files]
             # --- Single-file formats ---
             elif ext == ".geojson":
+                layer_data.uri_components["layerName"] = "defaultLayer"
                 layer_data.file_type = SupportedFileType.GeoJSON
                 return [Path(base_path)] if base_path.exists() else None
             elif ext == ".csv":

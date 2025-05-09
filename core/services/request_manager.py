@@ -181,12 +181,12 @@ class RequestManager(QObject):
             reply = request_manager.reply()
 
         except Exception as e:
-            # QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.Critical)
+            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Warning)
             return cls.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
             message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
-            # QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.Warning)
+            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Warning)
         response_data = cls._handle_reply(reply)
         reply.clear()
         return response_data

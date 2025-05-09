@@ -14,13 +14,12 @@ import base64
 import math
 from pathlib import Path
 
-from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QObject, QTimer, pyqtSignal
+from qgis.PyQt.QtCore import QTimer, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
 from JMapCloud.core.constant import API_FUS_URL, API_MCS_URL
 from JMapCloud.core.DTOS.datasource_dto import DatasourceDTO
-from JMapCloud.core.plugin_util import convert_crs_to_epsg, qgis_data_type_name_to_mysql
+from JMapCloud.core.plugin_util import convert_crs_to_epsg
 from JMapCloud.core.recurring_event import RecurringEvent
 from JMapCloud.core.services.request_manager import RequestManager
 from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
@@ -111,8 +110,9 @@ class FilesUploadManager(CustomTaskManager):
             elif response.content["status"] == "ANALYZED":
                 for layer_file in self.layer_files:
                     if layer_file.jmc_file_id == jmc_file_id:
-                        for layer in response.content["metadata"]["layers"]:
-                            layer_file.fields[layer["name"]] = layer["fileAttributes"]
+                        if layer_file.file_type != SupportedFileType.raster:
+                            for layer in response.content["metadata"]["layers"]:
+                                layer_file.fields[layer["name"]] = layer["fileAttributes"]
                         break
                 self.files_to_analyze.remove(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
@@ -174,13 +174,13 @@ class FileUploader(CustomTaskManager):
     def init_upload(self) -> None:
         if self._cancel:
             return False
-        file_name64 = base64.b64encode(self.file_path.name.encode("ascii")).decode("ascii")
+        file_name64 = base64.b64encode(self.file_path.name.encode("utf-8")).decode("utf-8")
         if self.layer_file.file_type == SupportedFileType.raster:
-            file_type64 = base64.b64encode("image/tiff".encode("ascii")).decode("ascii")
-            jmc_file_type64 = base64.b64encode("RASTER_DATA".encode("ascii")).decode("ascii")
+            file_type64 = base64.b64encode("image/tiff".encode("utf-8")).decode("utf-8")
+            jmc_file_type64 = base64.b64encode("RASTER_DATA".encode("utf-8")).decode("utf-8")
         else:
-            file_type64 = base64.b64encode("application/x-zip-compressed".encode("ascii")).decode("ascii")
-            jmc_file_type64 = base64.b64encode("VECTOR_DATA".encode("ascii")).decode("ascii")
+            file_type64 = base64.b64encode("application/x-zip-compressed".encode("utf-8")).decode("utf-8")
+            jmc_file_type64 = base64.b64encode("VECTOR_DATA".encode("utf-8")).decode("utf-8")
 
         url = "{}/organizations/{}/upload".format(API_FUS_URL, self.organization_id)
         headers = {
