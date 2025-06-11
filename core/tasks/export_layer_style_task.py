@@ -30,8 +30,8 @@ from qgis.core import (
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from JMapCloud.core.constant import API_MCS_URL, JMCOperator
-from JMapCloud.core.DTOS import (
+from ..constant import API_MCS_URL, JMCOperator
+from ..DTOS import (
     CompoundStyleDTO,
     ConditionDTO,
     CriteriaDTO,
@@ -42,15 +42,15 @@ from JMapCloud.core.DTOS import (
     StyleMapScaleDTO,
     StyleRuleDTO,
 )
-from JMapCloud.core.plugin_util import (
+from ..plugin_util import (
     convert_jmap_datetime,
     convert_scale_to_zoom,
     opacity_to_transparency,
     transparency_to_opacity,
 )
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
-from JMapCloud.core.views import LayerData, ProjectData
+from ..services.request_manager import RequestManager
+from .custom_qgs_task import CustomQgsTask
+from ..views import LayerData, ProjectData
 
 DEFAULT_SINGLE_STYLE_RULE_NAME = "Simple Symbol"
 DEFAULT_GRADUATED_STYLE_RULE_NAME = "Graduated Symbol"

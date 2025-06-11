@@ -19,7 +19,7 @@ from qgis.core import (
     QgsVectorLayerSimpleLabeling,
 )
 
-from JMapCloud.core.plugin_util import (
+from ..plugin_util import (
     convert_measurement_to_pixel,
     convert_QGIS_text_expression_to_JMap,
     convert_scale_to_zoom,

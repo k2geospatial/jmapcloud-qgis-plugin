@@ -44,14 +44,14 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QPointF, QSizeF, Qt
 from qgis.PyQt.QtGui import QColor, QFont, QPixmap
 
-from JMapCloud.core.constant import ElementTypeWrapper
-from JMapCloud.core.plugin_util import (
+from ..constant import ElementTypeWrapper
+from ..plugin_util import (
     convert_jmap_text_expression,
     convert_zoom_to_scale,
     find_value_in_dict_or_first,
 )
-from JMapCloud.core.qgs_message_bar_handler import QgsMessageBarHandler
-from JMapCloud.core.services.jmap_services_access import JMapMCS
+from ..qgs_message_bar_handler import QgsMessageBarHandler
+from .jmap_services_access import JMapMCS
 
 
 class StyleManager:
@@ -255,7 +255,7 @@ class StyleManager:
 
             layer_styles[layer_data["id"]]["label"] = labeling_config
             layer_styles[layer_data["id"]]["mouseOver"] = mouse_over_config
-            if layer_data["elementType"] in ElementTypeWrapper:
+            if layer_data["elementType"] in ElementTypeWrapper.__members__:
                 layer_styles[layer_data["id"]]["elementType"] = ElementTypeWrapper[
                     layer_data["elementType"]
                 ].to_qgis_geometry_type()
@@ -300,10 +300,19 @@ class StyleManager:
 
         for style_rule in style_rules.values():
             # one group foreach style_rule
-            rule_group = QgsRuleBasedRenderer.Rule(None)
+
+            # create empty symbol to adjust the height of the rule group in MacOS
+            rule_group = QgsRuleBasedRenderer.Rule(QgsMarkerSymbol.createSimple({
+                'name': 'circle',
+                'color': '0,0,0,0',     # fully transparent fill
+                'outline_color': '0,0,0,0',  # fully transparent border
+                'size': '0'             # zero size, or use very small size like '0.1'
+            }))
+
             # conditions are filters
             for condition in style_rule.values():
                 rule_group.setLabel(condition["styleRuleName"])
+                
                 filter_expression = cls._convert_mapbox_expression(condition["conditionExpressions"])
                 # style by zoom level
                 for style_map_scale in condition["styleMapScales"].values():
@@ -467,7 +476,7 @@ class StyleManager:
                 size=(icons["width"] + icons["height"]) / 2 / icons["pixelRatio"],
             )
             symbol_layer.setFixedAspectRatio(icons["height"] / icons["width"])
-            symbol_layer.setSizeUnit(Qgis.RenderUnit.Pixels)
+            symbol_layer.setSizeUnit(Qgis.RenderUnit.Millimeters)
             # set icon properties
             if "icon-opacity" in style:
                 if isinstance(style["icon-opacity"], cls.QGISExpression):
@@ -635,7 +644,7 @@ class StyleManager:
 
             symbol_layer.setStrokeColor(QColor(border_color))
             symbol_layer.setStrokeWidth(1)
-            symbol_layer.setStrokeWidthUnit(Qgis.RenderUnit.Pixels)
+            symbol_layer.setStrokeWidthUnit(Qgis.RenderUnit.Millimeters)
         else:
             symbol_layer.setStrokeStyle(Qt.PenStyle.NoPen)
 

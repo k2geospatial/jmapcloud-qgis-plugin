@@ -14,11 +14,11 @@ from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from JMapCloud.core.plugin_util import convert_jmap_datetime, time_now
-from JMapCloud.core.qgs_message_bar_handler import Qgis, QgsMessageBarHandler
-from JMapCloud.core.recurring_event import RecurringEvent
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.services.session_manager import SessionManager
+from ..plugin_util import convert_jmap_datetime, time_now
+from ..qgs_message_bar_handler import Qgis, QgsMessageBarHandler
+from ..recurring_event import RecurringEvent
+from ..services.request_manager import RequestManager
+from .session_manager import SessionManager
 
 from ..constant import (
     ACCESS_TOKEN_SETTING_ID,

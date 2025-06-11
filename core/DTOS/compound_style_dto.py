@@ -10,7 +10,7 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from JMapCloud.core.DTOS.style_dto import StyleDTO
+from .style_dto import StyleDTO
 
 
 class CompoundStyleDTO(StyleDTO):

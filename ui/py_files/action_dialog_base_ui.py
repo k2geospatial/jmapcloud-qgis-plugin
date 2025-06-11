@@ -12,6 +12,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from ...resources_rc import qInitResources
 
 
 class Ui_Dialog(object):
@@ -74,5 +75,4 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "Action"))
         self.exit_pushButton.setText(_translate("Dialog", "Close"))
 
-
-from JMapCloud import resources_rc
+qInitResources()

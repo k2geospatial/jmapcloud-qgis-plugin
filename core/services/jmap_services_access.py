@@ -15,15 +15,15 @@ import urllib.parse
 
 from qgis.PyQt.QtCore import pyqtSignal
 
-from JMapCloud.core.constant import (
+from ..constant import (
     API_DAS_URL,
     API_MCS_URL,
     API_MIS_URL,
     AUTH_CONFIG_ID,
 )
-from JMapCloud.core.DTOS.project_dto import ProjectDTO
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.services.session_manager import SessionManager
+from ..DTOS.project_dto import ProjectDTO
+from .request_manager import RequestManager
+from .session_manager import SessionManager
 
 
 class JMapMCS:
@@ -34,7 +34,7 @@ class JMapMCS:
         organization_id = SessionManager().get_organization_id()
         if organization_id is None:
             return None
-        url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
         request = RequestManager.RequestData(url, type="GET")
 
         return RequestManager.instance().add_requests(request)

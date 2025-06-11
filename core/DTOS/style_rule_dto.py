@@ -10,8 +10,8 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from JMapCloud.core.DTOS.condition_dto import ConditionDTO
-from JMapCloud.core.DTOS.dto import DTO
+from .condition_dto import ConditionDTO
+from .dto import DTO
 
 
 class StyleRuleDTO(DTO):

@@ -14,12 +14,12 @@ import tempfile
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 
-from JMapCloud.core.services.files_manager import DatasourceManager, FilesUploadManager
-from JMapCloud.core.tasks.create_jmc_project_task import CreateJMCProjectTask
-from JMapCloud.core.tasks.export_layer_style_task import ExportLayersStyleTask
-from JMapCloud.core.tasks.write_layer_tasks import ConvertLayersToZipTask
-from JMapCloud.core.views import LayerData, LayerFile, ProjectData
-from JMapCloud.ui.py_files.action_dialog import ActionDialog
+from .files_manager import DatasourceManager, FilesUploadManager
+from ..tasks.create_jmc_project_task import CreateJMCProjectTask
+from ..tasks.export_layer_style_task import ExportLayersStyleTask
+from ..tasks.write_layer_tasks import ConvertLayersToZipTask
+from ..views import LayerData, LayerFile, ProjectData
+from ...ui.py_files.action_dialog import ActionDialog
 
 MESSAGE_CATEGORY = "ExportProjectTask"
 TOTAL_STEPS = 5

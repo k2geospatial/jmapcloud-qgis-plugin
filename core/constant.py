@@ -18,7 +18,8 @@ from enum import Enum, auto
 
 from qgis.core import Qgis
 
-from JMapCloud.config import CONFIG
+from ..config import CONFIG
+
 
 # config
 _base_url = CONFIG["API_URL"]
@@ -74,8 +75,8 @@ class ElementTypeWrapper(Enum):
             self.POINT: Qgis.GeometryType.Point,
             self.LINE: Qgis.GeometryType.Line,
             self.POLYGON: Qgis.GeometryType.Polygon,
-            self.TEXT: Qgis.GeometryType.Point,
-            self.IMAGE: Qgis.GeometryType.Unknown,
+            self.TEXT: Qgis.GeometryType.Unknown,
+            self.IMAGE: Qgis.GeometryType.Null,
         }[self]
 
 

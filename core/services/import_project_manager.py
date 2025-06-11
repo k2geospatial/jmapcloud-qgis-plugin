@@ -29,23 +29,23 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from JMapCloud.core.constant import (
+from ..constant import (
     API_MCS_URL,
     VECTOR_LAYER_EDIT_PERMISSIONS,
     _base_url,
 )
-from JMapCloud.core.plugin_util import find_value_in_dict_or_first
-from JMapCloud.core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.services.style_manager import StyleManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
-from JMapCloud.core.tasks.load_style_task import (
+from ..plugin_util import find_value_in_dict_or_first
+from .jmap_services_access import JMapDAS, JMapMCS, JMapMIS
+from .request_manager import RequestManager
+from .style_manager import StyleManager
+from ..tasks.custom_qgs_task import CustomTaskManager
+from ..tasks.load_style_task import (
     LoadVectorStyleTask,
     LoadVectorTilesStyleTask,
 )
-from JMapCloud.core.views import ProjectData, ProjectLayersData
-from JMapCloud.ui.py_files.action_dialog import ActionDialog
-from JMapCloud.ui.py_files.warning_dialog import WarningDialog
+from ..views import ProjectData, ProjectLayersData
+from ...ui.py_files.action_dialog import ActionDialog
+from ...ui.py_files.warning_dialog import WarningDialog
 
 MESSAGE_CATEGORY = "LoadProjectTask"
 

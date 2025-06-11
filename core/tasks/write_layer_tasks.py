@@ -29,8 +29,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import pyqtSignal
 
-from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask, CustomTaskManager
-from JMapCloud.core.views import LayerData, LayerFile, SupportedFileType
+from .custom_qgs_task import CustomQgsTask, CustomTaskManager
+from ..views import LayerData, LayerFile, SupportedFileType
 
 MESSAGE_CATEGORY = "WriteLayerTask"
 

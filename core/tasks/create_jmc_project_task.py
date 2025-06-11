@@ -14,18 +14,18 @@ from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from JMapCloud.core.constant import API_MCS_URL
-from JMapCloud.core.DTOS import (
+from ..constant import API_MCS_URL
+from ..DTOS import (
     LabelingConfigDTO,
     LayerDTO,
     MouseOverConfigDTO,
     ProjectDTO,
 )
-from JMapCloud.core.plugin_util import convert_QGIS_text_expression_to_JMap
-from JMapCloud.core.services.jmap_services_access import JMapMCS
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
-from JMapCloud.core.views import LayerData, ProjectData
+from ..plugin_util import convert_QGIS_text_expression_to_JMap
+from ..services.jmap_services_access import JMapMCS
+from ..services.request_manager import RequestManager
+from ..tasks.custom_qgs_task import CustomQgsTask
+from ..views import LayerData, ProjectData
 
 TOTAL_STEPS = 3
 MESSAGE_CATEGORY = "CreateJMCProjectTask"

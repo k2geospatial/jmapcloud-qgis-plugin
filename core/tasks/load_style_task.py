@@ -13,8 +13,8 @@
 from qgis.core import QgsTask, QgsVectorTileBasicRenderer
 from qgis.PyQt.QtCore import pyqtSignal
 
-from JMapCloud.core.services.style_manager import StyleManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomQgsTask
+from ..services.style_manager import StyleManager
+from .custom_qgs_task import CustomQgsTask
 
 
 class LoadVectorStyleTask(CustomQgsTask):
