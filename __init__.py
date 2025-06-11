@@ -10,6 +10,7 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+from .jmap_cloud import JMapCloud
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
@@ -18,7 +19,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-
-    from .jmap_cloud import JMapCloud
-
+    
     return JMapCloud(iface)

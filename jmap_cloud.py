@@ -20,22 +20,21 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu
 
-from JMapCloud import resources_rc
-from JMapCloud.core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
-from JMapCloud.core.services.auth_manager import JMapAuth
-from JMapCloud.core.services.export_project_manager import ExportProjectManager
-from JMapCloud.core.services.import_project_manager import ImportProjectManager
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.services.session_manager import SessionManager
-from JMapCloud.core.views import ProjectData
-from JMapCloud.ui.py_files.action_dialog import ActionDialog
-from JMapCloud.ui.py_files.connection_dialog import ConnectionDialog
-from JMapCloud.ui.py_files.export_project_dialog import ExportProjectDialog
-from JMapCloud.ui.py_files.open_project_dialog import OpenProjectDialog
+# from JMapCloud import resources_rc
+from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
+from .core.services.auth_manager import JMapAuth
+from .core.services.export_project_manager import ExportProjectManager
+from .core.services.import_project_manager import ImportProjectManager
+from .core.services.request_manager import RequestManager
+from .core.services.session_manager import SessionManager
+from .core.views import ProjectData
+from .ui.py_files.action_dialog import ActionDialog
+from .ui.py_files.connection_dialog import ConnectionDialog
+from .ui.py_files.export_project_dialog import ExportProjectDialog
+from .ui.py_files.open_project_dialog import OpenProjectDialog
 
 
 class JMapCloud:
-
     def __init__(self, iface: QgisInterface):
         """Constructor.
 
