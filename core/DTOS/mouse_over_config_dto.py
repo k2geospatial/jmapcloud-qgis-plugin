@@ -12,7 +12,7 @@
 
 import re
 
-from JMapCloud.core.plugin_util import convert_QGIS_text_expression_to_JMap
+from ..plugin_util import convert_QGIS_text_expression_to_JMap
 
 from .dto import DTO
 

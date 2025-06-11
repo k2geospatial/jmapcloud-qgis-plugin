@@ -12,7 +12,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
+from ...resources_rc import qInitResources
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -99,5 +99,4 @@ class Ui_Dialog(object):
         self.choose_organization_label.setText(_translate("Dialog", "Choose organization :"))
         self.accept_button.setText(_translate("Dialog", "OK"))
 
-
-from JMapCloud import resources_rc
+qInitResources()

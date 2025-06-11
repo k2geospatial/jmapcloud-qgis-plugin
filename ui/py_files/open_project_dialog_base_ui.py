@@ -12,7 +12,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-
+from ...resources_rc import qInitResources
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -66,8 +66,8 @@ class Ui_Dialog(object):
         self.open_project_pushButton.setText(_translate("Dialog", "Open project"))
         self.vector_type_label.setText(_translate("Dialog", " Vector layer type :"))
         self.vector_type_comboBox.setItemText(0, _translate("Dialog", "Default"))
-        self.vector_type_comboBox.setItemText(1, _translate("Dialog", "All in GeoJSONs"))
+        self.vector_type_comboBox.setItemText(1, _translate("Dialog", "All in GeoJSON"))
         self.vector_type_comboBox.setItemText(2, _translate("Dialog", "All in Vector Tiles"))
 
 
-from JMapCloud import resources_rc
+qInitResources()

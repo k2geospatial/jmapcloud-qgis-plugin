@@ -19,9 +19,9 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import Qt
 
-from JMapCloud.core.DTOS.polygon_style_dto import PolygonStyleDTO
-from JMapCloud.core.DTOS.style_dto import StyleDTO
-from JMapCloud.core.plugin_util import (
+from .polygon_style_dto import PolygonStyleDTO
+from .style_dto import StyleDTO
+from ..plugin_util import (
     convert_measurement_to_pixel,
     convert_pen_style_to_dash_array,
     image_to_base64,

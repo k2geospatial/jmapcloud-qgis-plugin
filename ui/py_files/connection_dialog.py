@@ -15,13 +15,13 @@ from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.utils import iface
 
-from JMapCloud.core.constant import (
+from ...core.constant import (
     EMAIL_SUFFIX,
     ORG_NAME_SUFFIX,
     SETTINGS_PREFIX,
     AuthState,
 )
-from JMapCloud.core.services.auth_manager import JMapAuth
+from ...core.services.auth_manager import JMapAuth
 
 from .connection_dialog_base_ui import Ui_Dialog
 

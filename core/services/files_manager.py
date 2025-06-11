@@ -17,13 +17,13 @@ from pathlib import Path
 from qgis.PyQt.QtCore import QTimer, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from JMapCloud.core.constant import API_FUS_URL, API_MCS_URL
-from JMapCloud.core.DTOS.datasource_dto import DatasourceDTO
-from JMapCloud.core.plugin_util import convert_crs_to_epsg
-from JMapCloud.core.recurring_event import RecurringEvent
-from JMapCloud.core.services.request_manager import RequestManager
-from JMapCloud.core.tasks.custom_qgs_task import CustomTaskManager
-from JMapCloud.core.views import LayerData, LayerFile, SupportedFileType
+from ..constant import API_FUS_URL, API_MCS_URL
+from ..DTOS.datasource_dto import DatasourceDTO
+from ..plugin_util import convert_crs_to_epsg
+from ..recurring_event import RecurringEvent
+from .request_manager import RequestManager
+from ..tasks.custom_qgs_task import CustomTaskManager
+from ..views import LayerData, LayerFile, SupportedFileType
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 MESSAGE_CATEGORY = "FilesUploadManager"

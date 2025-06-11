@@ -20,8 +20,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QPointF
 
-from JMapCloud.core.DTOS.style_dto import StyleDTO
-from JMapCloud.core.plugin_util import (
+from .style_dto import StyleDTO
+from ..plugin_util import (
     convert_measurement_to_pixel,
     image_to_base64,
     opacity_to_transparency,

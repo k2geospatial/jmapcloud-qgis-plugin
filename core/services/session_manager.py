@@ -13,7 +13,7 @@
 from qgis.core import QgsApplication, QgsAuthMethodConfig
 from qgis.PyQt.QtCore import QObject
 
-from JMapCloud.core.constant import (
+from ..constant import (
     ACCESS_TOKEN_SETTING_ID,
     AUTH_CONFIG_ID,
     EXPIRATION_SETTING_ID,

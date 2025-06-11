@@ -9,7 +9,7 @@
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 # -----------------------------------------------------------
-from JMapCloud.core.DTOS.dto import DTO
+from .dto import DTO
 
 DEFAULT_BACKGROUND_COLOR = "#ffffff"
 DEFAULT_SELECTION_COLOR = "#ffff00"

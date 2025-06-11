@@ -10,9 +10,9 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from JMapCloud.core.DTOS.criteria_dto import CriteriaDTO
-from JMapCloud.core.DTOS.dto import DTO
-from JMapCloud.core.DTOS.style_map_scale_dto import StyleMapScaleDTO
+from .criteria_dto import CriteriaDTO
+from .dto import DTO
+from .style_map_scale_dto import StyleMapScaleDTO
 
 
 class ConditionDTO(DTO):

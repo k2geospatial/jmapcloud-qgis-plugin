@@ -16,10 +16,10 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
-from JMapCloud.core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX
-from JMapCloud.core.plugin_util import find_value_in_dict_or_first
-from JMapCloud.core.services.jmap_services_access import JMapMCS
-from JMapCloud.core.services.request_manager import RequestManager
+from ...core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX
+from ...core.plugin_util import find_value_in_dict_or_first
+from ...core.services.jmap_services_access import JMapMCS
+from ...core.services.request_manager import RequestManager
 
 from .open_project_dialog_base_ui import Ui_Dialog
 
@@ -71,7 +71,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                 project["name"] = find_value_in_dict_or_first(
                     project["name"], [self.language, project["defaultLanguage"]], "no name"
                 )
-            sorted_projects = sorted(projects, key=lambda p: p["name"])
+            sorted_projects = sorted(projects, key=lambda p: p["name"].lower())
             for project in sorted_projects:
                 item = CustomListWidgetItem()
                 icon = QtGui.QIcon()

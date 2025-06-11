@@ -13,8 +13,8 @@ from enum import Enum, auto
 
 from qgis.core import QgsSymbol
 
-from JMapCloud.core.DTOS.dto import DTO
-from JMapCloud.core.plugin_util import opacity_to_transparency, transparency_to_opacity
+from .dto import DTO
+from ..plugin_util import opacity_to_transparency, transparency_to_opacity
 
 
 class StyleDTO(DTO):
