@@ -261,12 +261,12 @@ Connecté à: {}</translation>
     <message>
         <location filename="../ui/py_files/open_project_dialog_base_ui.py" line="68"/>
         <source>Default</source>
-        <translation>Par Défaut</translation>
+        <translation>Par défaut</translation>
     </message>
     <message>
         <location filename="../ui/py_files/open_project_dialog_base_ui.py" line="69"/>
-        <source>All in GeoJSONs</source>
-        <translation>En GeoJSONs</translation>
+        <source>All in GeoJSON</source>
+        <translation>En GeoJSON</translation>
     </message>
     <message>
         <location filename="../ui/py_files/open_project_dialog_base_ui.py" line="70"/>
