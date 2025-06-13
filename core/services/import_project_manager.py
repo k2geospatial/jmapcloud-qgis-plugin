@@ -278,6 +278,11 @@ class ImportProjectManager(CustomTaskManager):
             ":/images/themes/default/mIconRasterGroup.svg",
         )
         # get uri foreach selected sub-layer
+        if not sources.get("tiles") or len(sources["tiles"]) == 0:
+            message = self.tr("No WMS source found for layer {}").format(layer_data["name"][self.project_data.default_language])
+            self._error_occur(message, MESSAGE_CATEGORY)
+            return False
+
         layer_data["layers"] = JMapMCS.get_wms_layer_uri(sources["tiles"][0])
 
         if not bool(layer_data["layers"]):
@@ -323,7 +328,7 @@ class ImportProjectManager(CustomTaskManager):
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(raster_layer)
             return True
         else:
-            message = self.tr("Layer {} is not valid").format(name)
+            message = self.tr("Layer {} is not valid.\n The reason: {}").format(name, str(raster_layer.error()))
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
