@@ -333,33 +333,3 @@ class RequestManager(QObject):
         headers = cls._get_headers(reply)
 
         return cls.ResponseData(content, headers, error_code, error_string, id)
-    
-    @staticmethod
-    def _log_request(method: str, url: str, body=None, request_id=None):
-        """Log information about an outgoing request"""
-        id_info = f" (ID: {request_id})" if request_id else ""
-        message = f"REQUEST{id_info}: {method} {url}"
-        if body:
-            # Truncate body if too long to avoid cluttering logs
-            body_str = str(body)
-            if len(body_str) > 500:
-                body_str = body_str[:500] + "..."
-            message += f"\nBody: {body_str}"
-        QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Info)
-    
-    @staticmethod
-    def _log_response(url: str, status, content=None,request_id=None):
-        """Log information about an incoming response"""
-        id_info = f" (ID: {request_id})" if request_id else ""
-        message = f"RESPONSE{id_info}: {url} - Status: {status}"
-        
-        # if content:
-        #     # Truncate content if too long to avoid cluttering logs
-        #     content_str = str(content)
-        #     if len(content_str) > 500:
-        #         content_str = content_str[:500] + "..."
-        #     message += f"\nContent: {content_str}"
-        message += f"\nContent: {content}"
-        
-        log_level = Qgis.Info if status == QNetworkReply.NoError else Qgis.Warning
-        QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, log_level)
