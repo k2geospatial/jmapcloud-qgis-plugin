@@ -109,7 +109,7 @@ class JMapMIS:
             + "&layers={}".format(layer_id)
             + "&styles"
             + "&tilePixelRatio=0"
-            + "&url={}?{}".format(API_MCS_URL, safe_string)
+            + "&url={}?{}".format(API_MIS_URL, safe_string)
             + "&request=GetMap"
         )
         return uri
