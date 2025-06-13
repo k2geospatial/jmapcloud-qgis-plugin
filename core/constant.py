@@ -75,8 +75,8 @@ class ElementTypeWrapper(Enum):
             self.POINT: Qgis.GeometryType.Point,
             self.LINE: Qgis.GeometryType.Line,
             self.POLYGON: Qgis.GeometryType.Polygon,
-            self.TEXT: Qgis.GeometryType.Unknown,
-            self.IMAGE: Qgis.GeometryType.Null,
+            self.TEXT: Qgis.GeometryType.Point,
+            self.IMAGE: Qgis.GeometryType.Unknown,
         }[self]
 
 
