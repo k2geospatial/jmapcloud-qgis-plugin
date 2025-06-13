@@ -476,7 +476,7 @@ class StyleManager:
                 size=(icons["width"] + icons["height"]) / 2 / icons["pixelRatio"],
             )
             symbol_layer.setFixedAspectRatio(icons["height"] / icons["width"])
-            symbol_layer.setSizeUnit(Qgis.RenderUnit.Millimeters)
+            symbol_layer.setSizeUnit(Qgis.RenderUnit.Pixels)
             # set icon properties
             if "icon-opacity" in style:
                 if isinstance(style["icon-opacity"], cls.QGISExpression):
@@ -644,7 +644,7 @@ class StyleManager:
 
             symbol_layer.setStrokeColor(QColor(border_color))
             symbol_layer.setStrokeWidth(1)
-            symbol_layer.setStrokeWidthUnit(Qgis.RenderUnit.Millimeters)
+            symbol_layer.setStrokeWidthUnit(Qgis.RenderUnit.Pixels)
         else:
             symbol_layer.setStrokeStyle(Qt.PenStyle.NoPen)
 
