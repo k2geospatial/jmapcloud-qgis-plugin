@@ -19,7 +19,7 @@ from qgis.core import (
     QgsReferencedRectangle,
 )
 
-from ..core.plugin_util import convert_crs_to_epsg
+from .plugin_util import convert_crs_to_epsg
 
 
 class SupportedFileType(Enum):
