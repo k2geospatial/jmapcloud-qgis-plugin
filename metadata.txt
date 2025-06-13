@@ -40,6 +40,11 @@ deprecated=False
 # If the plugin can run on QGIS Server.
 server=False
 
-changelog=<p>1.0.0 First version</p>
+changelog=
+    1.0.1
+    - Fix the Layer problem Layout on MacOS.
+    - Cosmetic fiexes.
+    1.0.0
+    - First version.
 
 
