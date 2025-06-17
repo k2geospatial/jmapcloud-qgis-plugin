@@ -163,7 +163,85 @@ def convert_QGIS_text_expression_to_JMap(expression):  # TODO upgrade
     return "".join(new_parts)
 
 
-def convert_jmap_text_expression(text: str) -> str:
+def convert_jmap_text_mouse_over_expression(text: str) -> str:
+    text = text.replace("{", "{{").replace("}", "}}")
+    text = text.replace("'", "\\'")
+
+    new_text = text
+    replacement_counter = 0
+    replacements = {}
+
+    # backreference are not quoted while {num} are quoted if they do not refer to a placeholder
+    patterns = {
+        r"[eE][vV]\(\s*(\w+)\s*\)": r"[%if(attribute('\1'), attribute('\1'), '')%]",  # non formatter group
+        r"[iI][fF][nN][oO][tT][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)": r"[%if(attribute('\1'), attribute('\1'), '')%]",  # formatter groups
+        r"[iI][fF][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)": r"[%if(attribute('\1'), '', attribute('\1'))%]",  # formatter groups
+        r"[Ll][Ii][Nn][Ee][lL][Ee][Nn][Gg][Tt][Hh]\(\s*\)": "[%if(geometry_type(@geometry)='Line', round($length, 2), '')%]",
+        r"[Pp][Oo][Ll][Yy][Gg][Oo][Nn][Aa][Rr][Ee][Aa]\(\s*\)": "[%if(geometry_type(@geometry)='Polygon', round($area, 2), '')%]",
+        r"[Pp][Rr][Oo][Jj][Ee][Cc][Tt][nN][Aa][Mm][Ee]\(\s*\)": "[%@project_basename%]",
+        r"[Dd][Aa][Tt][Ee]\(\s*\)": "[%format_date( now(),'ddd MMM dd yyyy')%]",
+        r"[Ss][Uu][Bb][Ss][Tt][Rr][Ii][Nn][Gg]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": r"[%substr(if(attribute('\1'), attribute('\1'), ''), \2, \3 - \2)%]",
+        r"[fF][oO][rR][mM][aA][tT]\(\s*(\w+)\s*,\s*([^)]+)\s*\)": r"[%format_date(attribute('\1'), '\2')%]",
+        r"[fF][oO][rR][mM][aA][tT]\(\s*(\w+)\s*,\s*[\'\"]?((?:[#0.,]+))[\'\"]?\s*\)": r"[%format_number(attribute('\1'), '\2')%]",
+        r"[cC][eE][nN][tT][rR][oO][iI][dD]\(\s*\)": r"[%concat('X: ',x(centroid(@geometry)), ' Y: ', y(centroid(@geometry)))%]",
+        r"[eE][lL][eE][mM][eE][nN][tT][iI][dD]\(\s*\)": r"[%if(attribute('jmap_id'), attribute('jmap_id'), '')%]",
+        r"[uU][sS][eE][rR][nN][aA][mM][eE]\(\s*\)": "[%@user_account_name%]",
+    }
+
+    # 🔹 **Build a regex that matches any function name in `patterns`**
+    pattern_regex = "|".join(patterns.keys())
+
+    def quote(group) -> str:
+        if not re.search(r"\{\d+\}", group):
+            group = "'{}'".format(group)
+        return group
+
+    # 🔹 **Step 1: Process one match at a time until no more matches are found**
+    while True:
+        match = re.search(pattern_regex, new_text)
+        if not match:  # No more functions found → stop processing
+            break
+
+        formatted_group = match.group(0)
+        # Apply the corresponding pattern replacement
+        for pattern, replacement in patterns.items():
+            sub_matches = re.search(pattern, formatted_group)
+            if not sub_matches:
+                continue
+            # quote all non placeholder formatter groups
+            # quoted_group = [quote(group) for grou`p in sub_matches.groups()]
+
+            # replacement is quoted if specified in the pattern replacement
+            formatted_group = re.sub(pattern, replacement, formatted_group)
+
+        replacements[replacement_counter] = formatted_group
+        key = f"{{{replacement_counter}}}"
+        new_text = new_text.replace(match.group(0), key, 1)  # Replace only the first occurrence
+        replacement_counter += 1
+
+    # 🔹 **Step 2: Split the text while keeping placeholders**
+    parts = re.split(r"(\{\d+\})", new_text)
+
+    formatted_parts = []
+    for part in parts:
+        if not bool(part):
+            continue
+        if re.match(r"\{\d+\}", part):
+            formatted_parts.append(part)
+        else:
+            formatted_parts.append("{}".format(part))
+
+    # # 🔹 **Step 3: Join with `+`**
+    # new_text = " + ".join(formatted_parts)
+
+    # 🔹 **Step 4: Replace placeholders with actual function outputs**
+
+    while re.search(r"\{\d+\}", new_text):
+        new_text = new_text.format(*replacements.values())
+
+    return new_text
+
+def convert_jmap_text_label_expression(text: str) -> str:
     text = text.replace("{", "{{").replace("}", "}}")
     text = text.replace("'", "\\'")
 
@@ -174,13 +252,8 @@ def convert_jmap_text_expression(text: str) -> str:
     # backreference are not quoted while {num} are quoted if they do not refer to a placeholder
     patterns = {
         r"[eE][vV]\(\s*(\w+)\s*\)": r"\1",  # non formatter group
-        r"[iI][fF][nN][oO][tT][nN][uU][lL][lL]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "if(attribute({0}), {1}, '')",  # formatter groups
-        r"[iI][fF][nN][uU][lL][lL]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "if(attribute({0}), '', {1})",  # formatter groups
-        r"[Ll][Ii][Nn][Ee][lL][Ee][Nn][Gg][Tt][Hh]\(\s*\)": 'to_string(round( "jmap_length",2))',
-        r"[Pp][Oo][Ll][Yy][Gg][Oo][Nn][Aa][Rr][Ee][Aa]\(\s*\)": 'to_string(round("jmap_area", 2))',
-        r"[Pp][Rr][Oo][Jj][Ee][Cc][Tt][nN][Aa][Mm][Ee]\(\s*\)": "@project_basename",
-        r"[Dd][Aa][Tt][Ee]\(\s*\)": " format_date( now(),'ddd MMM dd yyyy')",
-        r"[Ss][Uu][Bb][Ss][Tt][Rr][Ii][Nn][Gg]\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)": "substr({0}, {1}, {2} - {1})",
+        r"[iI][fF][nN][oO][tT][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)": "if(attribute({0}), {1}, '')",  # formatter groups
+        r"[iI][fF][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)": "if(attribute({0}), '', {1})",  # formatter groups
     }
 
     # 🔹 **Build a regex that matches any function name in `patterns`**
@@ -235,7 +308,6 @@ def convert_jmap_text_expression(text: str) -> str:
         new_text = new_text.format(*replacements.values())
 
     return new_text
-
 
 def convert_pen_style_to_dash_array(pen_style, width) -> list[int]:
     dashPattern = None

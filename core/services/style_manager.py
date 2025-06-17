@@ -46,7 +46,8 @@ from qgis.PyQt.QtGui import QColor, QFont, QPixmap
 
 from ..constant import ElementTypeWrapper
 from ..plugin_util import (
-    convert_jmap_text_expression,
+    convert_jmap_text_mouse_over_expression,
+    convert_jmap_text_label_expression,
     convert_zoom_to_scale,
     find_value_in_dict_or_first,
 )
@@ -118,7 +119,7 @@ class StyleManager:
             return {}
         if "text" in layer_data["labellingConfiguration"]:
             text = find_value_in_dict_or_first(layer_data["labellingConfiguration"]["text"], [default_language], "")
-            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_expression(text)
+            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_label_expression(text)
         return layer_data["labellingConfiguration"]
 
     @staticmethod
@@ -128,10 +129,10 @@ class StyleManager:
             return None
         text = find_value_in_dict_or_first(layer_data["mouseOverConfiguration"]["text"], [default_language], "")
 
-        text_label = convert_jmap_text_expression(text)
+        text_label = convert_jmap_text_mouse_over_expression(text)
         text_label = text_label.replace("\n", "<br>\n")
-        text_label = "[%{}%]".format(text_label)
-
+        text_label = "<div style='background-color:white; color:black; padding:5px;'>{}</div>".format(text_label)
+        
         return text_label
 
     @classmethod
