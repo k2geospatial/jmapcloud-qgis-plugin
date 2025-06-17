@@ -44,6 +44,7 @@ changelog=
     1.0.1
     - Fix the Layer problem Layout on MacOS.
     - Cosmetic fiexes.
+    - The popup in QGIS doesn't not show the data
     1.0.0
     - First version.
 
