@@ -308,6 +308,12 @@ class ImportProjectManager(CustomTaskManager):
 
     def _load_wmts_layer(self, layer_data: dict, sources) -> bool:
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
+
+        if not sources.get("tiles") or len(sources["tiles"]) == 0:
+            message = self.tr("No WMTS source found for layer {}").format(layer_data["name"][self.project_data.default_language])
+            self._error_occur(message, MESSAGE_CATEGORY)
+            return False
+
         uri = JMapMCS.get_wmts_layer_uri(sources["tiles"][0], sources["minzoom"], sources["maxzoom"])
         raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():
