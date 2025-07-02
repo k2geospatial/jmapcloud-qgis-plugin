@@ -73,7 +73,7 @@ class ExportProjectManager(QObject):
             self._finish(False)
             return
         self.action_dialog.set_text(self.tr("Converting layers to zip"))
-        self.dir = tempfile.TemporaryDirectory(delete=True)
+        self.dir = tempfile.TemporaryDirectory()
         convert_layer_to_zip_task = ConvertLayersToZipTask(self.dir.name, self.project_data.layers)
         convert_layer_to_zip_task.progress_changed.connect(
             lambda value, current_step=self.current_step: self.set_progress(value, current_step)
