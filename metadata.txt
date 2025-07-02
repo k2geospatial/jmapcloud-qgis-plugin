@@ -5,7 +5,7 @@
 [general]
 name=JMap Cloud
 description=JMap Cloud Plugin
-version=1.0.1
+version=1.0.2
 author=K2 Geospatial
 email=Administration@k2geospatial.com
 
