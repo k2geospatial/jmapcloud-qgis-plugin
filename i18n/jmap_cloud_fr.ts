@@ -19,7 +19,7 @@
     <message>
         <location filename="../ui/py_files/action_dialog.py" line="82"/>
         <source>Cancel</source>
-        <translation>Annulé</translation>
+        <translation>Annuler</translation>
     </message>
     <message>
         <location filename="../ui/py_files/action_dialog.py" line="92"/>
