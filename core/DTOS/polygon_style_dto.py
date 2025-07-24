@@ -48,6 +48,7 @@ class PolygonStyleDTO(StyleDTO):
 
     def __init__(self):
         super().__init__(self.StyleDTOType.POLYGON)
+        self.borderTransparency = 0
 
     @classmethod
     def from_symbol(cls, symbol: QgsFillSymbol) -> list["PolygonStyleDTO"]:
