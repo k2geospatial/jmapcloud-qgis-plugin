@@ -26,10 +26,13 @@ from qgis.core import (
     QgsMapSettings,
     QgsRenderContext,
     QgsSymbol,
+    QgsSvgMarkerSymbolLayer
 )
-from qgis.PyQt.QtCore import QMetaType, QSize, Qt
+from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer
+from qgis.PyQt.QtGui import QImage
 
 MAX_SCALE_LIMIT = 295828763
+_MAX_SIZE = 100  # Maximum pixel size for the symboldata to be send to JMap Cloud
 
 
 def qgis_layer_type_to_jmc(type_enum: Qgis.LayerType) -> str:
@@ -64,7 +67,6 @@ def qgis_data_type_name_to_mysql(type_enum: QMetaType.Type) -> str:
 
 
 def convert_crs_to_epsg(crs: QgsCoordinateReferenceSystem) -> QgsCoordinateReferenceSystem:  # TODO: convert to epsg
-
     return crs
 
 
@@ -122,19 +124,84 @@ def convert_measurement_to_pixel(value: any, unit: Qgis.RenderUnit) -> float:
 def image_to_base64(path: str) -> str:
     if not pathlib.Path(path).is_file():
         raise ValueError("The file {} does not exist.".format(path))
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+    img = QImage(str(path))
+    if img.isNull():
+        raise ValueError("Failed to load image: {}".format(path))
+    # Resize if larger than _MAX_SIZE
+    if img.width() > _MAX_SIZE or img.height() > _MAX_SIZE:
+        img = img.scaled(_MAX_SIZE, _MAX_SIZE, aspectRatioMode=Qt.KeepAspectRatio, transformMode=Qt.SmoothTransformation)
+    buffer = QBuffer()
+    buffer.open(QBuffer.ReadWrite)
+    img.save(buffer, "PNG")
+    base64_str = base64.b64encode(buffer.data()).decode("utf-8")
+    buffer.close()
+    return base64_str
 
+
+def resolve_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
+    """
+    Resolves `param(...)` placeholders in an SVG used by a QgsSvgMarkerSymbolLayer.
+    Args:
+        symbol_layer: The QgsSvgMarkerSymbolLayer object.
+    Returns:
+        str: The final SVG content with placeholders replaced.
+    """
+
+    properties = symbol_layer.properties()
+    svg_path = pathlib.Path(symbol_layer.path())
+    
+    
+    if not svg_path.exists():
+        return ""
+    
+    pixel_size = math.ceil(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
+    svg_content = svg_path.read_text(encoding='utf-8').replace("\n", "")
+
+    param_to_value = {
+        "fill": properties.get("color", "#000000").split(',')[0],  # fallback to black
+        "fill-opacity": "1",  # can extract alpha if needed
+        "outline": properties.get("outline_color", "#000000").split(',')[0],
+        "outline-opacity": "1",  # can extract alpha if needed
+        "outline-width": properties.get("outline_width", "1")
+    }
+
+    # Replace values with accurate RGBA
+    if "color" in properties:
+        fill_color, fill_opacity = _extract_rgba(properties["color"])
+        param_to_value["fill"] = fill_color
+        param_to_value["fill-opacity"] = fill_opacity
+
+    if "outline_color" in properties:
+        outline_color, outline_opacity = _extract_rgba(properties["outline_color"])
+        param_to_value["outline"] = outline_color
+        param_to_value["outline-opacity"] = outline_opacity
+
+    # Step 4: Replace param(...) with actual values
+    # Replace existing width/height or add them if missing
+    svg_content = re.sub(r'width="[^"]*"', f'width="{pixel_size}"', svg_content)
+    svg_content = re.sub(r'height="[^"]*"', f'height="{pixel_size}"', svg_content)
+    final_svg = re.sub(r'param\((.*?)\)', lambda m: _replace_param(m, param_to_value), svg_content)
+     
+    final_svg = '<?xml version="1.0" encoding="UTF-8"?>' + final_svg  # Ensure the SVG starts with the XML declaration
+
+    # Step 5: Print or save final SVG
+    return final_svg
+
+def SVG_to_base64(svg_content: str) -> str:
+    """Convert SVG content to a base64 encoded string."""
+    if not svg_content:
+        raise ValueError("SVG content is empty.")
+    svg_bytes = svg_content.encode('utf-8')
+    return base64.b64encode(svg_bytes).decode('utf-8')
 
 def symbol_to_SVG_base64(symbol: QgsSymbol) -> str:
-    temp_dir = tempfile.TemporaryDirectory(delete=True)
+    temp_dir = tempfile.TemporaryDirectory()
     temp_file = temp_dir.name + "/MarkerSymbol.svg"
     size = math.ceil(convert_measurement_to_pixel(symbol.size(), symbol.sizeUnit()))
     symbol.exportImage(temp_file, "SVG", QSize(size, size))
     base64_symbol = image_to_base64(temp_file)
     temp_dir.cleanup()
     return base64_symbol
-
 
 def convert_jmap_datetime(jmap_datetime: str) -> datetime:
     return datetime.fromisoformat(jmap_datetime).astimezone(timezone.utc)
@@ -327,9 +394,20 @@ def convert_pen_style_to_dash_array(pen_style, width) -> list[int]:
 
 
 def opacity_to_transparency(opacity) -> float:
-
     return (1 - min(1.0, opacity)) * 100
 
 
 def transparency_to_opacity(transparency) -> float:
     return 1 - transparency / 100
+
+def _extract_rgba(qgis_color_string):
+    rgba = qgis_color_string.split(',')
+    if len(rgba) >= 4:
+        r, g, b, a = map(int, rgba[:4])
+        return f"rgb({r},{g},{b})", str(round(a / 255.0, 2))
+    return "#000000", "1"
+
+def _replace_param(match, param_to_value):
+    key = match.group(1)
+    return param_to_value.get(key, f"param({key})")  # leave untouched if not found
+
