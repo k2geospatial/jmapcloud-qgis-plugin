@@ -49,7 +49,6 @@ class CreateJMCProjectTask(CustomQgsTask):
         return self.create_jmc_project()
 
     def create_jmc_project(self):
-
         rectangle = {
             "x1": self.project_data.initialExtent.xMinimum(),
             "y1": self.project_data.initialExtent.yMinimum(),

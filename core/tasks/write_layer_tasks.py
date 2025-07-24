@@ -209,12 +209,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
             base_path = Path(uri_components["path"])
 
             ext = base_path.suffix.lower()
-            if (
-                base_path.is_dir()
-                and ext not in [".gdb", "mdb"]
-                and "layerName" in uri_components
-                and bool(uri_components["layerName"])
-            ):
+            if base_path.is_dir() and ext not in [".gdb", "mdb"] and "layerName" in uri_components and bool(uri_components["layerName"]):
                 base_path = base_path / uri_components["layerName"]
                 ext = base_path.suffix.lower()
             # --- Zip file ---
@@ -248,7 +243,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.MapInfo
                 return [Path(base_path.with_suffix(e)) for e in required_files]
             # --- Single-file formats ---
-            elif ext == ".geojson":
+            elif ext == ".geojson" or ext == ".json":
                 layer_data.uri_components["layerName"] = "defaultLayer"
                 layer_data.file_type = SupportedFileType.GeoJSON
                 return [Path(base_path)] if base_path.exists() else None
