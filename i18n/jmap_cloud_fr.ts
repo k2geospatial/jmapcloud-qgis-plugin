@@ -32,12 +32,12 @@
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="128"/>
         <source>logout</source>
-        <translation>Déconnection</translation>
+        <translation>Déconnexion</translation>
     </message>
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="82"/>
         <source>login</source>
-        <translation>Connection</translation>
+        <translation>Connexion</translation>
     </message>
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="93"/>
@@ -52,12 +52,12 @@
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="113"/>
         <source>Authentication expired</source>
-        <translation>Authentification expiré</translation>
+        <translation>Authentification expirée</translation>
     </message>
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="133"/>
         <source>Authentication error</source>
-        <translation>Erreur D'authentification</translation>
+        <translation>Erreur d'authentification</translation>
     </message>
     <message>
         <location filename="../ui/py_files/connection_dialog.py" line="96"/>
@@ -92,7 +92,7 @@ Connecté à: {}</translation>
     <message>
         <location filename="../core/tasks/write_layer_tasks.py" line="236"/>
         <source>Missing required files for {}: {}</source>
-        <translation>Des fichiers sont manquant pour les couches {}: {}</translation>
+        <translation>Des fichiers sont manquants pour les couches {}: {}</translation>
     </message>
     <message>
         <location filename="../core/tasks/write_layer_tasks.py" line="310"/>
@@ -102,7 +102,7 @@ Connecté à: {}</translation>
     <message>
         <location filename="../core/tasks/write_layer_tasks.py" line="315"/>
         <source>Unsupported layer: {} ({}), the provider is not supported</source>
-        <translation>Couche {} ({}) non supporté, le fournisseur n'est pas supporté</translation>
+        <translation>Couche {} ({}) non supportée, le fournisseur n'est pas supporté</translation>
     </message>
 </context>
 <context>
@@ -110,12 +110,12 @@ Connecté à: {}</translation>
     <message>
         <location filename="../core/tasks/create_jmc_project_task.py" line="69"/>
         <source>Error creating project : {}</source>
-        <translation>Erreur lors de la creation du projet: {}</translation>
+        <translation>Erreur lors de la création du projet: {}</translation>
     </message>
     <message>
         <location filename="../core/tasks/create_jmc_project_task.py" line="133"/>
         <source>Error creating labeling for layer {}, JMap Cloud only support single rule labeling</source>
-        <translation>Erreur lors de la creation de l'étiquetage pour la couche {}: JMap Cloud ne supporte que les règles uniques d'étiquetage.</translation>
+       <translation>Erreur lors de la création de l'étiquetage pour la couche {}: JMap Cloud ne supporte que les règles uniques d'étiquetage.</translation>
     </message>
 </context>
 <context>
@@ -164,6 +164,24 @@ Connecté à: {}</translation>
     </message>
 </context>
 <context>
+    <name>FilesUploadManager</name>
+    <message>
+        <location filename="../core/services/files_manager.py" line="85"/>
+        <source>Server is analyzing files</source>
+        <translation>Le serveur analyse les fichiers</translation>
+    </message>
+    <message>
+        <location filename="../core/services/files_manager.py" line="58"/>
+        <source>Uploading layers files</source>
+        <translation>Envoi des fichiers de couches</translation>
+    </message>
+    <message>
+        <location filename="../core/services/files_manager.py" line="64"/>
+        <source>Error uploading file {}: {}</source>
+        <translation>Erreur lors de l'envoi du fichier {}: {}</translation>
+    </message>
+</context>
+<context>
     <name>DatasourceManager</name>
     <message>
         <location filename="../core/services/files_manager.py" line="297"/>
@@ -177,8 +195,8 @@ Connecté à: {}</translation>
     </message>
     <message>
         <location filename="../core/services/files_manager.py" line="391"/>
-        <source>Unknown error : {}</source>
-        <translation>Un erreur inconnue s'est produit: {}</translation>
+        <source>Unknown error: {}</source>
+        <translation>Une erreur inconnue s'est produite: {}</translation>
     </message>
     <message>
         <location filename="../core/services/files_manager.py" line="395"/>
@@ -293,7 +311,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="202"/>
         <source>Error for layer {}. Renderer type {}, not supported</source>
-        <translation>Erreur pour la couche {}: Le type du moteur de rendu {} n'est pass supporté.</translation>
+        <translation>Erreur pour la couche {}: Le type du moteur de rendu {} n'est pas supporté.</translation>
     </message>
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="261"/>
@@ -313,7 +331,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="358"/>
         <source>invalid expression &apos;{}&apos;</source>
-        <translation>L'experssion '{}' est invalide.</translation>
+        <translation>L'expression '{}' est invalide.</translation>
     </message>
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="364"/>
@@ -348,12 +366,12 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="511"/>
         <source>Error getting style for layer &apos;{}&apos;: {}</source>
-        <translation>Erreur lors de la récupération des style pour la couche '{}': {}</translation>
+        <translation>Erreur lors de la récupération des styles pour la couche '{}': {}</translation>
     </message>
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="520"/>
         <source>Error patching style for layer &apos;{}&apos;: {}</source>
-        <translation>Erreur lors de la modification des style pour la couche '{}': {}.</translation>
+        <translation>Erreur lors de la modification des styles pour la couche '{}': {}.</translation>
     </message>
 </context>
 <context>
@@ -374,7 +392,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/export_project_manager.py" line="63"/>
         <source>&lt;h3&gt;Project exportation canceled&lt;/h3&gt;</source>
-        <translation>&lt;h3&gt;Exportation du projet annulé&lt;/h3&gt;</translation>
+        <translation>&lt;h3&gt;Exportation du projet annulée&lt;/h3&gt;</translation>
     </message>
     <message>
         <location filename="../core/services/export_project_manager.py" line="75"/>
@@ -399,22 +417,22 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/export_project_manager.py" line="122"/>
         <source>Creating datasources</source>
-        <translation>Creation des sources de données</translation>
+        <translation>Création des sources de données</translation>
     </message>
     <message>
         <location filename="../core/services/export_project_manager.py" line="125"/>
         <source>Create datasource</source>
-        <translation>Creation des sources de données</translation>
+        <translation>Création des sources de données</translation>
     </message>
     <message>
         <location filename="../core/services/export_project_manager.py" line="146"/>
         <source>Creating JMap Cloud project</source>
-        <translation>Creation du projet JMap Cloud</translation>
+        <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
         <location filename="../core/services/export_project_manager.py" line="149"/>
         <source>Create JMap Cloud project</source>
-        <translation>Creation du projet JMap Cloud</translation>
+        <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
         <location filename="../core/services/export_project_manager.py" line="168"/>
@@ -440,7 +458,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/export_project_manager.py" line="215"/>
         <source>&lt;h4&gt;Some errors occurred during the process:&lt;/h4&gt;</source>
-        <translation>&lt;h4&gt;Des erreurs se sont produits pendant le processus:&lt;/h4&gt;</translation>
+        <translation>&lt;h4&gt;Des erreurs se sont produites pendant le processus:&lt;/h4&gt;</translation>
     </message>
 </context>
 <context>
@@ -463,7 +481,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/import_project_manager.py" line="189"/>
         <source>error formatting properties</source>
-        <translation>Erreu lors du formatage des données</translation>
+        <translation>Erreur lors du formatage des données</translation>
     </message>
     <message>
         <location filename="../core/services/import_project_manager.py" line="202"/>
@@ -488,7 +506,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/import_project_manager.py" line="293"/>
         <source>Layer {} is not a valid wms layer</source>
-        <translation>La couche '{}' n'est pas un couche WMS valide</translation>
+        <translation>La couche '{}' n'est pas une couche WMS valide</translation>
     </message>
     <message>
         <location filename="../core/services/import_project_manager.py" line="400"/>
@@ -498,7 +516,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/import_project_manager.py" line="424"/>
         <source>Loading layer groups</source>
-        <translation>chargement du groupement des couches</translation>
+        <translation>Chargement du groupement des couches</translation>
     </message>
     <message>
         <location filename="../core/services/import_project_manager.py" line="434"/>
@@ -518,7 +536,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/services/import_project_manager.py" line="490"/>
         <source>&lt;p&gt;Some changes made on this layer may not be pushed to the JMap Cloud project&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Certains changements apporté à cette couche ne seront pas publié dans JMap Cloud&lt;/p&gt;</translation>
+        <translation>&lt;p&gt;Certains changements apportés à cette couche ne seront pas publiés dans JMap Cloud&lt;/p&gt;</translation>
     </message>
     <message>
         <location filename="../core/services/import_project_manager.py" line="490"/>
@@ -589,7 +607,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../jmap_cloud.py" line="179"/>
         <source>Refresh token</source>
-        <translation>Rafraichir le token</translation>
+        <translation>Rafraîchir le token</translation>
     </message>
 </context>
 <context>
@@ -620,7 +638,7 @@ p, li { white-space: pre-wrap; }
     <message>
         <location filename="../core/tasks/write_layer_tasks.py" line="390"/>
         <source>Error: {} is not a valid file or folder.</source>
-        <translation>Erreur: {} N'est pas un fichier ou un dossier valide</translation>
+        <translation>Erreur: {} n'est pas un fichier ou un dossier valide</translation>
     </message>
 </context>
 </TS>

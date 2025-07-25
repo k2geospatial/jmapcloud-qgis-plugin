@@ -46,9 +46,9 @@ class StyleDTO(DTO):
         dtos = []
         for symbol_layer in symbol.symbolLayers():
             dto = cls.from_symbol_layer(symbol_layer)
-            dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
-            dtos.append(dto)
-
+            if dto is not None:
+                dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
+                dtos.append(dto)
         return dtos
 
     @classmethod

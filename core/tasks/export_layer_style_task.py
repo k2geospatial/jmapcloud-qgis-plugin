@@ -399,7 +399,11 @@ class ExportLayerStyleTask(CustomQgsTask):
             styles = PolygonStyleDTO.from_symbol(symbol)
             initial_type = "POLYGON"
         else:
-            raise
+            self.error_occur(
+                self.tr("Unsupported symbol type '{}' for layer '{}'.").format(type(symbol), self.layer_data.layer_name),
+                MESSAGE_CATEGORY,
+            )
+            return []
 
         # patch layer opacity
         for style in styles:

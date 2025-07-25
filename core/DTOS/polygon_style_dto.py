@@ -19,7 +19,7 @@ from qgis.core import (
     QgsSVGFillSymbolLayer,
     QgsSymbolLayer,
 )
-from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtCore import Qt, QSize
 
 from .style_dto import StyleDTO
 from ..plugin_util import (
@@ -27,6 +27,8 @@ from ..plugin_util import (
     convert_pen_style_to_dash_array,
     image_to_base64,
     opacity_to_transparency,
+    resolve_polygon_svg_params,
+    svg_content_to_base64,
     transparency_to_opacity,
 )
 
@@ -48,6 +50,7 @@ class PolygonStyleDTO(StyleDTO):
 
     def __init__(self):
         super().__init__(self.StyleDTOType.POLYGON)
+        self.borderTransparency = 0
 
     @classmethod
     def from_symbol(cls, symbol: QgsFillSymbol) -> list["PolygonStyleDTO"]:
@@ -81,9 +84,18 @@ class PolygonStyleDTO(StyleDTO):
 
         elif isinstance(symbol_layer, QgsImageFillSymbolLayer):
             if isinstance(symbol_layer, QgsSVGFillSymbolLayer):
-                dto.patternData = image_to_base64(symbol_layer.svgFilePath())
+                svg_parsed = resolve_polygon_svg_params(symbol_layer)
+
+                if len(svg_parsed) == 0:
+                    return None
+
+                size = int(convert_measurement_to_pixel(symbol_layer.patternWidth(), symbol_layer.patternWidthUnit()))
+                dto.patternData = svg_content_to_base64(svg_parsed, QSize(size, size))
             elif isinstance(symbol_layer, QgsRasterFillSymbolLayer):
-                dto.patternData = image_to_base64(symbol_layer.imageFilePath())
+                width = int(convert_measurement_to_pixel(symbol_layer.width(), symbol_layer.sizeUnit()))
+                height = int(convert_measurement_to_pixel(symbol_layer.height(), symbol_layer.sizeUnit()))
+            
+                dto.patternData = image_to_base64(symbol_layer.imageFilePath(), QSize(width, height))
                 dto.transparency = opacity_to_transparency(symbol_layer.opacity())
             else:
                 return None

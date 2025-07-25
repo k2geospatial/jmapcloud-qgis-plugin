@@ -55,13 +55,13 @@ class FilesUploadManager(CustomTaskManager):
             self.progress_changed.emit(100.0)
             self.tasks_completed.emit(self.layers_data)
             return True
-        self.step_title_changed.emit("Uploading layers files")
+        self.step_title_changed.emit(self.tr("Uploading layers files"))
         for i, layer_file in enumerate(self.layer_files):
             file_uploader = FileUploader(layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
                 layer_file.upload_status = LayerFile.Status.uploading_error
-                error_message = "Error uploading file {}: {}".format(layer_file.file_path, error_message)
+                error_message = self.tr("Error uploading file {}: {}".format(layer_file.file_path, error_message))
                 self.error_occur(error_message, MESSAGE_CATEGORY)
 
             def progress_changed(progress, ref):
@@ -94,7 +94,7 @@ class FilesUploadManager(CustomTaskManager):
             self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
-        self.step_title_changed.emit("Server is analyzing files")
+        self.step_title_changed.emit(self.tr("Server is analyzing files"))
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
             if (

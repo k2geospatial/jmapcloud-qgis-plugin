@@ -18,13 +18,16 @@ from qgis.core import (
     QgsRasterMarkerSymbolLayer,
     QgsSvgMarkerSymbolLayer,
 )
-from qgis.PyQt.QtCore import QPointF
+from qgis.PyQt.QtCore import QPointF, QSize
 
 from .style_dto import StyleDTO
 from ..plugin_util import (
+    SVG_to_base64,
+    calculate_height_symbol_layer,
     convert_measurement_to_pixel,
-    image_to_base64,
     opacity_to_transparency,
+    image_to_base64,
+    resolve_point_svg_params,
     symbol_to_SVG_base64,
 )
 
@@ -44,7 +47,9 @@ class PointStyleDTO(StyleDTO):
         super().__init__(self.StyleDTOType.POINT)
         self.rotationLocked = False
         self.proportional = False
-
+        self.size = 1
+    
+        
     @classmethod
     def from_symbol_layer(cls, symbol_layer: QgsMarkerSymbolLayer) -> "PointStyleDTO":
         dto = cls()
@@ -62,19 +67,24 @@ class PointStyleDTO(StyleDTO):
         symbol_layer.setOffset(QPointF(0, 0))
 
         if isinstance(symbol_layer, QgsRasterMarkerSymbolLayer):
-            dto.symbolData = image_to_base64(symbol_layer.path())
+            width =  int(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
+            height =  int(convert_measurement_to_pixel(calculate_height_symbol_layer(symbol_layer), symbol_layer.sizeUnit()))
+            dto.symbolData = image_to_base64(symbol_layer.path(), QSize(width, height))
             dto.transparency = opacity_to_transparency(symbol_layer.opacity())
-            dto.size = 0.5  # this handle the pixel ratio of 2 of Mapbox spites
+           
         elif isinstance(symbol_layer, QgsSvgMarkerSymbolLayer):
-            dto.symbolData = image_to_base64(symbol_layer.path())
-            dto.size = 0.5  # this handle the pixel ratio of 2 of Mapbox spites
+            svg_parsed = resolve_point_svg_params(symbol_layer)
+    
+            if len(svg_parsed) == 0:
+                return None
+            
+            dto.symbolData = SVG_to_base64(svg_parsed)
         else:
-            symbol = QgsMarkerSymbol([symbol_layer])
+            symbol = QgsMarkerSymbol.createSimple(symbol_layer.properties())
             base64_symbol = symbol_to_SVG_base64(symbol)
             dto.symbolData = base64_symbol
             dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
             del symbol
-            dto.size = 1
 
         return dto
 
