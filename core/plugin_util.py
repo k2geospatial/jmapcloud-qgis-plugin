@@ -35,8 +35,6 @@ from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer
 from qgis.PyQt.QtGui import QImage
 
 MAX_SCALE_LIMIT = 295828763
-_MAX_SIZE = 100  # Maximum pixel size for the symboldata to be send to JMap Cloud
-
 
 def qgis_layer_type_to_jmc(type_enum: Qgis.LayerType) -> str:
     """Convert a QgsField.typeName() string to a MySQL type."""

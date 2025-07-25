@@ -71,7 +71,7 @@ class PointStyleDTO(StyleDTO):
             height =  int(convert_measurement_to_pixel(calculate_height_symbol_layer(symbol_layer), symbol_layer.sizeUnit()))
             dto.symbolData = image_to_base64(symbol_layer.path(), QSize(width, height))
             dto.transparency = opacity_to_transparency(symbol_layer.opacity())
-            # dto.size = 1  # this handle the pixel ratio of 2 of Mapbox spites
+           
         elif isinstance(symbol_layer, QgsSvgMarkerSymbolLayer):
             svg_parsed = resolve_point_svg_params(symbol_layer)
     
@@ -79,14 +79,12 @@ class PointStyleDTO(StyleDTO):
                 return None
             
             dto.symbolData = SVG_to_base64(svg_parsed)
-            # dto.size = 1  # this handle the pixel ratio of 2 of Mapbox spites
         else:
             symbol = QgsMarkerSymbol.createSimple(symbol_layer.properties())
             base64_symbol = symbol_to_SVG_base64(symbol)
             dto.symbolData = base64_symbol
             dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
             del symbol
-            # dto.size = 1
 
         return dto
 
