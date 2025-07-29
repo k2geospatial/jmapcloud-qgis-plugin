@@ -204,7 +204,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
             return {"landingPageUrl": url, "collectionId": collectionId}
 
         # ---- File-based vector layers ----
-        elif isinstance(layer, QgsVectorLayer) and "path" in uri_components:
+        elif isinstance(layer, QgsVectorLayer) and layer.isSpatial() and "path" in uri_components:
             layer_data.layer_type = LayerData.LayerType.file_vector
             base_path = Path(uri_components["path"])
 
