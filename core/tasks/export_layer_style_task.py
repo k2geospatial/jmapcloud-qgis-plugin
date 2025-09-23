@@ -103,14 +103,15 @@ class ExportLayerStyleTask(CustomQgsTask):
         if self.isCanceled():
             return False
         if self.layer_data.layer_type in [LayerData.LayerType.file_vector, LayerData.LayerType.API_FEATURES]:
-            self._handle_renderer(self.layer_data.layer.renderer())
+            self._handle_renderer(self.layer_data)
             self._delete_default_style_rules()
         else:
             self._patch_raster_style()
         self.export_layer_style_completed.emit()
         return True
 
-    def _handle_renderer(self, renderer: QgsFeatureRenderer):
+    def _handle_renderer(self, layer: LayerData):
+        renderer = layer.layer.renderer()
         default_rule_data = {
             "label": "",
             "filterExpression": [],
@@ -143,10 +144,13 @@ class ExportLayerStyleTask(CustomQgsTask):
             self.set_total_steps(total)
             self._handle_rule(renderer.rootRule())
         elif isinstance(renderer, QgsGraduatedSymbolRenderer):
+            layer_name = layer.uri_components["layerName"]
+            fields: list[dict] = layer.layer_file.fields[layer_name]
             style_rule = StyleRuleDTO(
                 {self.project_data.default_language: DEFAULT_GRADUATED_STYLE_RULE_NAME}, default_rule_data["active"]
             )
-            attribute = renderer.classAttribute()
+            self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
+            attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields) 
             if not bool(attribute):
                 return False
             self.set_total_steps(len(renderer.ranges()) + 1)
@@ -171,11 +175,13 @@ class ExportLayerStyleTask(CustomQgsTask):
             self._export_style_rules(style_rule)
             self.next_steps()
         elif isinstance(renderer, QgsCategorizedSymbolRenderer):
+            layer_name = layer.uri_components["layerName"]
+            fields: list[dict] = layer.layer_file.fields[layer_name]
             style_rule = StyleRuleDTO(
                 {self.project_data.default_language: DEFAULT_CATEGORIZED_STYLE_RULE_NAME}, default_rule_data["active"]
             )
             other_value_style_rule = StyleRuleDTO({self.project_data.default_language: "other values"}, True)
-            attribute = renderer.classAttribute()
+            attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields)
             if not bool(attribute):
                 return False
             self.set_total_steps(len(renderer.categories()) + 1)
@@ -527,3 +533,9 @@ class ExportLayerStyleTask(CustomQgsTask):
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
         return True
+
+    def _get_standardized_attribute_name(self, original_name: str, fields: list[dict]) -> str:
+        for field in fields:
+            if field["originalName"] == original_name:
+                return field["standardizedName"]
+        return original_name
