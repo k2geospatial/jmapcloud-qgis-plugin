@@ -5,7 +5,7 @@
 [general]
 name=JMap Cloud
 description=JMap Cloud Plugin
-version=1.0.2
+version=1.0.3
 author=K2 Geospatial
 email=Administration@k2geospatial.com
 
@@ -41,6 +41,8 @@ deprecated=False
 server=False
 
 changelog=
+    1.0.3
+    - Fixed a categorized symbology layers using reserved attribute names (e.g. "type") were not exported to JMap Cloud.
     1.0.2
     - Fixed an error that occurred when exporting a QGIS project to JMap Cloud
     - Fixed a bug where SVG point style size could not be changed when its value was not equal to 1
