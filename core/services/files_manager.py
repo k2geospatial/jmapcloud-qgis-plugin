@@ -401,7 +401,6 @@ class DatasourceManager(CustomTaskManager):
                 self.tasks_completed.emit(self.layers_data)
 
         def poke_all_not_analyzed_datasources():
-
             for layer_data in self.datasource_to_analyze:
                 url = "{}/organizations/{}/datasources/{}".format(
                     API_MCS_URL, self.organization_id, layer_data.datasource_id
