@@ -21,7 +21,7 @@ from ..DTOS import (
     MouseOverConfigDTO,
     ProjectDTO,
 )
-from ..plugin_util import convert_QGIS_text_expression_to_JMap
+from ..plugin_util import convert_QGIS_text_expression_to_JMap, convert_scale_to_zoom
 from ..services.jmap_services_access import JMapMCS
 from ..services.request_manager import RequestManager
 from ..tasks.custom_qgs_task import CustomQgsTask
@@ -103,6 +103,8 @@ class CreateJMCProjectTask(CustomQgsTask):
         layer_dto.description = {self.project_data.default_language: ""}  # todo
         layer_dto.visible = True
         layer_dto.listed = True
+        layer_dto.minimumZoom = convert_scale_to_zoom(layer.minimumScale()) if layer.minimumScale() > 0 else None
+        layer_dto.maximumZoom = convert_scale_to_zoom(layer.maximumScale()) if layer.maximumScale() > 0 else None
         layer_dto.spatialDataSourceId = layer_data.datasource_id
         layer_dto.tags = []
         layer_dto.selectable = True
