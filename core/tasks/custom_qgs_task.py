@@ -73,6 +73,9 @@ class CustomQgsTask(QgsTask):
 
         super().finished(result)
 
+    def debug(self, message: str):
+        QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Info)
+
     def set_total_steps(self, total_steps: int):
         self.total_steps = total_steps
 
