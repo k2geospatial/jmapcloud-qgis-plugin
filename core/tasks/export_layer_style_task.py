@@ -17,7 +17,6 @@ from qgis.core import (
     QgsApplication,
     QgsCategorizedSymbolRenderer,
     QgsExpression,
-    QgsFeatureRenderer,
     QgsFillSymbol,
     QgsGraduatedSymbolRenderer,
     QgsLineSymbol,
@@ -453,9 +452,6 @@ class ExportLayerStyleTask(CustomQgsTask):
                 message = self.tr("Export style error: {}").format(reply.error_message)
                 self.error_occur(message, MESSAGE_CATEGORY)
 
-            # -----------------------
-
-        # -----------------------
         return style_ids
 
     def _export_style_rules(self, style_rule_dto: StyleRuleDTO):
@@ -472,6 +468,14 @@ class ExportLayerStyleTask(CustomQgsTask):
         body = style_rule_dto.to_json()
         request = RequestManager.RequestData(url, type="POST", body=body)
         response = self.request_manager.custom_request(request)
+        
+        if response.status != QNetworkReply.NetworkError.NoError:
+            error_message = self.tr("Error exporting style rule for layer '{}': {}").format(
+                self.layer_data.layer_name, response.error_message
+            )
+            self.error_occur(error_message, MESSAGE_CATEGORY)
+            return False
+
         return True
 
     def _delete_default_style_rules(self):

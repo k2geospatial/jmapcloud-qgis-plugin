@@ -10,6 +10,7 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+from typing import Union
 from .dto import DTO
 from .labeling_config_dto import LabelingConfigDTO
 from .mouse_over_config_dto import MouseOverConfigDTO
@@ -24,6 +25,8 @@ class LayerDTO(DTO):
     description: dict[str, str]
     visible: bool
     listed: bool
+    minimumZoom: Union[int, None]
+    maximumZoom: Union[int, None]
     tags: list[str]
     selectable: bool
     styles: list[str]
