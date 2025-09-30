@@ -29,12 +29,32 @@ from qgis.core import (
     QgsSymbol,
     QgsSvgMarkerSymbolLayer,
     QgsRasterMarkerSymbolLayer,
-    QgsSVGFillSymbolLayer
+    QgsSVGFillSymbolLayer,
+    QgsCoordinateTransform,
+    QgsProject,
 )
 from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer
 from qgis.PyQt.QtGui import QImage
 
 MAX_SCALE_LIMIT = 295828763
+TILE_SIZE_IN_PIXELS = 512
+EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR = 40075016.686
+METERS_PER_PX_AT_EQUATOR = EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR / TILE_SIZE_IN_PIXELS
+METERS_PER_INCH = 0.0254
+DEFAULT_OGC_WMS_DPI = 25.4 / 0.28  # 90.7142857142857 dpi
+
+def _convert_latitude_to_radians(latitude: float) -> float:
+    """Convert latitude in degrees to radians."""
+    return math.radians(latitude)
+
+def map_center_position() -> tuple[float, float]:
+    """Get the map center position in latitude and longitude."""
+    proj = QgsProject.instance()
+    rect = proj.viewSettings().defaultViewExtent()
+    tr = QgsCoordinateTransform(proj.crs(), QgsCoordinateReferenceSystem("EPSG:4326"), proj.transformContext())
+    center = tr.transform(rect.center())
+    lat, lon = center.y(), center.x()
+    return lat, lon
 
 def qgis_layer_type_to_jmc(type_enum: Qgis.LayerType) -> str:
     """Convert a QgsField.typeName() string to a MySQL type."""
@@ -88,10 +108,15 @@ def convert_zoom_to_scale(zoom: int) -> int:
     return int(MAX_SCALE_LIMIT / (2**zoom))
 
 
-def convert_scale_to_zoom(scale: int) -> int:
-    if scale == 0:
+def convert_scale_to_zoom(scale: int) -> Union[int, None]:
+    if scale <= 0:
         return None
-    return max(min(int(math.log2(MAX_SCALE_LIMIT / scale)), 23), 1)
+    
+    lat, _ = map_center_position()
+    return math.log2(
+        (METERS_PER_PX_AT_EQUATOR * math.cos(_convert_latitude_to_radians(lat)) * (1 / scale) * DEFAULT_OGC_WMS_DPI) / 
+         METERS_PER_INCH
+    )
 
 
 def convert_measurement_to_pixel(value: any, unit: Qgis.RenderUnit) -> float:
@@ -129,7 +154,6 @@ def image_to_base64(path: str, qSize: QSize = None) -> str:
 
     if img.isNull():
         raise ValueError("Failed to load image: {}".format(path))
-
     if qSize is not None:
         img = img.scaled(qSize, aspectRatioMode=Qt.IgnoreAspectRatio, transformMode=Qt.SmoothTransformation)
    
