@@ -14,7 +14,7 @@
 # -----------------------------------------------------------
 from pathlib import Path
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsReferencedRectangle, QgsRectangle
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
 from qgis.PyQt.QtGui import QIcon
@@ -283,6 +283,7 @@ class JMapCloud:
             if auth_state == AuthState.AUTHENTICATED:
                 self.load_project_dialog.close()
                 crs = QgsCoordinateReferenceSystem(project_data["crs"])
+                initial_extent = QgsReferencedRectangle(QgsRectangle.fromWkt(project_data["initial_extent"]), crs) if project_data["initial_extent"] else None
                 vector_layer_type = project_data["layerType"]
                 project_data = ProjectData(
                     name=project_data["name"],
@@ -291,6 +292,7 @@ class JMapCloud:
                     project_id=project_data["id"],
                     organization_id=self.session_manager.get_organization_id(),
                     crs=crs,
+                    initial_extent=initial_extent,
                 )
 
                 self.import_project_manager.init_import(project_data, vector_layer_type)
@@ -314,5 +316,5 @@ class JMapCloud:
                     default_language=self.language,
                     organization_id=self.session_manager.get_organization_id(),
                 )
-                project_data.setup_with_QGS_project(QgsProject.instance())
+                project_data.setup_with_QGIS_project(QgsProject.instance())
                 self.export_project_manager.export_project(project_data)
