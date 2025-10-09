@@ -157,7 +157,7 @@ class ProjectData:
 
     def setup_with_QGIS_project(self, project: QgsProject):
         self.crs = convert_crs_to_epsg(project.crs())
-        self.initial_extent = QgsReferencedRectangle(project.fullExtent(), self.crs)
+        self.initial_extent = project.viewSettings().fullExtent()
         self.layers = project.layerTreeRoot().customLayerOrder()
         self.legendRoot = project.layerTreeRoot()
 
