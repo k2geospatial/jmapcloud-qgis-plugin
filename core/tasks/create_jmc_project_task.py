@@ -50,10 +50,10 @@ class CreateJMCProjectTask(CustomQgsTask):
 
     def create_jmc_project(self):
         rectangle = {
-            "x1": self.project_data.initialExtent.xMinimum(),
-            "y1": self.project_data.initialExtent.yMinimum(),
-            "x2": self.project_data.initialExtent.xMaximum(),
-            "y2": self.project_data.initialExtent.yMaximum(),
+            "x1": self.project_data.initial_extent.xMinimum(),
+            "y1": self.project_data.initial_extent.yMinimum(),
+            "x2": self.project_data.initial_extent.xMaximum(),
+            "y2": self.project_data.initial_extent.yMaximum(),
         }
 
         project_dto = ProjectDTO(
