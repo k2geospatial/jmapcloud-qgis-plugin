@@ -89,6 +89,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                     "",
                 )
                 crs = project["mapCrs"]
+                initial_extent = project["initialExtent"] if "initialExtent" in project else None
                 text = name + ("\n{}".format(description) if description else "") + "\nCRS : {}".format(crs)
                 item.setText(text)
                 item.metadata = {
@@ -96,7 +97,8 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                     "name": name,
                     "description": description,
                     "language": project["defaultLanguage"],
-                    "crs": project["mapCrs"],
+                    "crs": crs,
+                    "initial_extent": initial_extent,
                 }
 
                 self.project_List_listWidget.addItem(item)

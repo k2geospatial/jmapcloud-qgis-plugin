@@ -84,6 +84,11 @@ class JMapMCS:
         return json_sprites, png_sprites
 
     @staticmethod
+    def get_project_extent(organization_id: str, project_id: str, epsg: str) -> RequestManager.ResponseData:
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
+        return RequestManager.get_request(url, error_prefix="error getting project extent")
+
+    @staticmethod
     def post_project(organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
 
         url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
@@ -118,7 +123,7 @@ class JMapMIS:
 class JMapDAS:
 
     @staticmethod
-    def get_vector_layer_uri(layer_id, organization_id) -> str:
+    def get_vector_layer_uri( layer_id, organization_id) -> str:
         organization_id = SessionManager().get_organization_id()
         if organization_id is None:
             return None

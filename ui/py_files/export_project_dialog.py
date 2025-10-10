@@ -38,7 +38,6 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         self.export_project_pushButton.setEnabled(enable)
 
     def validate_input(self) -> bool:
-
         if not self.project_title_lineEdit.text():
             self.error_label.setText(self.tr("Project title needed"))
             return False

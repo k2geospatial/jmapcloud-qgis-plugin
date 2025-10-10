@@ -12,11 +12,14 @@
 
 
 from enum import Enum
+from typing import Union
 
 from qgis.core import (
     Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
+    QgsRectangle,
+    QgsCoordinateTransform,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,
@@ -25,9 +28,12 @@ from qgis.core import (
     QgsRasterLayer,
     QgsVectorLayer,
     QgsVectorTileLayer,
+    QgsGeometry,
+    QgsSettings
 )
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
+from qgis.utils import iface
 
 from ..constant import (
     API_MCS_URL,
@@ -203,6 +209,7 @@ class ImportProjectManager(CustomTaskManager):
         self.project = QgsProject.instance()
         layers_data = self.project_layers_data.layers_data
         layers_properties = self.project_layers_data.layers_properties
+
 
         # init the progress bar of the action dialog
 
@@ -550,6 +557,9 @@ class ImportProjectManager(CustomTaskManager):
         self.errors.append(message)
         QgsMessageLog.logMessage(message, category, Qgis.Critical)
         self.error_occurred.emit(message)
+    
+    def _debug(self, message: str, category: str = None):
+        QgsMessageLog.logMessage(message, category, Qgis.Info)
 
     def _set_progress(self, current_step: int = None, message: str = None):
         total_progress = current_step / self.total_steps * 100
@@ -560,18 +570,14 @@ class ImportProjectManager(CustomTaskManager):
         self._set_progress(self.current_step, message)
 
     def finish(self):
-        project = QgsProject.instance()
         self.action_dialog.set_text(self.tr("Finalization..."))
-
         message = self.tr("<h3>Project loaded successfully</h3>")
 
-        crs = QgsCoordinateReferenceSystem(self.project_data.crs)
-        actual_crs = project.crs()
-        if crs.authid() != actual_crs.authid():
+        if self.project_data.crs.authid() != self.project.crs().authid():
             message += (
                 self.tr("<h4>Warning</h4>")
                 + self.tr("<p>The JMap Cloud project crs is different from the actual crs of the project</p>")
-                + self.tr("<p>The crs set in JMap Cloud project is : {}</p>").format(crs.authid())
+                + self.tr("<p>The crs set in JMap Cloud project is : {}</p>").format(self.project_data.crs.authid())
             )
 
         if len(self.errors) > 0:
@@ -580,6 +586,7 @@ class ImportProjectManager(CustomTaskManager):
                 message += "<p>{}</p>".format(error)
 
         self.action_dialog.action_finished(message, False)
+        self.action_dialog.finished.connect(self._zoom_to_extent)
 
         self.importing_project = False
         self.tasks_completed.emit(True)
@@ -598,6 +605,32 @@ class ImportProjectManager(CustomTaskManager):
 
     def is_importing_project(self):
         return self.importing_project
+
+    def _zoom_to_extent(self) -> pyqtSignal:
+        extent = self._get_project_initial_extent(self.project.crs().authid(), self.project_data.crs)
+        if extent:
+            iface.mapCanvas().setExtent(extent)
+            iface.mapCanvas().refresh()
+        
+    def _get_project_initial_extent(self, qgis_epsg: str, jmap_epsg: str) -> Union[QgsRectangle, None]: 
+        if self.project_data.initial_extent: 
+            if qgis_epsg == jmap_epsg:
+                return self.project_data.initial_extent
+            
+            crs_src = QgsCoordinateReferenceSystem(jmap_epsg)
+            crs_dest = QgsCoordinateReferenceSystem(qgis_epsg)
+            transform_context = QgsProject.instance().transformContext()
+            xform = QgsCoordinateTransform(crs_src, crs_dest, transform_context)
+            extent_reproject: QgsRectangle = xform.transformBoundingBox(self.project_data.initial_extent)
+            return QgsGeometry.fromWkt(extent_reproject.asWktPolygon()).boundingBox()
+        else:
+            reply = JMapMCS.get_project_extent(organization_id=self.project_data.organization_id, project_id=self.project_data.project_id, epsg=qgis_epsg)
+            if reply.status != QNetworkReply.NetworkError.NoError:
+                self.add_exception_message(self.tr("Error getting project extent from JMap Cloud"))
+                self.error_occur(self.tr("Error getting project extent from JMap Cloud"), MESSAGE_CATEGORY)
+            if reply.content:
+                return QgsRectangle(reply.content["x1"], reply.content["y1"], reply.content["x2"], reply.content["y2"])
+            return None
 
 
 #    def _format_initial_extends(self, initial_extends: dict) -> dict:
