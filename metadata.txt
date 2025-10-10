@@ -42,6 +42,7 @@ server=False
 
 changelog=
     1.0.3
+    - Fixed the zoom to the project extent when loading in MVT
     - Fixed a categorized symbology layers using reserved attribute names (e.g. "type") were not exported to JMap Cloud
     - Fixed an issue where scale-dependent visibility of layer styles was not fully exported to JMap Cloud
     1.0.2
