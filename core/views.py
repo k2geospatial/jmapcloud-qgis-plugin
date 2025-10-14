@@ -140,7 +140,7 @@ class ProjectData:
         name: str = None,
         description: str = None,
         crs: QgsCoordinateReferenceSystem = None,
-        initialExtent: QgsReferencedRectangle = None,
+        initial_extent: QgsReferencedRectangle = None,
         default_language: str = None,
         layers: list[QgsMapLayer] = None,
         legendRoot: QgsLayerTree = None,
@@ -150,14 +150,14 @@ class ProjectData:
         self.name = name
         self.description = description
         self.crs = crs
-        self.initialExtent = initialExtent
+        self.initial_extent = initial_extent
         self.default_language = default_language
         self.layers = layers
         self.legendRoot = legendRoot
 
-    def setup_with_QGS_project(self, project: QgsProject):
+    def setup_with_QGIS_project(self, project: QgsProject):
         self.crs = convert_crs_to_epsg(project.crs())
-        self.initialExtent = project.viewSettings().fullExtent()
+        self.initial_extent = project.viewSettings().fullExtent()
         self.layers = project.layerTreeRoot().customLayerOrder()
         self.legendRoot = project.layerTreeRoot()
 
