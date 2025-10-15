@@ -17,6 +17,7 @@ from qgis.core import (
     QgsMarkerSymbolLayer,
     QgsRasterMarkerSymbolLayer,
     QgsSvgMarkerSymbolLayer,
+    QgsFontMarkerSymbolLayer
 )
 from qgis.PyQt.QtCore import QPointF, QSize
 
@@ -25,6 +26,7 @@ from ..plugin_util import (
     SVG_to_base64,
     calculate_height_symbol_layer,
     convert_measurement_to_pixel,
+    font_marker_to_svg,
     opacity_to_transparency,
     image_to_base64,
     resolve_point_svg_params,
@@ -74,10 +76,13 @@ class PointStyleDTO(StyleDTO):
            
         elif isinstance(symbol_layer, QgsSvgMarkerSymbolLayer):
             svg_parsed = resolve_point_svg_params(symbol_layer)
-    
+
             if len(svg_parsed) == 0:
                 return None
             
+            dto.symbolData = SVG_to_base64(svg_parsed)
+        elif isinstance(symbol_layer, QgsFontMarkerSymbolLayer):
+            svg_parsed = font_marker_to_svg(symbol_layer)
             dto.symbolData = SVG_to_base64(svg_parsed)
         else:
             symbol = QgsMarkerSymbol.createSimple(symbol_layer.properties())
