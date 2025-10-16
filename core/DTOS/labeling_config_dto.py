@@ -92,16 +92,16 @@ class LabelingConfigDTO(DTO):
     def from_qgs_pal_layer_settings(
         labeling_setting: QgsPalLayerSettings, language: str = "en", rule: QgsRuleBasedLabeling.Rule = None
     ):
-        if rule is None:
-            active = True
-            maximumZoom = 23
-            minimumZoom = 0
-        else:
-            active = rule.active()
-            maximumZoom = convert_scale_to_zoom(rule.maximumScale())
-            minimumZoom = convert_scale_to_zoom(rule.minimumScale())
         dto = LabelingConfigDTO()
-        dto.active = active
+        if rule is None:
+            dto.active = True
+            dto.maximumZoom = convert_scale_to_zoom(labeling_setting.maximumScale)
+            dto.minimumZoom = convert_scale_to_zoom(labeling_setting.minimumScale)
+        else:
+            dto.active = rule.active()
+            dto.maximumZoom = convert_scale_to_zoom(rule.maximumScale())
+            dto.minimumZoom = convert_scale_to_zoom(rule.minimumScale())
+        
         overlap_policy = labeling_setting.placementSettings().overlapHandling()
         if overlap_policy == Qgis.LabelOverlapHandling.PreventOverlap:
             dto.allowOverlapping = False
@@ -154,8 +154,7 @@ class LabelingConfigDTO(DTO):
             dto.followMapRotation = True
         else:
             dto.followMapRotation = False
-        dto.maximumZoom = maximumZoom
-        dto.minimumZoom = minimumZoom
+
         dto.offset = {"x": labeling_setting.xOffset, "y": -labeling_setting.yOffset}  # y is inverted in MapBox style
 
         buffer = format.buffer()
