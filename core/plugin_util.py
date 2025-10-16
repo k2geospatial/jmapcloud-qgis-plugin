@@ -27,14 +27,17 @@ from qgis.core import (
     QgsMapSettings,
     QgsRenderContext,
     QgsSymbol,
+    QgsFontMarkerSymbolLayer,
     QgsSvgMarkerSymbolLayer,
     QgsRasterMarkerSymbolLayer,
     QgsSVGFillSymbolLayer,
     QgsCoordinateTransform,
     QgsProject,
 )
-from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer
-from qgis.PyQt.QtGui import QImage
+
+from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer, QRect
+from qgis.PyQt.QtGui import QImage, QPainter, QFont, QPainterPath, QColor
+from PyQt5.QtSvg import QSvgGenerator
 
 MAX_SCALE_LIMIT = 295828763
 TILE_SIZE_IN_PIXELS = 512
@@ -256,6 +259,73 @@ def resolve_point_svg_params(symbol_layer:  QgsSvgMarkerSymbolLayer) -> str:
 
     # Step 5: Print or save final SVG
     return final_svg
+
+def font_marker_to_svg(symbol_layer: QgsFontMarkerSymbolLayer) -> str:
+    character = symbol_layer.character()
+    font_family = symbol_layer.fontFamily()
+    
+    # Convert symbol size to pixels regardless of original unit
+    size_px = math.ceil(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
+    
+    fill = symbol_layer.color().name()
+    stroke_color = symbol_layer.strokeColor().name()
+    stroke_width = math.ceil(convert_measurement_to_pixel(symbol_layer.strokeWidth(), symbol_layer.strokeWidthUnit()))
+
+    # Canvas size (in pixels)
+    canvas_size = size_px * 2
+
+    buffer = QBuffer()
+    buffer.open(QBuffer.WriteOnly)
+    
+    svg_gen = QSvgGenerator()
+    svg_gen.setOutputDevice(buffer)
+    
+    # Set size in pixels
+    svg_gen.setSize(QSize(canvas_size, canvas_size))
+    
+    # Set viewBox to match our pixel dimensions
+    svg_gen.setViewBox(QRect(0, 0, canvas_size, canvas_size))
+    
+    painter = QPainter()
+    if not painter.begin(svg_gen):
+        raise ValueError("Failed to begin painting on SVG generator.")
+    
+    # Use a font size proportional to our pixel size
+    font = QFont(font_family, size_px)
+    font.setPixelSize(size_px)  # This ensures the font size is exactly in pixels
+    
+    path = QPainterPath()
+    path.addText(0, 0, font, character)
+
+    # Calculate proper centering
+    rect = path.boundingRect()
+    x_offset = (canvas_size - rect.width()) / 2 - rect.left()
+    y_offset = (canvas_size - rect.height()) / 2 - rect.top()
+
+    centered_path = QPainterPath()
+    centered_path.addText(x_offset, y_offset, font, character)
+
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setBrush(QColor(fill))
+
+    if stroke_width > 0:
+        pen = painter.pen()
+        pen.setColor(QColor(stroke_color))
+        pen.setWidth(stroke_width)
+        painter.setPen(pen)
+    else:
+        painter.setPen(Qt.NoPen)
+
+    painter.drawPath(centered_path)
+    painter.end()
+    
+    svg_content = buffer.data().data().decode('utf-8')
+    
+    # Post-process SVG to ensure dimensions are in pixels
+    svg_content = re.sub(r'<svg [^>]*>', lambda m: re.sub(r'(width|height)="[^"]*mm"', r'\1="{}px"'.format(canvas_size), m.group(0)), svg_content)
+    
+    buffer.close()
+    return svg_content
 
 def calculate_height_symbol_layer(symbol_layer: Union[QgsRasterMarkerSymbolLayer, QgsSvgMarkerSymbolLayer]) -> float:
      """
