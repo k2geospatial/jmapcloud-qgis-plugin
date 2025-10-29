@@ -23,6 +23,7 @@ from typing import Union
 
 from qgis.core import (
     Qgis,
+    QgsMessageLog,
     QgsCoordinateReferenceSystem,
     QgsMapSettings,
     QgsRenderContext,
@@ -50,14 +51,62 @@ def _convert_latitude_to_radians(latitude: float) -> float:
     """Convert latitude in degrees to radians."""
     return math.radians(latitude)
 
-def map_center_position() -> tuple[float, float]:
-    """Get the map center position in latitude and longitude."""
+def _mean_latitude_from_rect(rect, src_crs, proj: QgsProject) -> float:
+    if not rect or rect.isEmpty() or not src_crs or not src_crs.isValid():
+        return 0.0
+    try:
+        tr = QgsCoordinateTransform(src_crs, QgsCoordinateReferenceSystem("EPSG:4326"), proj.transformContext())
+        lonlat_bb = tr.transformBoundingBox(rect)
+        return lonlat_bb.center().y()
+    except Exception:
+        QgsMessageLog.logMessage(
+            "Failed to compute mean latitude from project extent. Falling back to map center latitude.",
+            "JMap Cloud Plugin",
+            Qgis.Warning,
+        )
+        return 0.0
+    
+def _mean_latitude_from_layers() -> float:
     proj = QgsProject.instance()
-    rect = proj.viewSettings().defaultViewExtent()
-    tr = QgsCoordinateTransform(proj.crs(), QgsCoordinateReferenceSystem("EPSG:4326"), proj.transformContext())
-    center = tr.transform(rect.center())
-    lat, lon = center.y(), center.x()
-    return lat, lon
+    dst_crs = proj.crs()
+    if not dst_crs or not dst_crs.isValid():
+        return 0.0
+
+    union_rect = None
+    for layer in proj.mapLayers().values():
+        try:
+            if not layer.isValid():
+                continue
+            lyr_extent = layer.extent()
+            if not lyr_extent or lyr_extent.isEmpty():
+                continue
+            lyr_crs = layer.crs() if hasattr(layer, "crs") else None
+            if lyr_crs and lyr_crs.isValid() and lyr_crs != dst_crs:
+                tr = QgsCoordinateTransform(lyr_crs, dst_crs, proj.transformContext())
+                lyr_extent = tr.transformBoundingBox(lyr_extent)
+            union_rect = lyr_extent if union_rect is None else union_rect.combineExtentWith(lyr_extent)
+        except Exception:
+            QgsMessageLog.logMessage(
+                f"Failed to include layer {layer.name()} in mean latitude computation.",
+                "JMap Cloud Plugin",
+                Qgis.Warning,
+            )
+            continue
+
+    return _mean_latitude_from_rect(union_rect, dst_crs, proj) if union_rect else 0.0
+
+
+def _get_mean_latitude_project() -> float:
+    """Get the mean latitude of the current project extent."""
+    proj = QgsProject.instance()
+    project_extent = proj.viewSettings().defaultViewExtent()
+
+    if project_extent and not project_extent.isEmpty():
+        return _mean_latitude_from_rect(project_extent, proj.crs(), proj)
+    else:
+        return _mean_latitude_from_layers()
+    
+
 
 def qgis_layer_type_to_jmc(type_enum: Qgis.LayerType) -> str:
     """Convert a QgsField.typeName() string to a MySQL type."""
@@ -114,10 +163,10 @@ def convert_zoom_to_scale(zoom: int) -> int:
 def convert_scale_to_zoom(scale: int) -> Union[int, None]:
     if scale <= 0:
         return None
-    
-    lat, _ = map_center_position()
+
+    mean_latitude = _get_mean_latitude_project()
     return math.log2(
-        (METERS_PER_PX_AT_EQUATOR * math.cos(_convert_latitude_to_radians(lat)) * (1 / scale) * DEFAULT_OGC_WMS_DPI) / 
+        (METERS_PER_PX_AT_EQUATOR * math.cos(_convert_latitude_to_radians(mean_latitude)) * (1 / scale) * DEFAULT_OGC_WMS_DPI) /
          METERS_PER_INCH
     )
 
