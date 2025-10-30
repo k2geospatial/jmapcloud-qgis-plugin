@@ -100,11 +100,12 @@ class CreateJMCProjectTask(CustomQgsTask):
         layer_dto = LayerDTO(
             layer_data.datasource_id, {self.project_data.default_language: layer_data.layer_name}, dto_type
         )
+
         layer_dto.description = {self.project_data.default_language: ""}  # todo
         layer_dto.visible = True
         layer_dto.listed = True
-        layer_dto.minimumZoom = convert_scale_to_zoom(layer.minimumScale()) if layer.minimumScale() > 0 else None
-        layer_dto.maximumZoom = convert_scale_to_zoom(layer.maximumScale()) if layer.maximumScale() > 0 else None
+        layer_dto.minimumZoom = convert_scale_to_zoom(layer.minimumScale()) if layer.hasScaleBasedVisibility() and layer.minimumScale() > 0 else None
+        layer_dto.maximumZoom = convert_scale_to_zoom(layer.maximumScale()) if layer.hasScaleBasedVisibility() and layer.maximumScale() > 0 else None
         layer_dto.spatialDataSourceId = layer_data.datasource_id
         layer_dto.tags = []
         layer_dto.selectable = True

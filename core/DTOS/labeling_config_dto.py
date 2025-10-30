@@ -10,6 +10,8 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+from typing import Union
+
 from qgis.core import (
     Qgis,
     QgsAbstractVectorLayerLabeling,
@@ -47,8 +49,8 @@ class LabelingConfigDTO(DTO):
     "format: #FFFFFF"
     frameTransparency: 0
     labelSpacing: 250
-    maximumZoom: 23
-    minimumZoom: 0
+    maximumZoom: Union[int, None]
+    minimumZoom: Union[int, None]
     offset: dict[str, int]
     "format: {y: 0, x: 0}"
     outlineColor: str
@@ -95,8 +97,8 @@ class LabelingConfigDTO(DTO):
         dto = LabelingConfigDTO()
         if rule is None:
             dto.active = True
-            dto.maximumZoom = convert_scale_to_zoom(labeling_setting.maximumScale)
-            dto.minimumZoom = convert_scale_to_zoom(labeling_setting.minimumScale)
+            dto.maximumZoom = convert_scale_to_zoom(labeling_setting.maximumScale) if labeling_setting.scaleVisibility else None
+            dto.minimumZoom = convert_scale_to_zoom(labeling_setting.minimumScale) if labeling_setting.scaleVisibility else None
         else:
             dto.active = rule.active()
             dto.maximumZoom = convert_scale_to_zoom(rule.maximumScale())
