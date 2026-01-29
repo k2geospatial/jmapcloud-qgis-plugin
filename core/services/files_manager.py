@@ -36,7 +36,7 @@ class FilesUploadManager(CustomTaskManager):
     def __init__(self, layers_data: list[LayerData], layer_files: list[LayerFile], organization_id: str):
         super().__init__("FilesUploadManager")
         self.layers_data: list[LayerData] = layers_data
-        self.layer_files = layer_files
+        self.layer_files: list[LayerFile] = layer_files
         self.files_to_analyze: list[str] = []
         self.file_uploaders: list[FileUploader] = []
         self.organization_id = organization_id
@@ -97,11 +97,7 @@ class FilesUploadManager(CustomTaskManager):
         self.step_title_changed.emit(self.tr("Server is analyzing files"))
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
-            if (
-                not bool(response.content)
-                or "status" not in response.content
-                or response.content["status"] in ["UPLOADING", "ERROR"]
-            ):
+            if not bool(response.content) or "status" not in response.content or response.content["status"] in ["UPLOADING", "ERROR"]:
                 for layer_file in self.layer_files:
                     if layer_file.jmc_file_id == jmc_file_id:
                         layer_file.upload_status = LayerFile.Status.uploading_error
@@ -313,11 +309,20 @@ class DatasourceManager(CustomTaskManager):
 
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
             request_DTO.indexedAttributes = []
+            # GeoJSON uploads are reported as "defaultLayer" by the server analyzer.
+            fields_by_layer = layer_data.layer_file.fields if layer_data.layer_file else {}
+            if not uri_layer_name:
+                uri_layer_name = "defaultLayer"
+            if uri_layer_name not in fields_by_layer:
+                if "defaultLayer" in fields_by_layer:
+                    uri_layer_name = "defaultLayer"
+                elif len(fields_by_layer) > 0:
+                    uri_layer_name = next(iter(fields_by_layer))
             request_DTO.layer = uri_layer_name
             request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
             request_DTO.params = {}
 
-            fields = layer_data.layer_file.fields[uri_layer_name]
+            fields = fields_by_layer.get(uri_layer_name, [])
             request_DTO.params["attributes"] = fields
             # for field in fields:
             #    if field.name().lower() == "annotation_height_3857":  # annotation_height_3857 is reserved
