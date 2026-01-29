@@ -99,4 +99,4 @@ class PointStyleDTO(StyleDTO):
         rotation_matrix = numpy.array([[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]])
         vector_matrix = numpy.array([[point.x()], [point.y()]])
         result = numpy.matmul(rotation_matrix, vector_matrix)
-        return QPointF(result[0], result[1])
+        return QPointF(float(result[0, 0]), float(result[1, 0]))
