@@ -1081,3 +1081,18 @@ class StyleManager:
         properties_collection.setProperty(property_name, property)
         object.setDataDefinedProperties(properties_collection)
         return object
+    
+    @classmethod
+    def get_raster_opacity(cls, layer_properties: dict, default: float = 1.0) -> float:
+        try:
+            for style_rule in layer_properties["styleRules"].values():
+                for condition in style_rule.values():
+                    for style_map_scale in condition["styleMapScales"].values():
+                        for style in style_map_scale["styles"].values():
+                            return float(style.get("raster-opacity", default))
+        except Exception:
+            QgsMessageBarHandler.send_message_to_message_bar(
+                "Error getting raster opacity from layer properties", prefix="Warning", level=Qgis.Warning
+            )
+        return default
+
