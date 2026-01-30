@@ -203,6 +203,15 @@ class ConvertLayersToZipTask(CustomTaskManager):
             collectionId = uri.param("typename")
             return {"landingPageUrl": url, "collectionId": collectionId}
 
+        # --- Database vector layers --- 
+        # TODO check other DB providers
+        elif isinstance(layer, QgsVectorLayer) and layer.isSpatial() and provider_name in ["spatialite", "postgres", "mysql", "oracle", "mssql"]:
+            # Any spatial vector provider that comes from a database, export to GeoJSON
+            layer_data.layer_type = LayerData.LayerType.file_vector
+            layer_data.file_type = SupportedFileType.GeoJSON
+            layer_data.uri_components["layerName"] = "defaultLayer"
+            return None
+
         # ---- File-based vector layers ----
         elif isinstance(layer, QgsVectorLayer) and layer.isSpatial() and "path" in uri_components:
             layer_data.layer_type = LayerData.LayerType.file_vector
@@ -286,6 +295,8 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
+
+        
 
         # ---- WMS / WMTS ----
         elif provider_name in ["wms", "wmts"] and "url" in uri_components:
