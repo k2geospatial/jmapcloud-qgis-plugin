@@ -210,7 +210,6 @@ class ImportProjectManager(CustomTaskManager):
         layers_data = self.project_layers_data.layers_data
         layers_properties = self.project_layers_data.layers_properties
 
-
         # init the progress bar of the action dialog
 
         # load all project's layers in the correct format
@@ -229,7 +228,8 @@ class ImportProjectManager(CustomTaskManager):
                 self._is_all_layer_loaded()
             # load raster layer
             elif layer_data["type"].upper() == "RASTER":
-                self._load_raster_layer(layer_data)
+                layer_properties = layers_properties[layer_data["id"]]
+                self._load_raster_layer(layer_data, layer_properties)
                 self._is_all_layer_loaded()
             elif layer_data["type"].upper() == "VECTOR":
                 layer_properties = layers_properties[layer_data["id"]]
@@ -332,11 +332,13 @@ class ImportProjectManager(CustomTaskManager):
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
-    def _load_raster_layer(self, layer_data: dict) -> bool:
+    def _load_raster_layer(self, layer_data: dict, layer_properties: dict) -> bool:
         uri = JMapMIS.get_raster_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
         raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():
+            opacity = StyleManager.get_raster_opacity(layer_properties)
+            raster_layer.setOpacity(opacity)
             self.project.addMapLayer(raster_layer, addToLegend=False)
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(raster_layer)
             return True

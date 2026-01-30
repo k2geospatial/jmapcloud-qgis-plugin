@@ -43,6 +43,7 @@ server=False
 changelog=
     1.0.4
     - Fixed an issue when exporting a database vector layer to JMap Cloud
+    - Fixed an issue when the opacity of raster layers was not applied when importing a JMap Cloud project
     1.0.3
     - Fixed an issue where the scale-dependent visibility of labels was not exported to JMap Cloud
     - Fixed an issue where font marker symbols were not exported correctly to JMap Cloud
