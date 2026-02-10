@@ -42,6 +42,8 @@ server=False
 
 changelog=
     1.0.4
+    - Fixed an issue when exporting GML/KML/TAB files to JMap Cloud
+    - Fixed an issue when dragging and dropping a folder containing geospatial files into QGIS
     - Fixed an issue when exporting a database vector layer to JMap Cloud
     - Fixed an issue when the opacity of raster layers was not applied when importing a JMap Cloud project
     1.0.3

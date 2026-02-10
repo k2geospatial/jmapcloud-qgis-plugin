@@ -628,8 +628,9 @@ class ImportProjectManager(CustomTaskManager):
         else:
             reply = JMapMCS.get_project_extent(organization_id=self.project_data.organization_id, project_id=self.project_data.project_id, epsg=qgis_epsg)
             if reply.status != QNetworkReply.NetworkError.NoError:
-                self.add_exception_message(self.tr("Error getting project extent from JMap Cloud"))
+                self.add_exception(Exception(self.tr("Error getting project extent from JMap Cloud")))
                 self.error_occur(self.tr("Error getting project extent from JMap Cloud"), MESSAGE_CATEGORY)
+                return None
             if reply.content:
                 return QgsRectangle(reply.content["x1"], reply.content["y1"], reply.content["x2"], reply.content["y2"])
             return None

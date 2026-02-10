@@ -342,6 +342,7 @@ class DatasourceManager(CustomTaskManager):
                 SupportedFileType.DXF,
                 SupportedFileType.KML,
                 SupportedFileType.MapInfo,
+                SupportedFileType.zip,
             ]:
                 request_DTO.params["layers"] = [uri_layer_name]
             if layer_data.file_type == SupportedFileType.CSV:

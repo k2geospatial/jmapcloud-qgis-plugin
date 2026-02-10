@@ -10,6 +10,7 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+from typing import Union
 import urllib.parse
 import zipfile
 from pathlib import Path
@@ -178,7 +179,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         if len(self.tasks) == 0:
             self.tasks_completed.emit(self.layers_data, self.layer_files)
 
-    def get_layer_source(self, layer_data: LayerData) -> list:
+    def get_layer_source(self, layer_data: LayerData) -> Union[list, dict, None]:
         """Retrieve all files or sources associated with a QGIS layer, ensuring required files exist."""
         layer = layer_data.layer
         if not layer:
@@ -187,6 +188,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         provider_name = layer.dataProvider().name().lower()
         uri_components = QgsProviderRegistry.instance().decodeUri(provider_name, layer.publicSource())
         layer_data.uri_components = uri_components
+
         if "layerName" not in layer_data.uri_components or layer_data.uri_components["layerName"] == None:
             layer_data.uri_components["layerName"] = "defaultLayer"
 
@@ -216,17 +218,17 @@ class ConvertLayersToZipTask(CustomTaskManager):
         elif isinstance(layer, QgsVectorLayer) and layer.isSpatial() and "path" in uri_components:
             layer_data.layer_type = LayerData.LayerType.file_vector
             base_path = Path(uri_components["path"])
-
+            storage_type = layer.dataProvider().storageType()
             ext = base_path.suffix.lower()
             if base_path.is_dir() and ext not in [".gdb", "mdb"] and "layerName" in uri_components and bool(uri_components["layerName"]):
                 base_path = base_path / uri_components["layerName"]
                 ext = base_path.suffix.lower()
             # --- Zip file ---
-            if ext == ".zip":
+            if base_path.suffix.lower() == ".zip":
                 layer_data.file_type = SupportedFileType.zip
                 return [Path(base_path)] if base_path.exists() else None
             # --- ESRI Shapefile (requires multiple files) ---
-            if ext == ".shp":
+            if storage_type == "ESRI Shapefile":
                 layer_data.uri_components["layerName"] = base_path.stem
 
                 required_files = [".shp", ".shx", ".dbf"]
@@ -241,8 +243,14 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.SHP
                 return [Path(base_path.with_suffix(e)) for e in all_files if base_path.with_suffix(e).exists()]
             # --- MapInfo TAB (requires all files) ---
-            elif ext == ".tab":
+            elif storage_type == "MapInfo File":
                 layer_data.uri_components["layerName"] = base_path.stem
+                
+                if (base_path.with_suffix(".mid").exists() or base_path.with_suffix(".mif").exists()):
+                    message = self.tr(f"Unsupported file type .mid/.mif for layer {layer_data.layer_name}")
+                    self.error_occur(message, MESSAGE_CATEGORY)
+                    return None
+                
                 required_files = [".tab", ".dat", ".map", ".id"]
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
@@ -252,21 +260,30 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.MapInfo
                 return [Path(base_path.with_suffix(e)) for e in required_files]
             # --- Single-file formats ---
-            elif ext == ".geojson" or ext == ".json":
+            elif storage_type == "GeoJSON":
                 layer_data.uri_components["layerName"] = "defaultLayer"
+
+                if base_path.suffix.lower() not in [".geojson", ".json"]:
+                    message = self.tr(f"Unsupported file type {base_path.suffix.lower()} for layer {layer_data.layer_name}")
+                    self.error_occur(message, MESSAGE_CATEGORY)
+                    return None
                 layer_data.file_type = SupportedFileType.GeoJSON
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext == ".csv":
-                layer_data.longitude = None
-                layer_data.latitude = None
-                layer_data.file_type = SupportedFileType.CSV
+            elif storage_type == "Delimited text file":
+                supported_file_extensions = [".csv", ".txt"]
 
-                fields = layer_data.layer.fields().toList()
-                for field in fields:
-                    if field.name().capitalize() == "Longitude":
-                        layer_data.longitude = field.name()
-                    elif field.name().capitalize() == "Latitude":
-                        layer_data.latitude = field.name()
+                if base_path.suffix.lower() not in supported_file_extensions:
+                    message = self.tr(f"Unsupported file type {base_path.suffix.lower()} for layer {layer_data.layer_name}")
+                    self.error_occur(message, MESSAGE_CATEGORY)
+                    return None
+
+                open_options: Union[list, None] = uri_components["openOptions"] if "openOptions" in uri_components else None
+                xField = next((option.split("=")[1] for option in open_options if option.startswith("xField=")), None) if open_options else None
+                yField = next((option.split("=")[1] for option in open_options if option.startswith("yField=")), None) if open_options else None
+                
+                layer_data.longitude = xField
+                layer_data.latitude = yField
+                layer_data.file_type = SupportedFileType.CSV
 
                 if not (layer_data.longitude and layer_data.latitude):
                     # list = [f.name().capitalize() for f in fields if f.typeName() in ["Double", "Real"]]
@@ -274,29 +291,32 @@ class ConvertLayersToZipTask(CustomTaskManager):
                     #    return None
                     # else:
                     return None
-
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext == ".gml":
+            elif storage_type == "GML":
+                if base_path.suffix.lower() != ".gml":
+                    message = self.tr(f"Unsupported file type {base_path.suffix.lower()} for layer {layer_data.layer_name}")
+                    self.error_occur(message, MESSAGE_CATEGORY)
+                    return None
+
                 layer_data.file_type = SupportedFileType.GML
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext == ".gpkg":
+            elif storage_type == "GPKG":
                 layer_data.file_type = SupportedFileType.GeoPackage
+                
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext == ".kml":
+            elif storage_type == "LIBKML":
                 layer_data.file_type = SupportedFileType.KML
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext in [".mdb", ".gdb"]:  # FileGeoDatabase
+            elif storage_type == "OpenFileGDB" :  # FileGeoDatabase
                 layer_data.file_type = SupportedFileType.FileGeoDatabase
                 return [Path(base_path)] if base_path.exists() else None
-            elif ext in [".dwg", ".dxf"]:  # CAD files
+            elif storage_type == "DXF":  # CAD files
                 layer_data.file_type = SupportedFileType.CAD
                 return [Path(base_path)] if base_path.exists() else None
             else:
                 message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
-
-        
 
         # ---- WMS / WMTS ----
         elif provider_name in ["wms", "wmts"] and "url" in uri_components:
