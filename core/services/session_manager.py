@@ -11,7 +11,6 @@
 # -----------------------------------------------------------
 
 from qgis.core import QgsApplication, QgsAuthMethodConfig
-from qgis.PyQt.QtCore import QObject
 
 from ..constant import (
     ACCESS_TOKEN_SETTING_ID,
@@ -23,24 +22,9 @@ from ..constant import (
 )
 
 
-class SessionManager(QObject):
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(SessionManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
+class SessionManager:
     def __init__(self):
-        if not self._initialized:
-            super().__init__()
             self.claims = self.get_auth_settings()
-            self._initialized = True
-
-    @staticmethod
-    def instance() -> "SessionManager":
-        return SessionManager()
 
     def set_claims(self, claims):
         self.claims = claims
@@ -58,8 +42,8 @@ class SessionManager(QObject):
             return self.claims["accessToken"]
         return None
 
-    @staticmethod
     def store_auth_settings(
+        self,
         access_token: str = None,
         refresh_token: str = None,
         expiration: str = None,
@@ -87,10 +71,9 @@ class SessionManager(QObject):
             auth_manager.storeAuthSetting(USERNAME_SETTING_ID, username, True)
         if access_token != None:
             auth_manager.storeAuthSetting(ACCESS_TOKEN_SETTING_ID, access_token, True)
-            SessionManager.store_auth_config(access_token)
+            self.store_auth_config(access_token)
 
-    @staticmethod
-    def store_auth_config(access_token: str = None) -> None:
+    def store_auth_config(self, access_token: str = None) -> None:
         """
         Store JMap authentication config in QgsApplication.authManager()
         :param access_token: The access token returned by JMap's authentication API
@@ -103,8 +86,7 @@ class SessionManager(QObject):
         auth_config.setConfig("Authorization", "Bearer {}".format(access_token))
         QgsApplication.authManager().storeAuthenticationConfig(auth_config, True)
 
-    @staticmethod
-    def get_auth_settings() -> dict:
+    def get_auth_settings(self) -> dict:
         """
         Get JMap authentication settings from QgsApplication.authManager()
         :return: A dictionary with the following keys:
@@ -127,8 +109,7 @@ class SessionManager(QObject):
 
         return claims
 
-    @staticmethod
-    def revoke_session() -> None:
+    def revoke_session(self) -> None:
         auth_manager = QgsApplication.authManager()
         auth_manager.removeAuthSetting(ACCESS_TOKEN_SETTING_ID)
         auth_manager.removeAuthSetting(REFRESH_TOKEN_SETTING_ID)
@@ -140,4 +121,4 @@ class SessionManager(QObject):
         auth_config.setName("JMap_Session")
         auth_config.setConfig("Authorization", f"")
         auth_manager.storeAuthenticationConfig(auth_config, True)
-        SessionManager.instance().set_claims(None)
+        self.set_claims(None)

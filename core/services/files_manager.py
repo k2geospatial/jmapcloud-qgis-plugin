@@ -14,7 +14,7 @@ import base64
 import math
 from pathlib import Path
 
-from qgis.PyQt.QtCore import QTimer, pyqtSignal
+from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
 
 from ..constant import API_FUS_URL, API_MCS_URL
@@ -30,10 +30,7 @@ MESSAGE_CATEGORY = "FilesUploadManager"
 
 
 class FilesUploadManager(CustomTaskManager):
-    tasks_completed = pyqtSignal(list)
-    step_title_changed = pyqtSignal(str)
-
-    def __init__(self, layers_data: list[LayerData], layer_files: list[LayerFile], organization_id: str):
+    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], layer_files: list[LayerFile], organization_id: str):
         super().__init__("FilesUploadManager")
         self.layers_data: list[LayerData] = layers_data
         self.layer_files: list[LayerFile] = layer_files
@@ -43,7 +40,7 @@ class FilesUploadManager(CustomTaskManager):
         self._num_file_uploaded = 0
         self.progress = [0] * len(layer_files)
         self.total_steps = len(self.layer_files)
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
         self._cancel = False
 
     def run(self):
@@ -57,7 +54,7 @@ class FilesUploadManager(CustomTaskManager):
             return True
         self.step_title_changed.emit(self.tr("Uploading layers files"))
         for i, layer_file in enumerate(self.layer_files):
-            file_uploader = FileUploader(layer_file, self.organization_id)
+            file_uploader = FileUploader(self._request_manager, layer_file, self.organization_id)
 
             def error_occurred(error_message, layer_file=layer_file):
                 layer_file.upload_status = LayerFile.Status.uploading_error
@@ -87,11 +84,15 @@ class FilesUploadManager(CustomTaskManager):
 
     def is_all_files_uploaded(self, jmc_file_id: str):
         self._num_file_uploaded += 1
-        self.files_to_analyze.append(jmc_file_id)
+        if jmc_file_id:
+            self.files_to_analyze.append(jmc_file_id)
         if self._num_file_uploaded == len(self.layer_files) and not self._cancel:
             self._num_file_uploaded = 0
             self.file_uploaders = []
-            self.start_poking_jmc_file_analyzers()
+            if len(self.files_to_analyze) == 0:
+                self.tasks_completed.emit(self.layers_data)
+            else:
+                self.start_poking_jmc_file_analyzers()
 
     def start_poking_jmc_file_analyzers(self):
         self.step_title_changed.emit(self.tr("Server is analyzing files"))
@@ -124,7 +125,7 @@ class FilesUploadManager(CustomTaskManager):
                 url = "{}/organizations/{}/files/{}".format(API_FUS_URL, self.organization_id, jmc_file_id)
                 request = RequestManager.RequestData(url, type="GET", id=jmc_file_id)
                 next_func = lambda response, _jmc_file_id=jmc_file_id: is_file_analyzed(response, _jmc_file_id)
-                self.request_manager.add_requests(request).connect(next_func)
+                self._request_manager.add_requests(request).connect(next_func)
 
         self.recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_files, False, 200)
         self.recurring_event.call_count_exceeded.connect(self.timeout)
@@ -132,7 +133,6 @@ class FilesUploadManager(CustomTaskManager):
 
     def timeout(self):
         pass
-
 
 class FileUploader(CustomTaskManager):
     """
@@ -142,10 +142,9 @@ class FileUploader(CustomTaskManager):
     :tasks_completed: signal emit when all requests are finished
     """
 
-    tasks_completed = pyqtSignal(str)
     """returns jmc_file_id"""
 
-    def __init__(self, layer_file: LayerFile, organization_id: str):
+    def __init__(self, request_manager: RequestManager, layer_file: LayerFile, organization_id: str):
         super().__init__("FileUploader")
         self.layer_file: LayerFile = layer_file
         self.organization_id: str = organization_id
@@ -162,7 +161,7 @@ class FileUploader(CustomTaskManager):
         self.step: int = 0
         self.total_steps: int = math.ceil(self.file_length / CHUNK_SIZE) + 1
         self._cancel: bool = False
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
 
     def run(self):
         self.init_upload()
@@ -187,14 +186,21 @@ class FileUploader(CustomTaskManager):
             "Tus-Resumable": "1.0.0",
         }
         error_prefix = "Error uploading file"
-        response = RequestManager.post_request(url, headers=headers, error_prefix=error_prefix)
-        if response.headers is None or response.content is None:
+        response = self._request_manager.post_request(url, headers=headers, error_prefix=error_prefix)
+        if response.status != QNetworkReply.NetworkError.NoError:
+            self._fail_upload(self.tr("Upload initialization failed: {}").format(response.error_message))
             return False
-        location: str = None
+        if response.headers is None:
+            self._fail_upload(self.tr("Upload initialization failed: no response headers"))
+            return False
+
+        location: str | None = None
         for header, value in response.headers.items():
-            if header == "Location":
+            if header.lower() == "location":
                 location = value
+                break
         if not location:
+            self._fail_upload(self.tr("Upload initialization failed: missing Location header"))
             return False
 
         url_array = location.split("/")
@@ -204,6 +210,12 @@ class FileUploader(CustomTaskManager):
         self.progress_changed.emit(self.step / self.total_steps * 100.0)
         self.execute_next_request(response)
         return True
+
+    def _fail_upload(self, error_message: str):
+        self.layer_file.upload_status = LayerFile.Status.uploading_error
+        self.error_occur(error_message, MESSAGE_CATEGORY)
+        self.progress_changed.emit(100.0)
+        self.tasks_completed.emit(self.layer_file.jmc_file_id)
 
     def execute_next_request(self, response: RequestManager.ResponseData = None) -> None:
         """
@@ -225,7 +237,7 @@ class FileUploader(CustomTaskManager):
                     return False
 
                 def resend_request():
-                    response_signal_obj = self.request_manager.add_requests(self.request)
+                    response_signal_obj = self._request_manager.add_requests(self.request)
                     response_signal_obj.connect(lambda response, this=self: this.execute_next_request(response))
                     self.pending_requests.append(response_signal_obj)
 
@@ -242,7 +254,7 @@ class FileUploader(CustomTaskManager):
                 return True
         self.request = self.define_next_request()
         self.file_offset += CHUNK_SIZE
-        response_signal_obj = self.request_manager.add_requests(self.request)
+        response_signal_obj = self._request_manager.add_requests(self.request)
         response_signal_obj.connect(lambda response, this=self: this.execute_next_request(response))
         self.pending_requests.append(response_signal_obj)
         return True
@@ -270,17 +282,14 @@ class FileUploader(CustomTaskManager):
     def cancel(self):
         self._cancel = True
 
-
 class DatasourceManager(CustomTaskManager):
-    tasks_completed = pyqtSignal(list)
-
-    def __init__(self, layers_data: list[LayerData], organization_id: str):
+    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], organization_id: str):
         super().__init__("DatasourceManager")
         self.layers_data = layers_data
         self.organization_id = organization_id
         self._num_datasource_created = 0
         self.datasource_to_analyze: list[LayerData] = []
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
         self._cancel = False
 
     def run(self):
@@ -365,7 +374,7 @@ class DatasourceManager(CustomTaskManager):
         url = "{}/organizations/{}/datasources".format(API_MCS_URL, self.organization_id)
         body = request_DTO.to_json()
         request = RequestManager.RequestData(url, body=body, type="POST", id=layer_data.layer_id)
-        response = RequestManager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         self.read_datasource_creation_response(response, layer_data)
         return True
 
@@ -413,7 +422,7 @@ class DatasourceManager(CustomTaskManager):
                 )
                 request = RequestManager.RequestData(url, type="GET", id=layer_data.datasource_id)
                 next_func = lambda response, layer_data=layer_data: is_datasource_analyzed(response, layer_data)
-                self.request_manager.add_requests(request).connect(next_func)
+                self._request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
                 self.tasks_completed.emit(self.layers_data)

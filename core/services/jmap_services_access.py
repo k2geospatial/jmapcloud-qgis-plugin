@@ -28,19 +28,21 @@ from .session_manager import SessionManager
 
 class JMapMCS:
     """Class to handle JMap MCS api end point requests"""
+    def __init__(self, request_manager: RequestManager, session_manager: SessionManager):
+        self._request_manager = request_manager
+        self._session_manager = session_manager
 
-    @staticmethod
-    def get_projects_async() -> pyqtSignal:
-        organization_id = SessionManager().get_organization_id()
+    def get_projects_async(self) -> pyqtSignal:
+        organization_id = self._session_manager.get_organization_id()
+        
         if organization_id is None:
             return None
         url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
         request = RequestManager.RequestData(url, type="GET")
 
-        return RequestManager.instance().add_requests(request)
+        return self._request_manager.add_requests(request)
 
-    @staticmethod
-    def get_wms_layer_uri(source: str) -> dict:
+    def get_wms_layer_uri(self, source: str) -> dict:
         """
         Get all uri of selected WMS sub-layers from a spatial data source
 
@@ -66,42 +68,36 @@ class JMapMCS:
             layer_uris[layer] = "format=image/png&layers={}&styles&url={}".format(layer, safe_string)
         return layer_uris
 
-    def get_wmts_layer_uri(url: str, minZoom: int = 0, maxZoom: int = 21) -> str:
+    def get_wmts_layer_uri(self, url: str, minZoom: int = 0, maxZoom: int = 21) -> str:
         return "http-header:referer=&type=xyz&url={}&zmax={}&zmin={}".format(url, maxZoom, minZoom)
 
-    @staticmethod
-    def get_project_sprites(url: str) -> tuple[dict, bytes]:
-        organization_id = SessionManager().get_organization_id()
+    def get_project_sprites(self, url: str) -> tuple[dict, bytes]:
+        organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
+        
         json_url = "{}.json".format(url)
         png_url = "{}.png".format(url)
         prefix = "Error loading sprites"
-        json_sprites = RequestManager.get_request(json_url, error_prefix=prefix).content
+        json_sprites = self._request_manager.get_request(json_url, error_prefix=prefix).content
         if not bool(json_sprites):
             return None, None
-        png_sprites = RequestManager.get_request(png_url, error_prefix=prefix).content
+        png_sprites = self._request_manager.get_request(png_url, error_prefix=prefix).content
         return json_sprites, png_sprites
 
-    @staticmethod
-    def get_project_extent(organization_id: str, project_id: str, epsg: str) -> RequestManager.ResponseData:
+    def get_project_extent(self, organization_id: str, project_id: str, epsg: str) -> RequestManager.ResponseData:
         url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
-        return RequestManager.get_request(url, error_prefix="error getting project extent")
+        return self._request_manager.get_request(url, error_prefix="error getting project extent")
 
-    @staticmethod
-    def post_project(organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
-
+    def post_project(self, organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
         url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
         prefix = "error creating project"
         body = project_data.to_json()
-        return RequestManager.post_request(url, body, error_prefix=prefix)
-
+        return self._request_manager.post_request(url, body, error_prefix=prefix)
 
 class JMapMIS:
-
-    @staticmethod
-    def get_raster_layer_uri(layer_id, organization_id) -> str:
-        organization_id = SessionManager().get_organization_id()
+    """Class to handle JMap MIS api end point requests"""
+    def get_raster_layer_uri(self, layer_id, organization_id) -> str:
         if organization_id is None:
             return None
 
@@ -119,12 +115,8 @@ class JMapMIS:
         )
         return uri
 
-
 class JMapDAS:
-
-    @staticmethod
-    def get_vector_layer_uri( layer_id, organization_id) -> str:
-        organization_id = SessionManager().get_organization_id()
+    def get_vector_layer_uri(self, layer_id, organization_id) -> str:
         if organization_id is None:
             return None
         uri = (
@@ -136,10 +128,10 @@ class JMapDAS:
         )
         return uri
 
-    def get_vector_tile_uri(spatial_datasource_id: str, organization_id: str) -> str:
-        organization_id = SessionManager().get_organization_id()
+    def get_vector_tile_uri(self, spatial_datasource_id: str, organization_id: str) -> str:
         if organization_id is None:
             return None
+        
         uri = (
             "type=xyz"
             + "&url={}/organizations/{}/mvt/datasources/{}".format(API_DAS_URL, organization_id, spatial_datasource_id)
@@ -148,4 +140,5 @@ class JMapDAS:
             + "&zmin=0"
             + "&authcfg={}".format(AUTH_CONFIG_ID)
         )
+
         return uri
