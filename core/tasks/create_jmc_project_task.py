@@ -34,11 +34,12 @@ MESSAGE_CATEGORY = "CreateJMCProjectTask"
 class CreateJMCProjectTask(CustomQgsTask):
     project_creation_finished = pyqtSignal(list)
 
-    def __init__(self, layers_data: list[LayerData], project_data: ProjectData):
+    def __init__(self, request_manager: RequestManager, jmap_mcs: JMapMCS, layers_data: list[LayerData], project_data: ProjectData):
         super().__init__("Create JMC Project", CustomQgsTask.CanCancel)
         self.layers_data = layers_data
         self.project_data = project_data
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
+        self._jmap_mcs = jmap_mcs
         self.no_layers_created = 0
         self.set_total_steps(TOTAL_STEPS + len(self.layers_data))
 
@@ -63,7 +64,7 @@ class CreateJMCProjectTask(CustomQgsTask):
             initialExtent=rectangle,
             defaultLanguage=self.project_data.default_language,
         )
-        reply = JMapMCS.post_project(self.project_data.organization_id, project_dto)
+        reply = self._jmap_mcs.post_project(self.project_data.organization_id, project_dto)
         if reply.status != QNetworkReply.NetworkError.NoError:
             self.error_occur(self.tr("Error creating project : {}").format(reply.error_message), MESSAGE_CATEGORY)
             return False
@@ -74,7 +75,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         for layer_data in self.layers_data:
             request = self.define_next_post_layer_request(layer_data)
             if request:
-                reply = self.request_manager.custom_request(request)
+                reply = self._request_manager.custom_request(request)
                 self.is_all_layers_exported(reply, layer_data)
             else:
                 self.no_layers_created += 1
@@ -179,7 +180,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         )
         body = {"ids": ids_list_order}
         request = RequestManager.RequestData(url, body=body, type="PUT")
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False
         return True
@@ -195,7 +196,7 @@ class CreateJMCProjectTask(CustomQgsTask):
             if isinstance(child, QgsLayerTreeGroup):
                 body = {"name": {self.project_data.default_language: child.name()}, "visible": True}
                 request = RequestManager.RequestData(url, body=body, type="POST")
-                response = self.request_manager.custom_request(request)
+                response = self._request_manager.custom_request(request)
                 if response.status != QNetworkReply.NetworkError.NoError:
                     return False
                 new_id = response.content["id"]
@@ -212,7 +213,7 @@ class CreateJMCProjectTask(CustomQgsTask):
         # update layer groups order
         body = {"id": id, "children": layer_groups_ids, "nodeType": "GROUP"}
         request = RequestManager.RequestData("{}/{}".format(url, id), body=body, type="PATCH")
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False
         return True

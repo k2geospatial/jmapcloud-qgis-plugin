@@ -18,27 +18,27 @@ from .custom_qgs_task import CustomQgsTask
 
 
 class LoadVectorStyleTask(CustomQgsTask):
-    import_style_completed = pyqtSignal((object, object))
-
-    def __init__(self, layer_properties) -> None:
-        super().__init__("Import Style", QgsTask.CanCancel)
+    import_style_completed = pyqtSignal(object, object)
+    def __init__(self, style_manager: StyleManager, layer_properties) -> None:
+        super().__init__("Import Style", QgsTask.Flag.CanCancel)
+        self.style_manager = style_manager
         self.layer_properties = layer_properties
 
     def run(self):
         if self.isCanceled():
             return False
-        renderer = StyleManager.get_layer_styles(self.layer_properties["styleRules"])
-        labeling = StyleManager.get_layer_labels(self.layer_properties["label"], self.layer_properties["elementType"])
+        renderer = self.style_manager.get_layer_styles(self.layer_properties["styleRules"])
+        labeling = self.style_manager.get_layer_labels(self.layer_properties["label"], self.layer_properties["elementType"])
 
         self.import_style_completed.emit(renderer, labeling)
         return True
 
 
 class LoadVectorTilesStyleTask(CustomQgsTask):
-    import_style_completed = pyqtSignal((object, object))
-
-    def __init__(self, layer_properties) -> None:
-        super().__init__("Import Style", QgsTask.CanCancel)
+    import_style_completed = pyqtSignal(object, object)
+    def __init__(self, style_manager: StyleManager, layer_properties) -> None:
+        super().__init__("Import Style", QgsTask.Flag.CanCancel)
+        self.style_manager = style_manager
         self.layer_properties = layer_properties
 
     def run(
@@ -48,8 +48,8 @@ class LoadVectorTilesStyleTask(CustomQgsTask):
             return False
         layer_properties = self.layer_properties
         element_type = layer_properties["elementType"]
-        style_groups = StyleManager.get_mvt_layer_styles(layer_properties["styleRules"], element_type)
-        labeling = StyleManager.get_mvt_layer_labels(layer_properties["label"], element_type)
+        style_groups = self.style_manager.get_mvt_layer_styles(layer_properties["styleRules"], element_type)
+        labeling = self.style_manager.get_mvt_layer_labels(layer_properties["label"], element_type)
         renderers = {}
         for styles in style_groups:
             renderer = QgsVectorTileBasicRenderer()

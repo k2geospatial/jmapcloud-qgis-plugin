@@ -37,7 +37,7 @@ MESSAGE_CATEGORY = "WriteLayerTask"
 
 
 class ConvertLayersToZipTask(CustomTaskManager):
-    tasks_completed = pyqtSignal((list, list))
+    tasks_completed = pyqtSignal(list, list)
 
     def __init__(self, dir_path, layers: list[QgsMapLayer]):
         super().__init__("ConvertLayersToZipTask")
@@ -358,7 +358,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
 class CustomWriteVectorLayerTask(CustomQgsTask):
 
     def __init__(self, output_path: Path, layer: QgsVectorLayer):
-        super().__init__("Write Vector Layer", QgsTask.CanCancel)
+        super().__init__("Write Vector Layer", QgsTask.Flag.CanCancel)
         writer_options = QgsVectorFileWriter.SaveVectorOptions()
         writer_options.driverName = "GeoJSON"
         writer_options.layerName = layer.name()
@@ -380,7 +380,7 @@ class CustomWriteRasterLayerTask(CustomQgsTask):
     write_layer_completed: pyqtSignal = pyqtSignal()
 
     def __init__(self, output_path: Path, layer: QgsRasterLayer):
-        super().__init__("Write raster Layer", QgsTask.CanCancel)
+        super().__init__("Write raster Layer", QgsTask.Flag.CanCancel)
         file_writer = QgsRasterFileWriter(str(output_path))
         pipe = QgsRasterPipe()
         provider = layer.dataProvider()
@@ -399,7 +399,7 @@ class CustomWriteRasterLayerTask(CustomQgsTask):
 class compressFilesToZipTask(CustomQgsTask):
 
     def __init__(self, files_path: list[Path], output_path: Path):
-        super().__init__("Compress Layer", QgsTask.CanCancel)
+        super().__init__("Compress Layer", QgsTask.Flag.CanCancel)
         self.files_path = files_path
         self.output_path = output_path
         self.tr("Converting layers to zip")
