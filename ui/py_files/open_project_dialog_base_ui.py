@@ -36,11 +36,32 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.open_project_pushButton.sizePolicy().hasHeightForWidth())
         self.open_project_pushButton.setSizePolicy(sizePolicy)
         self.open_project_pushButton.setFocusPolicy(QtCore.Qt.FocusPolicy.WheelFocus)
-        self.open_project_pushButton.setStyleSheet("background-color:rgb(255, 255, 255)")
+        self.open_project_pushButton.setStyleSheet(
+            "QPushButton {"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QPushButton:disabled {"
+            " color: rgb(120, 120, 120);"
+            "}"
+        )
         self.open_project_pushButton.setObjectName("open_project_pushButton")
         self.project_List_listWidget = QtWidgets.QListWidget(self.widget)
         self.project_List_listWidget.setGeometry(QtCore.QRect(10, 10, 571, 341))
-        self.project_List_listWidget.setStyleSheet("font-size:17px;\n" "background-color:rgb(255, 255, 255)")
+        self.project_List_listWidget.setStyleSheet(
+            "QListWidget {"
+            " font-size: 17px;"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QListWidget::item {"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QListWidget::item:selected {"
+            " background-color: rgb(60, 150, 0);"
+            " color: rgb(255, 255, 255);"
+            "}"
+        )
         self.project_List_listWidget.setIconSize(QtCore.QSize(100, 75))
         self.project_List_listWidget.setViewMode(QtWidgets.QListView.ViewMode.ListMode)
         self.project_List_listWidget.setObjectName("project_List_listWidget")

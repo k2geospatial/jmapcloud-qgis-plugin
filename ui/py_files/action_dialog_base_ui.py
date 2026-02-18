@@ -41,6 +41,7 @@ class Ui_Dialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.progress_info_label.sizePolicy().hasHeightForWidth())
         self.progress_info_label.setSizePolicy(sizePolicy)
+        self.progress_info_label.setStyleSheet("color: rgb(0, 0, 0);")
         self.progress_info_label.setText("")
         self.progress_info_label.setObjectName("progress_info_label")
         self.verticalLayout.addWidget(self.progress_info_label)
@@ -51,7 +52,16 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
         self.progressBar.setSizePolicy(sizePolicy)
         self.progressBar.setAutoFillBackground(False)
-        self.progressBar.setStyleSheet("background-color:rgb(255, 255, 255)")
+        self.progressBar.setStyleSheet(
+            "QProgressBar {"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            " border: 1px solid rgb(180, 180, 180);"
+            "}"
+            "QProgressBar::chunk {"
+            " background-color: rgb(90, 170, 255);"
+            "}"
+        )
         self.progressBar.setProperty("value", 0)
         self.progressBar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.progressBar.setFormat("")
@@ -63,7 +73,15 @@ class Ui_Dialog(object):
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem)
         self.exit_pushButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
-        self.exit_pushButton.setStyleSheet("background-color:rgb(255, 255, 255)")
+        self.exit_pushButton.setStyleSheet(
+            "QPushButton {"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QPushButton:disabled {"
+            " color: rgb(120, 120, 120);"
+            "}"
+        )
         self.exit_pushButton.setObjectName("exit_pushButton")
         self.verticalLayout.addWidget(self.exit_pushButton)
 

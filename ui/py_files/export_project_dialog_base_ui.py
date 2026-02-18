@@ -42,7 +42,7 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.title_label.sizePolicy().hasHeightForWidth())
         self.title_label.setSizePolicy(sizePolicy)
         self.title_label.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.title_label.setStyleSheet("")
+        self.title_label.setStyleSheet("color: rgb(0, 0, 0);")
         self.title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.title_label.setObjectName("title_label")
         self.verticalLayout.addWidget(self.title_label)
@@ -52,7 +52,7 @@ class Ui_Dialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.project_title_label.sizePolicy().hasHeightForWidth())
         self.project_title_label.setSizePolicy(sizePolicy)
-        self.project_title_label.setStyleSheet("")
+        self.project_title_label.setStyleSheet("color: rgb(0, 0, 0);")
         self.project_title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.project_title_label.setObjectName("project_title_label")
         self.verticalLayout.addWidget(self.project_title_label)
@@ -62,7 +62,11 @@ class Ui_Dialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.project_title_lineEdit.sizePolicy().hasHeightForWidth())
         self.project_title_lineEdit.setSizePolicy(sizePolicy)
-        self.project_title_lineEdit.setStyleSheet("background-color:rgb(255, 255, 255);\n" "padding: 5px;")
+        self.project_title_lineEdit.setStyleSheet(
+            "background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            " padding: 5px;"
+        )
         self.project_title_lineEdit.setText("")
         self.project_title_lineEdit.setPlaceholderText("")
         self.project_title_lineEdit.setObjectName("project_title_lineEdit")
@@ -82,7 +86,15 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.export_project_pushButton.sizePolicy().hasHeightForWidth())
         self.export_project_pushButton.setSizePolicy(sizePolicy)
         self.export_project_pushButton.setFocusPolicy(QtCore.Qt.FocusPolicy.WheelFocus)
-        self.export_project_pushButton.setStyleSheet("background-color:rgb(255, 255, 255)")
+        self.export_project_pushButton.setStyleSheet(
+            "QPushButton {"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QPushButton:disabled {"
+            " color: rgb(120, 120, 120);"
+            "}"
+        )
         self.export_project_pushButton.setObjectName("export_project_pushButton")
         self.verticalLayout.addWidget(self.export_project_pushButton)
 
