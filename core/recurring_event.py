@@ -42,7 +42,7 @@ class RecurringEvent(QThread):
         self.cond = QWaitCondition()
         self.mutex = QMutex()
 
-        self.event_triggered.connect(self.callback, Qt.QueuedConnection)  # execute the callback in the main thread
+        self.event_triggered.connect(self.callback, Qt.ConnectionType.QueuedConnection)  # execute the callback in the main thread
 
     def run(self):
         """

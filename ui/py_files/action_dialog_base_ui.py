@@ -11,7 +11,7 @@
 # -----------------------------------------------------------s
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qgis.PyQt import QtCore, QtGui, QtWidgets
 from ...resources_rc import qInitResources
 
 
@@ -36,7 +36,7 @@ class Ui_Dialog(object):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.progress_info_label = QtWidgets.QLabel(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.progress_info_label.sizePolicy().hasHeightForWidth())
@@ -45,7 +45,7 @@ class Ui_Dialog(object):
         self.progress_info_label.setObjectName("progress_info_label")
         self.verticalLayout.addWidget(self.progress_info_label)
         self.progressBar = QtWidgets.QProgressBar(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
@@ -53,14 +53,14 @@ class Ui_Dialog(object):
         self.progressBar.setAutoFillBackground(False)
         self.progressBar.setStyleSheet("background-color:rgb(255, 255, 255)")
         self.progressBar.setProperty("value", 0)
-        self.progressBar.setAlignment(QtCore.Qt.AlignCenter)
+        self.progressBar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.progressBar.setFormat("")
         self.progressBar.setObjectName("progressBar")
         self.verticalLayout.addWidget(self.progressBar)
         self.status_textBrowser = QtWidgets.QTextBrowser(self.verticalLayoutWidget)
         self.status_textBrowser.setObjectName("status_textBrowser")
         self.verticalLayout.addWidget(self.status_textBrowser)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem)
         self.exit_pushButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
         self.exit_pushButton.setStyleSheet("background-color:rgb(255, 255, 255)")

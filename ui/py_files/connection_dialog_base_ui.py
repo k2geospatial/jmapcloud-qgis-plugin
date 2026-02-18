@@ -11,7 +11,7 @@
 # -----------------------------------------------------------
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qgis.PyQt import QtCore, QtWidgets
 from ...resources_rc import qInitResources
 
 class Ui_Dialog(object):
@@ -44,7 +44,7 @@ class Ui_Dialog(object):
         self.password_layout.addWidget(self.password_label)
         self.password_input = QtWidgets.QLineEdit(self.verticalLayoutWidget_3)
         self.password_input.setMinimumSize(QtCore.QSize(150, 0))
-        self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
+        self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         self.password_input.setObjectName("password_input")
         self.password_layout.addWidget(self.password_input)
         self.show_password_checkBox = QtWidgets.QCheckBox(self.verticalLayoutWidget_3)
@@ -68,7 +68,7 @@ class Ui_Dialog(object):
         self.message_label = QtWidgets.QLabel(self.verticalLayoutWidget_3)
         self.message_label.setStyleSheet("font-size:20px")
         self.message_label.setText("")
-        self.message_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.message_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.message_label.setObjectName("message_label")
         self.form_layout.addWidget(self.message_label)
         self.organization_form_layout = QtWidgets.QHBoxLayout()
