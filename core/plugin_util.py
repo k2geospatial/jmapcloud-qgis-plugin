@@ -38,7 +38,7 @@ from qgis.core import (
 
 from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer, QRect
 from qgis.PyQt.QtGui import QImage, QPainter, QFont, QPainterPath, QColor
-from PyQt5.QtSvg import QSvgGenerator
+from qgis.PyQt.QtSvg import QSvgGenerator
 
 MAX_SCALE_LIMIT = 295828763
 TILE_SIZE_IN_PIXELS = 512
@@ -62,7 +62,7 @@ def _mean_latitude_from_rect(rect, src_crs, proj: QgsProject) -> float:
         QgsMessageLog.logMessage(
             "Failed to compute mean latitude from project extent. Falling back to map center latitude.",
             "JMap Cloud Plugin",
-            Qgis.Warning,
+            Qgis.MessageLevel.Warning,
         )
         return 0.0
     
@@ -89,7 +89,7 @@ def _mean_latitude_from_layers() -> float:
             QgsMessageLog.logMessage(
                 f"Failed to include layer {layer.name()} in mean latitude computation.",
                 "JMap Cloud Plugin",
-                Qgis.Warning,
+                Qgis.MessageLevel.Warning,
             )
             continue
 
@@ -123,17 +123,17 @@ def qgis_layer_type_to_jmc(type_enum: Qgis.LayerType) -> str:
 def qgis_data_type_name_to_mysql(type_enum: QMetaType.Type) -> str:
     """Convert a QgsField.typeName() string to a MySQL type."""
     QGIS_DATA_TYPE_TO_MYSQL = {
-        QMetaType.Int: "INTEGER",
-        QMetaType.LongLong: "BIGINT",
-        QMetaType.Double: "DECIMAL",
-        QMetaType.Float: "DECIMAL",
-        QMetaType.QString: "VARCHAR",
-        QMetaType.QDate: "DATE",
-        QMetaType.QTime: "TIME",
-        QMetaType.QDateTime: "DATETIME",
-        QMetaType.Bool: "BOOLEAN",
-        QMetaType.QByteArray: "BLOB",
-        QMetaType.QVariantList: "JSON",  # unsuported now
+        QMetaType.Type.Int: "INTEGER",
+        QMetaType.Type.LongLong: "BIGINT",
+        QMetaType.Type.Double: "DECIMAL",
+        QMetaType.Type.Float: "DECIMAL",
+        QMetaType.Type.QString: "VARCHAR",
+        QMetaType.Type.QDate: "DATE",
+        QMetaType.Type.QTime: "TIME",
+        QMetaType.Type.QDateTime: "DATETIME",
+        QMetaType.Type.Bool: "BOOLEAN",
+        QMetaType.Type.QByteArray: "BLOB",
+        QMetaType.Type.QVariantList: "JSON",  # unsuported now
     }
 
     return QGIS_DATA_TYPE_TO_MYSQL.get(type_enum, "UNKNOWN")
@@ -207,10 +207,10 @@ def image_to_base64(path: str, qSize: QSize = None) -> str:
     if img.isNull():
         raise ValueError("Failed to load image: {}".format(path))
     if qSize is not None:
-        img = img.scaled(qSize, aspectRatioMode=Qt.IgnoreAspectRatio, transformMode=Qt.SmoothTransformation)
+        img = img.scaled(qSize, aspectRatioMode=Qt.AspectRatioMode.IgnoreAspectRatio, transformMode=Qt.TransformationMode.SmoothTransformation)
    
     buffer = QBuffer()
-    buffer.open(QBuffer.ReadWrite)
+    buffer.open(QBuffer.OpenModeFlag.ReadWrite)
     img.save(buffer, "PNG")
     base64_str = base64.b64encode(buffer.data()).decode("utf-8")
     buffer.close()
@@ -324,7 +324,7 @@ def font_marker_to_svg(symbol_layer: QgsFontMarkerSymbolLayer) -> str:
     canvas_size = size_px * 2
 
     buffer = QBuffer()
-    buffer.open(QBuffer.WriteOnly)
+    buffer.open(QBuffer.OpenModeFlag.WriteOnly)
     
     svg_gen = QSvgGenerator()
     svg_gen.setOutputDevice(buffer)
@@ -354,7 +354,7 @@ def font_marker_to_svg(symbol_layer: QgsFontMarkerSymbolLayer) -> str:
     centered_path = QPainterPath()
     centered_path.addText(x_offset, y_offset, font, character)
 
-    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setBrush(QColor(fill))
 
     if stroke_width > 0:
@@ -363,7 +363,7 @@ def font_marker_to_svg(symbol_layer: QgsFontMarkerSymbolLayer) -> str:
         pen.setWidth(stroke_width)
         painter.setPen(pen)
     else:
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
 
     painter.drawPath(centered_path)
     painter.end()

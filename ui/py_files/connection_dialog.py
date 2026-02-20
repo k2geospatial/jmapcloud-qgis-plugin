@@ -30,7 +30,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
     logout_signal = pyqtSignal()
     logged_in_signal = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, auth_manager: JMapAuth):
         """Constructor."""
         super(ConnectionDialog, self).__init__(iface.mainWindow())
         # Set up the user interface from Designer through FORM_CLASS.
@@ -39,7 +39,7 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.auth_manager = JMapAuth()
+        self.auth_manager = auth_manager
         auth_state = self.auth_manager.get_auth_state()
         if auth_state == AuthState.AUTHENTICATED:
             self.connection_button.setText(self.tr("logout"))
@@ -147,6 +147,6 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def set_echo_mode(self):
         if self.show_password_checkBox.isChecked():
-            self.password_input.setEchoMode(QtWidgets.QLineEdit.Normal)
+            self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Normal)
         else:
-            self.password_input.setEchoMode(QtWidgets.QLineEdit.Password)
+            self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)

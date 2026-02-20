@@ -14,6 +14,9 @@ import tempfile
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 
+from .jmap_services_access import JMapMCS
+from .request_manager import RequestManager
+
 from .files_manager import DatasourceManager, FilesUploadManager
 from ..tasks.create_jmc_project_task import CreateJMCProjectTask
 from ..tasks.export_layer_style_task import ExportLayersStyleTask
@@ -26,31 +29,20 @@ TOTAL_STEPS = 5
 
 
 class ExportProjectManager(QObject):
-    _instance = None
     project_exportation_finished = pyqtSignal(bool)
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ExportProjectManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if not self._initialized:
-            super().__init__()
-            self.dir = None
-            self.task_manager = QgsApplication.taskManager()
-            self.exporting_project = False
-            self.action_dialog = ActionDialog()
-            self.feedback = self.action_dialog.feedback()
-            self.current_step = 0
-            self.errors: list[str] = []
-            self._cancel = False
-            self._initialized = True
-
-    @staticmethod
-    def instance() -> "ExportProjectManager":
-        return ExportProjectManager()
+    def __init__(self, request_manager: RequestManager, jmap_mcs: JMapMCS):
+        super().__init__()
+        self._request_manager = request_manager
+        self._jmap_mcs = jmap_mcs
+        self.dir = None
+        self.task_manager = QgsApplication.taskManager()
+        self.exporting_project = False
+        self.action_dialog = ActionDialog()
+        self.feedback = self.action_dialog.feedback()
+        self.current_step = 0
+        self.errors: list[str] = []
+        self._cancel = False
 
     def export_project(self, project_data: ProjectData):
         if not self.exporting_project:
@@ -76,11 +68,10 @@ class ExportProjectManager(QObject):
         self.dir = tempfile.TemporaryDirectory()
         convert_layer_to_zip_task = ConvertLayersToZipTask(self.dir.name, self.project_data.layers)
         convert_layer_to_zip_task.progress_changed.connect(
-            lambda value, current_step=self.current_step: self.set_progress(value, current_step)
+            lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
-        next_step = lambda layers_data, layer_files: self._upload_layer_files(
-            self._error_handler(layers_data, self.tr("convert layer to zip")), layer_files
-        )
+        def next_step(layers_data, layer_files):
+            self._upload_layer_files(self._error_handler(layers_data, self.tr("convert layer to zip")), layer_files)
 
         convert_layer_to_zip_task.tasks_completed.connect(next_step)
 
@@ -97,12 +88,12 @@ class ExportProjectManager(QObject):
             return
         self.current_step += 1
         self.action_dialog.set_text(self.tr("Uploading layers files"))
-        files_upload_manager = FilesUploadManager(layers_data, layer_files, self.project_data.organization_id)
+        files_upload_manager = FilesUploadManager(self._request_manager, layers_data, layer_files, self.project_data.organization_id)
         next_step = lambda layers_data: self._create_datasource(
             self._error_handler(layers_data, self.tr("Upload layer files"))
         )
         files_upload_manager.progress_changed.connect(
-            lambda value, current_step=self.current_step: self.set_progress(value, current_step)
+            lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
         files_upload_manager.step_title_changed.connect(self.action_dialog.set_text)
         files_upload_manager.error_occurred.connect(self.errors.append)
@@ -121,13 +112,13 @@ class ExportProjectManager(QObject):
         self.current_step += 1
         self.action_dialog.set_text(self.tr("Creating datasources"))
 
-        datasource_manager = DatasourceManager(layers_data, self.project_data.organization_id)
+        datasource_manager = DatasourceManager(self._request_manager, layers_data, self.project_data.organization_id)
         next_step = lambda layers_data: self._create_jmc_project(
             self._error_handler(layers_data, self.tr("Create datasource"))
         )
         datasource_manager.tasks_completed.connect(next_step)
         datasource_manager.progress_changed.connect(
-            lambda value, current_step=self.current_step: self.set_progress(value, current_step)
+            lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
         datasource_manager.error_occurred.connect(self.errors.append)
         datasource_manager.step_title_changed.connect(self.action_dialog.set_text)
@@ -145,14 +136,14 @@ class ExportProjectManager(QObject):
         self.current_step += 1
         self.action_dialog.set_text(self.tr("Creating JMap Cloud project"))
 
-        create_project_task = CreateJMCProjectTask(layers_data, self.project_data)
+        create_project_task = CreateJMCProjectTask(self._request_manager, self._jmap_mcs, layers_data, self.project_data)
         next_step = lambda layers_data: self._export_style(
             self._error_handler(layers_data, self.tr("Create JMap Cloud project"))
         )
         create_project_task.project_creation_finished.connect(next_step)
         create_project_task.error_occurred.connect(self.errors.append)
         create_project_task.progressChanged.connect(
-            lambda value, current_step=self.current_step: self.set_progress(value, current_step)
+            lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
         self.feedback.canceled.connect(create_project_task.cancel)
         self.task_manager.addTask(create_project_task)
@@ -167,11 +158,11 @@ class ExportProjectManager(QObject):
         self.current_step += 1
         self.action_dialog.set_text(self.tr("Exporting layer styles"))
 
-        export_layer_styles_task = ExportLayersStyleTask(layers_data, self.project_data)
+        export_layer_styles_task = ExportLayersStyleTask(self._request_manager, layers_data, self.project_data)
         export_layer_styles_task.layer_styles_exportation_finished.connect(self._finish)
         export_layer_styles_task.error_occurred.connect(self.errors.append)
         export_layer_styles_task.progressChanged.connect(
-            lambda value, current_step=self.current_step: self.set_progress(value, current_step)
+            lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
         self.feedback.canceled.connect(export_layer_styles_task.cancel)
         self.task_manager.addTask(export_layer_styles_task)
@@ -202,10 +193,10 @@ class ExportProjectManager(QObject):
             else:
                 success.append(layer_data)
         if message != "":
-            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.Critical)
+            QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.MessageLevel.Critical)
         return success
 
-    def set_progress(self, value, current_step):
+    def _set_progress(self, value, current_step):
         total_progress = (current_step * 100 + value) / TOTAL_STEPS
         self.action_dialog.set_progress(total_progress)
 

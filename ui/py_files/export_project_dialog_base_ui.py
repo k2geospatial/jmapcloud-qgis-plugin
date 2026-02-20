@@ -10,7 +10,7 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qgis.PyQt import QtCore, QtGui, QtWidgets
 from ...resources_rc import qInitResources
 
 
@@ -32,57 +32,69 @@ class Ui_Dialog(object):
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(20, 10, 651, 281))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
-        self.verticalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
+        self.verticalLayout.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.title_label = QtWidgets.QLabel(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.title_label.sizePolicy().hasHeightForWidth())
         self.title_label.setSizePolicy(sizePolicy)
-        self.title_label.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.title_label.setStyleSheet("")
-        self.title_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.title_label.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
+        self.title_label.setStyleSheet("color: rgb(0, 0, 0);")
+        self.title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.title_label.setObjectName("title_label")
         self.verticalLayout.addWidget(self.title_label)
         self.project_title_label = QtWidgets.QLabel(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.project_title_label.sizePolicy().hasHeightForWidth())
         self.project_title_label.setSizePolicy(sizePolicy)
-        self.project_title_label.setStyleSheet("")
-        self.project_title_label.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.project_title_label.setStyleSheet("color: rgb(0, 0, 0);")
+        self.project_title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.project_title_label.setObjectName("project_title_label")
         self.verticalLayout.addWidget(self.project_title_label)
         self.project_title_lineEdit = QtWidgets.QLineEdit(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.project_title_lineEdit.sizePolicy().hasHeightForWidth())
         self.project_title_lineEdit.setSizePolicy(sizePolicy)
-        self.project_title_lineEdit.setStyleSheet("background-color:rgb(255, 255, 255);\n" "padding: 5px;")
+        self.project_title_lineEdit.setStyleSheet(
+            "background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            " padding: 5px;"
+        )
         self.project_title_lineEdit.setText("")
         self.project_title_lineEdit.setPlaceholderText("")
         self.project_title_lineEdit.setObjectName("project_title_lineEdit")
         self.verticalLayout.addWidget(self.project_title_lineEdit)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem)
         self.error_label = QtWidgets.QLabel(self.verticalLayoutWidget)
         self.error_label.setStyleSheet("color:rgb(255, 0, 0)")
         self.error_label.setText("")
-        self.error_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.error_label.setObjectName("error_label")
         self.verticalLayout.addWidget(self.error_label)
         self.export_project_pushButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.export_project_pushButton.sizePolicy().hasHeightForWidth())
         self.export_project_pushButton.setSizePolicy(sizePolicy)
-        self.export_project_pushButton.setFocusPolicy(QtCore.Qt.WheelFocus)
-        self.export_project_pushButton.setStyleSheet("background-color:rgb(255, 255, 255)")
+        self.export_project_pushButton.setFocusPolicy(QtCore.Qt.FocusPolicy.WheelFocus)
+        self.export_project_pushButton.setStyleSheet(
+            "QPushButton {"
+            " background-color: rgb(255, 255, 255);"
+            " color: rgb(0, 0, 0);"
+            "}"
+            "QPushButton:disabled {"
+            " color: rgb(120, 120, 120);"
+            "}"
+        )
         self.export_project_pushButton.setObjectName("export_project_pushButton")
         self.verticalLayout.addWidget(self.export_project_pushButton)
 

@@ -64,7 +64,13 @@ border: 1px solid</string>
      <enum>Qt::WheelFocus</enum>
     </property>
     <property name="styleSheet">
-     <string notr="true">background-color:rgb(255, 255, 255)</string>
+     <string notr="true">QPushButton {
+ background-color: rgb(255, 255, 255);
+ color: rgb(0, 0, 0);
+}
+QPushButton:disabled {
+ color: rgb(120, 120, 120);
+}</string>
     </property>
     <property name="text">
      <string>Open project</string>
@@ -80,8 +86,18 @@ border: 1px solid</string>
      </rect>
     </property>
     <property name="styleSheet">
-     <string notr="true">font-size:17px;
-background-color:rgb(255, 255, 255)</string>
+     <string notr="true">QListWidget {
+ font-size: 17px;
+ background-color: rgb(255, 255, 255);
+ color: rgb(0, 0, 0);
+}
+QListWidget::item {
+ color: rgb(0, 0, 0);
+}
+QListWidget::item:selected {
+ background-color: rgb(60, 150, 0);
+ color: rgb(255, 255, 255);
+}</string>
     </property>
     <property name="iconSize">
      <size>

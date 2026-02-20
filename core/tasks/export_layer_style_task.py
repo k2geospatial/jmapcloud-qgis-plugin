@@ -60,17 +60,17 @@ MESSAGE_CATEGORY = "JMCExportLayerStyleTask"
 class ExportLayersStyleTask(CustomQgsTask):
     layer_styles_exportation_finished = pyqtSignal()
 
-    def __init__(self, layers_data: list[LayerData], project_data: ProjectData):
+    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], project_data: ProjectData):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
 
         self.layers_data = layers_data
         self.project_data = project_data
         self.no_layer_style_exported = 0
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
         self.task_manager = QgsApplication.taskManager()
 
         for layer_data in self.layers_data:
-            subtask = ExportLayerStyleTask(layer_data, self.project_data)
+            subtask = ExportLayerStyleTask(self._request_manager, layer_data, self.project_data)
             subtask.export_layer_style_completed.connect(self._is_all_layers_style_exported)
             subtask.error_occurred.connect(self.error_occurred)
             self.addSubTask(subtask, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
@@ -91,11 +91,11 @@ class ExportLayersStyleTask(CustomQgsTask):
 class ExportLayerStyleTask(CustomQgsTask):
     export_layer_style_completed = pyqtSignal()
 
-    def __init__(self, layer_data: LayerData, project_data: ProjectData):
+    def __init__(self, request_manager: RequestManager, layer_data: LayerData, project_data: ProjectData):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
         self.layer_data = layer_data
         self.project_data = project_data
-        self.request_manager = RequestManager.instance()
+        self._request_manager = request_manager
         self.set_total_steps(1)
 
     def run(self):
@@ -434,7 +434,7 @@ class ExportLayerStyleTask(CustomQgsTask):
                 continue
             body = style.to_json()
             request = RequestManager.RequestData(url, type="POST", body=body)
-            reply = self.request_manager.custom_request(request)
+            reply = self._request_manager.custom_request(request)
             if reply.status == QNetworkReply.NetworkError.NoError:
                 style_ids.append(reply.content["id"])
             else:
@@ -445,7 +445,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             compound_style = CompoundStyleDTO.from_style_ids(style_ids)
             body = compound_style.to_json()
             request = RequestManager.RequestData(url, type="POST", body=body)
-            reply = self.request_manager.custom_request(request)
+            reply = self._request_manager.custom_request(request)
             if reply.status == QNetworkReply.NetworkError.NoError:
                 style_ids = [reply.content["id"]]
             else:
@@ -467,7 +467,7 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         body = style_rule_dto.to_json()
         request = RequestManager.RequestData(url, type="POST", body=body)
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         
         if response.status != QNetworkReply.NetworkError.NoError:
             error_message = self.tr("Error exporting style rule for layer '{}': {}").format(
@@ -484,7 +484,7 @@ class ExportLayerStyleTask(CustomQgsTask):
         )
 
         request = RequestManager.RequestData(url, type="GET")
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False
         content = response.content
@@ -497,7 +497,7 @@ class ExportLayerStyleTask(CustomQgsTask):
                     default_style_rule = style_rule
         id = default_style_rule["id"]
         request = RequestManager.RequestData("{}/{}".format(url, id), type="DELETE")
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             return False
         return True
@@ -511,7 +511,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
         )
         request_data = RequestManager.RequestData(url, type="GET")
-        response = self.request_manager.custom_request(request_data)
+        response = self._request_manager.custom_request(request_data)
         if response.status != QNetworkReply.NetworkError.NoError:
             error_message = self.tr("Error getting style for layer '{}': {}").format(
                 self.layer_data.layer_name, response.error_message
@@ -529,7 +529,7 @@ class ExportLayerStyleTask(CustomQgsTask):
         url = "{}/organizations/{}/styles/{}".format(API_MCS_URL, self.project_data.organization_id, style_id)
         body = dto.to_json()
         request = RequestManager.RequestData(url, type="PATCH", body=body)
-        response = self.request_manager.custom_request(request)
+        response = self._request_manager.custom_request(request)
         if response.status != QNetworkReply.NetworkError.NoError:
             error_message = self.tr("Error patching style for layer '{}': {}").format(
                 self.layer_data.layer_name, response.error_message

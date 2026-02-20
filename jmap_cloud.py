@@ -27,6 +27,8 @@ from .core.services.export_project_manager import ExportProjectManager
 from .core.services.import_project_manager import ImportProjectManager
 from .core.services.request_manager import RequestManager
 from .core.services.session_manager import SessionManager
+from .core.services.style_manager import StyleManager
+from .core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from .core.views import ProjectData
 from .ui.py_files.action_dialog import ActionDialog
 from .ui.py_files.connection_dialog import ConnectionDialog
@@ -62,18 +64,27 @@ class JMapCloud:
         # Declare instance attributes
         self.actions = []
 
-        # create singletons
-        self.request_manager = RequestManager()
-        self.auth_manager = JMapAuth()
-        self.session_manager = SessionManager()
-        self.export_project_manager = ExportProjectManager()
-        self.import_project_manager = ImportProjectManager()
 
-        # initialize ui
-        self.connection_dialog = ConnectionDialog()
+        # initialize services and managers
+        self.session_manager = SessionManager()
+        self.request_manager = RequestManager(self.session_manager)
+
+        self.jmap_mcs = JMapMCS(self.request_manager, self.session_manager)
+        self.jmap_das = JMapDAS()
+        self.jmap_mis = JMapMIS()
+
+        self.style_manager = StyleManager(self.jmap_mcs)
+        self.auth_manager = JMapAuth(self.session_manager, self.request_manager)
+        self.export_project_manager = ExportProjectManager(self.request_manager, self.jmap_mcs)
+        self.import_project_manager = ImportProjectManager(
+            self.style_manager, self.request_manager, self.jmap_mcs, self.jmap_das, self.jmap_mis
+        )
+
+        # # initialize ui
+        self.connection_dialog = ConnectionDialog(self.auth_manager)
         self.connection_dialog.logged_in_signal.connect(self.logged_in)
         self.connection_dialog.logout_signal.connect(self.auth_manager.logout)
-        self.load_project_dialog = OpenProjectDialog()
+        self.load_project_dialog = OpenProjectDialog(self.jmap_mcs)
         self.load_project_dialog.open_project_pushButton.clicked.connect(self.load_project)
         self.export_project_dialog = ExportProjectDialog()
         self.export_project_dialog.export_project_pushButton.clicked.connect(self.export_project)
@@ -189,10 +200,8 @@ class JMapCloud:
 
         auth_state = self.auth_manager.get_auth_state()
         if auth_state == AuthState.AUTHENTICATED:
-            self.auth_manager.refresh_auth_event.start()
+            self.auth_manager.get_refresh_auth_event().start()
         self.set_authorized_action(auth_state)
-
-    # --------------------------------------------------------------------------
 
     def unload(self):
         """
@@ -200,7 +209,7 @@ class JMapCloud:
         This function must exist for the plugin to load.
         """
         self.iface.webMenu().removeAction(self.menu.menuAction())
-        self.auth_manager.refresh_auth_event.stop()
+        self.auth_manager.get_refresh_auth_event().stop()
         self.connection_dialog.close()
         self.load_project_dialog.close()
         self.export_project_dialog.close()
@@ -208,7 +217,6 @@ class JMapCloud:
         # remove the toolbar
         # del self.toolbar
 
-    # --------------------------------------------------------------------------
     def set_authorized_action(self, authState: AuthState):
         """
         Enable or disable project-related actions based on the authentication state.
@@ -268,7 +276,7 @@ class JMapCloud:
 
         self.connection_dialog.close()
         self.set_authorized_action(AuthState.AUTHENTICATED)
-        self.auth_manager.refresh_auth_event.start()
+        self.auth_manager.get_refresh_auth_event().start()
         action_dialog = ActionDialog()
         action_dialog.show()
         action_dialog.action_finished("Login successful", False)

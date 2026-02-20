@@ -110,21 +110,21 @@ class LabelingConfigDTO(DTO):
         else:
             dto.allowOverlapping = True
 
-        if labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantRight:
+        if labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantRight:
             dto.anchor = "LEFT"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantLeft:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantLeft:
             dto.anchor = "RIGHT"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantBelow:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantBelow:
             dto.anchor = "TOP"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantAbove:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantAbove:
             dto.anchor = "BOTTOM"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantBelowRight:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantBelowRight:
             dto.anchor = "TOP_LEFT"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantBelowLeft:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantBelowLeft:
             dto.anchor = "TOP_RIGHT"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantAboveRight:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantAboveRight:
             dto.anchor = "BOTTOM_LEFT"
-        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantAboveLeft:
+        elif labeling_setting.quadOffset == QgsPalLayerSettings.QuadrantPosition.QuadrantAboveLeft:
             dto.anchor = "BOTTOM_RIGHT"
         else:
             dto.anchor = "CENTER"

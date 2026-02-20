@@ -29,9 +29,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsVectorTileLayer,
     QgsGeometry,
-    QgsSettings
 )
-from qgis.PyQt.QtCore import QObject, pyqtSignal
+from qgis.PyQt.QtCore import pyqtSignal, QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
@@ -69,35 +68,28 @@ class ImportProjectManager(CustomTaskManager):
     class that handle  JMap project transfer
     """
 
-    _instance = None
-
-    current_step: int
-    _cancel: bool
-    errors: list[str]
-    importing_project: bool
-    total_steps: int
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ImportProjectManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if not self._initialized:
-            super().__init__("ImportProjectManager")
-            self.action_dialog = ActionDialog()
-            self.feedback = self.action_dialog.feedback()
-            self.errors = []
-            self.current_step = 0
-            self.importing_project = False
-            self._cancel = False
-            self._initialized = True
-            self.tasks = []
-
-    @staticmethod
-    def instance() -> "ImportProjectManager":
-        return ImportProjectManager()
+    def __init__(
+        self,
+        style_manager: StyleManager,
+        request_manager: RequestManager,
+        jmap_mcs: JMapMCS,
+        jmap_das: JMapDAS,
+        jmap_mis: JMapMIS
+    ):
+        super().__init__("ImportProjectManager")
+        self.style_manager = style_manager
+        self._request_manager = request_manager
+        self._jmap_mcs = jmap_mcs
+        self._jmap_das = jmap_das
+        self._jmap_mis = jmap_mis
+        self.action_dialog = ActionDialog()
+        self.feedback = self.action_dialog.feedback()
+        self.errors: list[str] = []
+        self.current_step: int = 0
+        self.importing_project: bool = False
+        self._cancel: bool = False
+        self._initialized: bool = True
+        self.tasks: list = []
 
     def init_import(self, project_data: ProjectData, project_vector_type: str):
         self._cancel = False
@@ -110,7 +102,7 @@ class ImportProjectManager(CustomTaskManager):
 
         self.project_data = project_data
         self.project_vector_type = project_vector_type
-        self.nodes: dict[str:QgsLayerTreeNode] = {}
+        self.nodes: dict[str, QgsLayerTreeNode] = {}
 
         def next_function(replies):
             self.project_layers_data = self._check_project_layers_data(replies)
@@ -170,7 +162,7 @@ class ImportProjectManager(CustomTaskManager):
                 "{}/api/mcs/graphql".format(_base_url), headers, body, "POST", id="graphql-style-data"
             )
         )
-        return RequestManager.multi_request_async(requests)
+        return self._request_manager.multi_request_async(requests)
 
     def _check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
         layers_data = replies["layers-data"].content
@@ -189,7 +181,7 @@ class ImportProjectManager(CustomTaskManager):
         mapbox_styles = replies["mapbox-styles"].content
         graphql_style_data = replies["graphql-style-data"].content
 
-        formatted_layers_properties = StyleManager.format_properties(mapbox_styles, graphql_style_data, layers_data)
+        formatted_layers_properties = self.style_manager.format_properties(mapbox_styles, graphql_style_data, layers_data)
         if formatted_layers_properties == None:
             message = self.tr("error formatting properties")
             self._unmanageable_error_occur(message)
@@ -243,7 +235,7 @@ class ImportProjectManager(CustomTaskManager):
                         self._load_geojson_layer(layer_data, renderers, labeling, mouse_over)
                         self._is_all_layer_loaded()
 
-                    task = LoadVectorStyleTask(layer_properties)
+                    task = LoadVectorStyleTask(self.style_manager, layer_properties)
                     task.import_style_completed.connect(on_finish)
                     task.error_occurred.connect(self._error_occur)
                     task.taskTerminated.connect(self._is_all_layer_loaded)
@@ -257,7 +249,7 @@ class ImportProjectManager(CustomTaskManager):
                         self._load_mvt_layer(layer_data, renderers, labeling)
                         self._is_all_layer_loaded()
 
-                    task = LoadVectorTilesStyleTask(layer_properties)
+                    task = LoadVectorTilesStyleTask(self.style_manager, layer_properties)
                     task.import_style_completed.connect(on_finish)
                     task.taskTerminated.connect(self._is_all_layer_loaded)
                     task.error_occurred.connect(self._error_occur)
@@ -290,7 +282,7 @@ class ImportProjectManager(CustomTaskManager):
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
-        layer_data["layers"] = JMapMCS.get_wms_layer_uri(sources["tiles"][0])
+        layer_data["layers"] = self._jmap_mcs.get_wms_layer_uri(sources["tiles"][0])
 
         if not bool(layer_data["layers"]):
             message = self.tr("Error getting Layer {}").format(layer_data["name"][self.project_data.default_language])
@@ -321,7 +313,7 @@ class ImportProjectManager(CustomTaskManager):
             self._error_occur(message, MESSAGE_CATEGORY)
             return False
 
-        uri = JMapMCS.get_wmts_layer_uri(sources["tiles"][0], sources["minzoom"], sources["maxzoom"])
+        uri = self._jmap_mcs.get_wmts_layer_uri(sources["tiles"][0], sources["minzoom"], sources["maxzoom"])
         raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():
             self.project.addMapLayer(raster_layer, addToLegend=False)
@@ -333,11 +325,11 @@ class ImportProjectManager(CustomTaskManager):
             return False
 
     def _load_raster_layer(self, layer_data: dict, layer_properties: dict) -> bool:
-        uri = JMapMIS.get_raster_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
+        uri = self._jmap_mis.get_raster_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
         raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():
-            opacity = StyleManager.get_raster_opacity(layer_properties)
+            opacity = self.style_manager.get_raster_opacity(layer_properties)
             raster_layer.setOpacity(opacity)
             self.project.addMapLayer(raster_layer, addToLegend=False)
             self.nodes[layer_data["id"]] = QgsLayerTreeLayer(raster_layer)
@@ -348,7 +340,7 @@ class ImportProjectManager(CustomTaskManager):
             return False
 
     def _load_geojson_layer(self, layer_data: dict, renderer, labeling, mouse_over=None) -> bool:
-        uri = JMapDAS.get_vector_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
+        uri = self._jmap_das.get_vector_layer_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
         name = find_value_in_dict_or_first(layer_data["name"], [self.project_data.default_language], layer_data["id"])
         vector_layer = QgsVectorLayer(uri, name, "oapif")
         if vector_layer.isValid():
@@ -381,7 +373,7 @@ class ImportProjectManager(CustomTaskManager):
             return False
 
     def _load_mvt_layer(self, layer_data: dict, renderers, labeling) -> bool:
-        uri = JMapDAS.get_vector_tile_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
+        uri = self._jmap_das.get_vector_tile_uri(layer_data["spatialDataSourceId"], self.project_data.organization_id)
 
         # We need to create a new layer for each style because rule based styles are not supported by MVT
         # create a layer group
@@ -557,11 +549,11 @@ class ImportProjectManager(CustomTaskManager):
 
     def _error_occur(self, message: str, category: str = None):
         self.errors.append(message)
-        QgsMessageLog.logMessage(message, category, Qgis.Critical)
+        QgsMessageLog.logMessage(message, category, Qgis.MessageLevel.Critical)
         self.error_occurred.emit(message)
     
     def _debug(self, message: str, category: str = None):
-        QgsMessageLog.logMessage(message, category, Qgis.Info)
+        QgsMessageLog.logMessage(message, category, Qgis.MessageLevel.Info)
 
     def _set_progress(self, current_step: int = None, message: str = None):
         total_progress = current_step / self.total_steps * 100
@@ -572,7 +564,6 @@ class ImportProjectManager(CustomTaskManager):
         self._set_progress(self.current_step, message)
 
     def finish(self):
-        self.action_dialog.set_text(self.tr("Finalization..."))
         message = self.tr("<h3>Project loaded successfully</h3>")
 
         if self.project_data.crs.authid() != self.project.crs().authid():
@@ -588,7 +579,6 @@ class ImportProjectManager(CustomTaskManager):
                 message += "<p>{}</p>".format(error)
 
         self.action_dialog.action_finished(message, False)
-        self.action_dialog.finished.connect(self._zoom_to_extent)
 
         self.importing_project = False
         self.tasks_completed.emit(True)
@@ -596,6 +586,8 @@ class ImportProjectManager(CustomTaskManager):
         self.feedback = self.action_dialog.feedback()
         self.current_step = 0
         self.errors = []
+        # Defer canvas zoom to keep the dialog responsive and avoid blocking on network.
+        QTimer.singleShot(0, self._zoom_to_extent)
 
     def cancel(self):
         self._cancel = True
@@ -608,17 +600,17 @@ class ImportProjectManager(CustomTaskManager):
     def is_importing_project(self):
         return self.importing_project
 
-    def _zoom_to_extent(self) -> pyqtSignal:
-        extent = self._get_project_initial_extent(self.project.crs().authid(), self.project_data.crs)
+    def _zoom_to_extent(self) -> None:
+        extent = self._get_project_initial_extent(self.project.crs().authid(), self.project_data.crs.authid())
         if extent:
             iface.mapCanvas().setExtent(extent)
             iface.mapCanvas().refresh()
-        
-    def _get_project_initial_extent(self, qgis_epsg: str, jmap_epsg: str) -> Union[QgsRectangle, None]: 
-        if self.project_data.initial_extent: 
+
+    def _get_project_initial_extent(self, qgis_epsg: str, jmap_epsg: str) -> Union[QgsRectangle, None]:
+        if self.project_data.initial_extent:
             if qgis_epsg == jmap_epsg:
                 return self.project_data.initial_extent
-            
+
             crs_src = QgsCoordinateReferenceSystem(jmap_epsg)
             crs_dest = QgsCoordinateReferenceSystem(qgis_epsg)
             transform_context = QgsProject.instance().transformContext()
@@ -626,15 +618,26 @@ class ImportProjectManager(CustomTaskManager):
             extent_reproject: QgsRectangle = xform.transformBoundingBox(self.project_data.initial_extent)
             return QgsGeometry.fromWkt(extent_reproject.asWktPolygon()).boundingBox()
         else:
-            reply = JMapMCS.get_project_extent(organization_id=self.project_data.organization_id, project_id=self.project_data.project_id, epsg=qgis_epsg)
-            if reply.status != QNetworkReply.NetworkError.NoError:
-                self.add_exception(Exception(self.tr("Error getting project extent from JMap Cloud")))
-                self.error_occur(self.tr("Error getting project extent from JMap Cloud"), MESSAGE_CATEGORY)
-                return None
-            if reply.content:
-                return QgsRectangle(reply.content["x1"], reply.content["y1"], reply.content["x2"], reply.content["y2"])
-            return None
+            # Keep finish/close responsive: fetch project extent asynchronously when not available locally.
+            url = "{}/organizations/{}/projects/{}/extent?crs={}".format(
+                API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, qgis_epsg
+            )
+            request = RequestManager.RequestData(url, type="GET")
 
+            def on_extent_loaded(reply: RequestManager.ResponseData):
+                if reply.status != QNetworkReply.NetworkError.NoError or not reply.content:
+                    QgsMessageLog.logMessage(
+                        self.tr("Error getting project extent from JMap Cloud"),
+                        MESSAGE_CATEGORY,
+                        Qgis.MessageLevel.Warning,
+                    )
+                    return
+                extent = QgsRectangle(reply.content["x1"], reply.content["y1"], reply.content["x2"], reply.content["y2"])
+                iface.mapCanvas().setExtent(extent)
+                iface.mapCanvas().refresh()
+
+            self._request_manager.add_requests(request).connect(on_extent_loaded)
+            return None
 
 #    def _format_initial_extends(self, initial_extends: dict) -> dict:
 #        match = re.search(r"\([\d\,\. -]+\)", initial_extends)

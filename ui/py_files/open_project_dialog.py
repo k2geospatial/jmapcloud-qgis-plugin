@@ -31,12 +31,12 @@ class CustomListWidgetItem(QtWidgets.QListWidgetItem):
 
 
 class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
-
-    def __init__(self):
+    def __init__(self, jmap_mcs: JMapMCS):
         """Constructor."""
         super(OpenProjectDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
         self.language = QSettings().value("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), "en")
+        self.jmap_mcs = jmap_mcs
 
     def list_projects(self) -> bool:
         """
@@ -58,7 +58,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                 item.setText(self.tr("Error loading projects, please try again"))
                 self.project_List_listWidget.addItem(item)
 
-        if not JMapMCS.get_projects_async().connect(next_func):
+        if not self.jmap_mcs.get_projects_async().connect(next_func):
             return False
 
         return True
@@ -77,8 +77,8 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                 icon = QtGui.QIcon()
                 icon.addPixmap(
                     QtGui.QPixmap(":/images/images/default_map.jpg"),
-                    QtGui.QIcon.Normal,
-                    QtGui.QIcon.Off,
+                    QtGui.QIcon.Mode.Normal,
+                    QtGui.QIcon.State.Off,
                 )
                 item.setIcon(icon)
                 # lastModificationDate = datetime.strptime(str(project["lastModificationDate"]), "%Y-%m-%dT%H:%M:%SZ")

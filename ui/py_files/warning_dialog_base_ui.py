@@ -11,7 +11,7 @@
 # -----------------------------------------------------------
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qgis.PyQt import QtCore, QtGui, QtWidgets
 from ...resources_rc import qInitResources
 
 

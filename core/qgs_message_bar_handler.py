@@ -18,7 +18,7 @@ from qgis.utils import iface
 class QgsMessageBarHandler:
 
     @staticmethod
-    def send_message_to_message_bar(message: str, prefix: str = "", level: int = Qgis.Info, duration: int = None):
+    def send_message_to_message_bar(message: str, prefix: str = "", level: int = Qgis.MessageLevel.Info, duration: int = None):
         """
         Displays a message in the QGIS interface message bar.
 

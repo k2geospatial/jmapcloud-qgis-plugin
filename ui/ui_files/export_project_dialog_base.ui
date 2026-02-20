@@ -70,7 +70,7 @@
         <enum>Qt::LeftToRight</enum>
        </property>
        <property name="styleSheet">
-        <string notr="true"/>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>Export a project to JMap Cloud</string>
@@ -89,7 +89,7 @@
         </sizepolicy>
        </property>
        <property name="styleSheet">
-        <string notr="true"/>
+        <string notr="true">color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string>Project title :</string>
@@ -108,7 +108,8 @@
         </sizepolicy>
        </property>
        <property name="styleSheet">
-        <string notr="true">background-color:rgb(255, 255, 255);
+        <string notr="true">background-color: rgb(255, 255, 255);
+color: rgb(0, 0, 0);
 padding: 5px;</string>
        </property>
        <property name="text">
@@ -157,7 +158,13 @@ padding: 5px;</string>
         <enum>Qt::WheelFocus</enum>
        </property>
        <property name="styleSheet">
-        <string notr="true">background-color:rgb(255, 255, 255)</string>
+        <string notr="true">QPushButton {
+ background-color: rgb(255, 255, 255);
+ color: rgb(0, 0, 0);
+}
+QPushButton:disabled {
+ color: rgb(120, 120, 120);
+}</string>
        </property>
        <property name="text">
         <string>Export</string>
