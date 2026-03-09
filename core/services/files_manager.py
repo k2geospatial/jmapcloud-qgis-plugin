@@ -18,12 +18,12 @@ from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
 
 from ..constant import API_FUS_URL, API_MCS_URL
-from ..DTOS.datasource_dto import DatasourceDTO
+from ..DTOS.datasource_dto import CreateDatasourceDTO, UpdateDatasourceDTO
 from ..plugin_util import convert_crs_to_epsg
 from ..recurring_event import RecurringEvent
 from .request_manager import RequestManager
 from ..tasks.custom_qgs_task import CustomTaskManager
-from ..views import LayerData, LayerFile, SupportedFileType
+from ..views import LayerData, LayerFile, SupportedFileType, ExportSelectedLayerData
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 MESSAGE_CATEGORY = "FilesUploadManager"
@@ -283,9 +283,10 @@ class FileUploader(CustomTaskManager):
         self._cancel = True
 
 class DatasourceManager(CustomTaskManager):
-    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], organization_id: str):
+    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], organization_id: str, export_mode: ExportSelectedLayerData.ExportMode = ExportSelectedLayerData.ExportMode.create):
         super().__init__("DatasourceManager")
-        self.layers_data = layers_data
+        self._layers_data = layers_data
+        self._export_mode = export_mode
         self.organization_id = organization_id
         self._num_datasource_created = 0
         self.datasource_to_analyze: list[LayerData] = []
@@ -293,19 +294,27 @@ class DatasourceManager(CustomTaskManager):
         self._cancel = False
 
     def run(self):
-        self.create_datasources()
+        if self._export_mode == ExportSelectedLayerData.ExportMode.create:
+            self.create_datasources()
+        else:
+            self.update_datasources()
 
     def cancel(self):
         self._cancel = True
 
     def create_datasources(self):
         self.step_title_changed.emit(self.tr("Creating datasources"))
-        for layer_data in self.layers_data:
+        for layer_data in self._layers_data:
             self.create_datasource(layer_data)
+    
+    def update_datasources(self):
+        self.step_title_changed.emit(self.tr("Updating datasources"))
+        for layer_data in self._layers_data:
+            self.update_datasource(layer_data)
 
     def create_datasource(self, layer_data: LayerData) -> bool:
         # prepare request data
-        request_DTO = DatasourceDTO()
+        request_DTO = CreateDatasourceDTO()
         request_DTO.description = ""  # TODO
         request_DTO.tags = []  # TODO
         request_DTO.name = layer_data.layer_name
@@ -327,8 +336,6 @@ class DatasourceManager(CustomTaskManager):
                     uri_layer_name = "defaultLayer"
                 elif len(fields_by_layer) > 0:
                     uri_layer_name = next(iter(fields_by_layer))
-            request_DTO.layer = uri_layer_name
-            request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
             request_DTO.params = {}
 
             fields = fields_by_layer.get(uri_layer_name, [])
@@ -343,20 +350,23 @@ class DatasourceManager(CustomTaskManager):
             #            "type": qgis_data_type_name_to_mysql(field.type()),
             #        }
             #    )
-            if layer_data.file_type in [
-                SupportedFileType.GML,
-                SupportedFileType.FileGeoDatabase,
-                SupportedFileType.GeoPackage,
-                SupportedFileType.CAD,
-                SupportedFileType.DXF,
-                SupportedFileType.KML,
-                SupportedFileType.MapInfo,
-                SupportedFileType.zip,
-            ]:
-                request_DTO.params["layers"] = [uri_layer_name]
             if layer_data.file_type == SupportedFileType.CSV:
                 request_DTO.params["columnX"] = layer_data.longitude
                 request_DTO.params["columnY"] = layer_data.latitude
+            else:
+                request_DTO.layer = uri_layer_name
+                request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
+                if layer_data.file_type in [
+                    SupportedFileType.GML,
+                    SupportedFileType.FileGeoDatabase,
+                    SupportedFileType.GeoPackage,
+                    SupportedFileType.CAD,
+                    SupportedFileType.DXF,
+                    SupportedFileType.KML,
+                    SupportedFileType.MapInfo,
+                    SupportedFileType.zip,
+                ]:
+                    request_DTO.params["layers"] = [uri_layer_name]
 
         elif layer_data.layer_type == LayerData.LayerType.file_raster:
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
@@ -378,6 +388,79 @@ class DatasourceManager(CustomTaskManager):
         self.read_datasource_creation_response(response, layer_data)
         return True
 
+
+    def update_datasource(self, layer_data: LayerData) -> bool:
+        #prepare request data
+        request_DTO = UpdateDatasourceDTO()
+        request_DTO.description = ""  # TODO
+        request_DTO.name = layer_data.layer_name
+
+        if layer_data.layer_type == LayerData.LayerType.file_vector:
+            uri_layer_name = layer_data.uri_components["layerName"]
+            crs = convert_crs_to_epsg(layer_data.layer.crs())
+            request_DTO.crs = crs.authid()
+    
+            request_DTO.fileId = layer_data.layer_file.jmc_file_id
+            fields_by_layer = layer_data.layer_file.fields if layer_data.layer_file else {}
+            if not uri_layer_name:
+                uri_layer_name = "defaultLayer"
+            if uri_layer_name not in fields_by_layer:
+                if "defaultLayer" in fields_by_layer:
+                    uri_layer_name = "defaultLayer"
+                elif len(fields_by_layer) > 0:
+                    uri_layer_name = next(iter(fields_by_layer))
+            request_DTO.params = {}
+
+            fields = fields_by_layer.get(uri_layer_name, [])
+            request_DTO.params["attributes"] = fields
+
+            if layer_data.file_type == SupportedFileType.CSV:
+               request_DTO.params["columnX"] = layer_data.longitude
+               request_DTO.params["columnY"] = layer_data.latitude
+            else:
+               request_DTO.layer = uri_layer_name
+               request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
+               if layer_data.file_type in [
+                  SupportedFileType.GML,
+                  SupportedFileType.FileGeoDatabase,
+                  SupportedFileType.GeoPackage,
+                  SupportedFileType.CAD,
+                  SupportedFileType.DXF,
+                  SupportedFileType.KML,
+                  SupportedFileType.MapInfo,
+                  SupportedFileType.zip,
+               ]:
+                  request_DTO.params["layers"] = [uri_layer_name]
+        elif layer_data.layer_type == LayerData.LayerType.file_raster:
+            request_DTO.fileId = layer_data.layer_file.jmc_file_id
+        elif layer_data.layer_type == LayerData.LayerType.API_FEATURES:
+            request_DTO.params = {
+                "landingPageUrl": layer_data.datasource["landingPageUrl"],
+                "collectionId": layer_data.datasource["collectionId"],
+            }
+        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+            request_DTO.capabilitiesUrl = layer_data.datasource["capabilitiesUrl"]
+        else:
+            return False
+
+        url = "{}/organizations/{}/datasources/{}".format(API_MCS_URL, self.organization_id, layer_data.datasource_id)
+        body = request_DTO.to_json()
+        request = RequestManager.RequestData(url, body=body, type="PATCH", id=layer_data.layer_id)
+
+        response = self._request_manager.custom_request(request)
+
+        if response.status != QNetworkReply.NetworkError.NoError:
+            error_message = self.tr("Error updating datasource {}: {}").format(layer_data.datasource_id, response.error_message)
+            self.error_occur(error_message, MESSAGE_CATEGORY)
+            layer_data.status = LayerData.Status.updating_datasource_error
+            # For updates, do not wait on analyzer polling.
+            self._on_datasource_processed(layer_data, analyze=False)
+            return False
+        # For updates, do not wait on analyzer polling.
+        self._on_datasource_processed(layer_data, analyze=False)
+        return True
+        
+
     def read_datasource_creation_response(self, response: RequestManager.ResponseData, layer_data: LayerData):
         if response.status == QNetworkReply.NetworkError.NoError and "id" in response.content:
             datasource_id = response.content["id"]
@@ -385,16 +468,24 @@ class DatasourceManager(CustomTaskManager):
         else:
             layer_data.status = LayerData.Status.creating_datasource_error
             self.error_occur(response.error_message, MESSAGE_CATEGORY)
-        self.is_all_datasources_created(layer_data)
+        # Creation flow still waits for analyzer polling.
+        self._on_datasource_processed(layer_data, analyze=True)
+
+    def _on_datasource_processed(self, layer_data: LayerData, analyze: bool):
+        self._num_datasource_created += 1
+        self.progress_changed.emit(self._num_datasource_created / len(self._layers_data) * 100)
+        if analyze and layer_data.status == LayerData.Status.no_error:
+            self.datasource_to_analyze.append(layer_data)
+        if self._num_datasource_created == len(self._layers_data):
+            self._num_datasource_created = 0
+            if analyze:
+                self.start_poking_jmc_datasource_analyzers()
+            else:
+                self.tasks_completed.emit(self._layers_data)
 
     def is_all_datasources_created(self, layer_data: LayerData):
-        self._num_datasource_created += 1
-        self.progress_changed.emit(self._num_datasource_created / len(self.layers_data) * 100)
-        if layer_data.status == LayerData.Status.no_error:
-            self.datasource_to_analyze.append(layer_data)
-        if self._num_datasource_created == len(self.layers_data):
-            self._num_datasource_created = 0
-            self.start_poking_jmc_datasource_analyzers()
+        # Backward-compat: treat as creation flow.
+        self._on_datasource_processed(layer_data, analyze=True)
 
     def start_poking_jmc_datasource_analyzers(self):
         self.step_title_changed.emit(self.tr("Server is analyzing datasources"))
@@ -413,7 +504,7 @@ class DatasourceManager(CustomTaskManager):
                 layer_data.datasource_id = response.content["id"]
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.tasks_completed.emit(self.layers_data)
+                self.tasks_completed.emit(self._layers_data)
 
         def poke_all_not_analyzed_datasources():
             for layer_data in self.datasource_to_analyze:
@@ -425,7 +516,7 @@ class DatasourceManager(CustomTaskManager):
                 self._request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
                 recurring_event.stop()
-                self.tasks_completed.emit(self.layers_data)
+                self.tasks_completed.emit(self._layers_data)
 
         recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_datasources, False, 200)
         recurring_event.call_count_exceeded.connect(self.timeout)
@@ -433,3 +524,4 @@ class DatasourceManager(CustomTaskManager):
 
     def timeout(self):
         pass
+    
