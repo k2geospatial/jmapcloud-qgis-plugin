@@ -36,7 +36,6 @@ class SupportedFileType(Enum):
     raster = "RASTER"
     zip = "ZIP"
 
-
 class LayerFile:
 
     class Status(Enum):
@@ -72,8 +71,10 @@ class LayerData:
         datasource_error = "CREATING_ERROR"
         file_analyzing_error = "FILE_ANALYZING_ERROR"
         creating_datasource_error = "CREATING_DATASOURCE_ERROR"
+        updating_datasource_error = "UPDATING_DATASOURCE_ERROR"
         datasource_analyzing_error = "DATASOURCE_ANALYZING_ERROR"
         layer_creation_error = "LAYER_CREATING_ERROR"
+        updating_layer_error = "UPDATING_LAYER_ERROR"
         unknown_error = "UNKNOWN_ERROR"
         timeout = "TIMEOUT"
 
@@ -124,6 +125,25 @@ class LayerData:
         self.jmc_layer_id = jmc_layer_id
         self.uri_components = uri_components
 
+
+class ExportSelectedLayerData:
+    class ExportMode(Enum):
+        create = "CREATE"
+        replace = "REPLACE"
+
+    def __init__(
+        self,
+        source_layer_id: str,
+        JMC_project: "ProjectData",
+        mode: ExportMode = ExportMode.create,
+        target_JMC_layer_id: str = None,
+        target_JMC_data_source_id: str = None,
+    ):
+        self.source_layer_id = source_layer_id
+        self.JMC_project = JMC_project
+        self.mode = mode
+        self.target_JMC_layer_id = target_JMC_layer_id
+        self.target_JMC_data_source_id = target_JMC_data_source_id
 
 class ProjectData:
     project_id: str
