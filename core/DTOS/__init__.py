@@ -13,10 +13,10 @@
 from .compound_style_dto import CompoundStyleDTO
 from .condition_dto import ConditionDTO
 from .criteria_dto import CriteriaDTO
-from .datasource_dto import DatasourceDTO
+from .datasource_dto import CreateDatasourceDTO
 from .dto import DTO
 from .labeling_config_dto import LabelingConfigDTO
-from .layer_dto import LayerDTO
+from .layer_dto import LayerDTO, UpdateLayerDTO
 from .line_style_dto import LineStyleDTO
 from .mouse_over_config_dto import MouseOverConfigDTO
 from .point_style_dto import PointStyleDTO
@@ -30,9 +30,10 @@ __all__ = [
     "CompoundStyleDTO",
     "ConditionDTO",
     "CriteriaDTO",
-    "DatasourceDTO",
+    "CreateDatasourceDTO",
     "DTO",
     "LayerDTO",
+    "UpdateLayerDTO",
     "LineStyleDTO",
     "PointStyleDTO",
     "PolygonStyleDTO",
