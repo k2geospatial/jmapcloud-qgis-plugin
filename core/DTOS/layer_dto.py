@@ -45,3 +45,18 @@ class LayerDTO(DTO):
         self.spatialDataSourceId = spatialDataSourceId
         self.name = name
         self.type = type
+
+class UpdateLayerDTO(DTO):
+    name: dict[str, str]
+    description: dict[str, str]
+    visible: bool
+    listed: bool
+    minimumZoom: Union[int, None]
+    maximumZoom: Union[int, None]
+    selectable: bool
+    attributes: list[dict[str, str]]
+    mouseOverConfiguration: MouseOverConfigDTO
+    labellingConfiguration: LabelingConfigDTO
+    layers: list[str]
+    imageFormat: str
+ 

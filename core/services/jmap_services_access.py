@@ -21,7 +21,7 @@ from ..constant import (
     API_MIS_URL,
     AUTH_CONFIG_ID,
 )
-from ..DTOS.project_dto import ProjectDTO
+from ..DTOS import LayerDTO, ProjectDTO, UpdateLayerDTO
 from .request_manager import RequestManager
 from .session_manager import SessionManager
 
@@ -41,6 +41,36 @@ class JMapMCS:
         request = RequestManager.RequestData(url, type="GET")
 
         return self._request_manager.add_requests(request)
+
+    def get_project_layers_async(self, project_id: str, elementType: str) -> pyqtSignal:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers?q=elementType={elementType}"
+        request = RequestManager.RequestData(url, type="GET")
+
+        return self._request_manager.add_requests(request)
+    
+    def get_project_by_id(self, project_id: str) -> RequestManager.ResponseData:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}"
+        return self._request_manager.get_request(url, error_prefix="error getting project details")
+
+    def get_layer_by_id(self, project_id: str, layer_id: str) -> RequestManager.ResponseData:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        return self._request_manager.get_request(url, error_prefix="error getting layer details")
+
+    def get_datasource_references_by_id(self, datasource_id: str) -> RequestManager.ResponseData:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = f"{API_MCS_URL}/organizations/{organization_id}/datasources/{datasource_id}?additionalInfo=references"
+        return self._request_manager.get_request(url, error_prefix="error getting datasource details")
 
     def get_wms_layer_uri(self, source: str) -> dict:
         """
@@ -94,6 +124,18 @@ class JMapMCS:
         prefix = "error creating project"
         body = project_data.to_json()
         return self._request_manager.post_request(url, body, error_prefix=prefix)
+    
+    def post_layer(self, organization_id: str, project_id: str, layer_data: LayerDTO) -> RequestManager.ResponseData:
+        url = "{}/organizations/{}/projects/{}/layers".format(API_MCS_URL, organization_id, project_id)
+        prefix = "error creating layer"
+        body = layer_data.to_json()
+        return self._request_manager.post_request(url, body, error_prefix=prefix)
+    
+    def patch_layer(self, organization_id: str, project_id: str, layer_id: str, request: UpdateLayerDTO) -> RequestManager.ResponseData:
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        prefix = "error updating layer"
+        body = request.to_json()
+        return self._request_manager.custom_request(RequestManager.RequestData(url, type="PATCH", body=body))
 
 class JMapMIS:
     """Class to handle JMap MIS api end point requests"""

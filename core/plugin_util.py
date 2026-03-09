@@ -36,7 +36,7 @@ from qgis.core import (
     QgsProject,
 )
 
-from qgis.PyQt.QtCore import QMetaType, QSize, Qt, QBuffer, QRect
+from qgis.PyQt.QtCore import QLocale, QMetaType, QSettings, QSize, Qt, QBuffer, QRect
 from qgis.PyQt.QtGui import QImage, QPainter, QFont, QPainterPath, QColor
 from qgis.PyQt.QtSvg import QSvgGenerator
 
@@ -423,10 +423,8 @@ def svg_content_to_base64(svg_content: str, qSize: QSize) -> str:
 def convert_jmap_datetime(jmap_datetime: str) -> datetime:
     return datetime.fromisoformat(jmap_datetime).astimezone(timezone.utc)
 
-
 def time_now() -> str:
     return datetime.now(timezone.utc)
-
 
 def convert_QGIS_text_expression_to_JMap(expression):  # TODO upgrade
 
@@ -445,7 +443,6 @@ def convert_QGIS_text_expression_to_JMap(expression):  # TODO upgrade
         new_parts.append(part)
 
     return "".join(new_parts)
-
 
 def convert_jmap_text_mouse_over_expression(text: str) -> str:
     text = text.replace("{", "{{").replace("}", "}}")
@@ -609,13 +606,15 @@ def convert_pen_style_to_dash_array(pen_style, width) -> list[int]:
 
     return dashPattern
 
-
 def opacity_to_transparency(opacity) -> float:
     return (1 - min(1.0, opacity)) * 100
 
-
 def transparency_to_opacity(transparency) -> float:
     return 1 - transparency / 100
+
+def get_user_locale() -> str:
+    
+    return QSettings().value("locale/userLocale",  QLocale.system().name()).split("_")[0]
 
 def _extract_rgba(qgis_color_string):
     rgba = qgis_color_string.split(',')
@@ -627,4 +626,3 @@ def _extract_rgba(qgis_color_string):
 def _replace_param(match, param_to_value):
     key = match.group(1)
     return param_to_value.get(key, f"param({key})")  # leave untouched if not found
-

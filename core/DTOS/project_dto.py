@@ -24,6 +24,7 @@ class ProjectDTO(DTO):
     def __init__(
         self,
         mapCrs: str,
+        id: str = None,
         name: dict[str, str] = {DEFAULT_LANGUAGE: DEFAULT_PROJECT_NAME},
         description: dict[str, str] = {},
         measurementCrs: str = DEFAULT_MEASUREMENT_CRS,
@@ -48,3 +49,4 @@ class ProjectDTO(DTO):
         self.defaultLanguage = defaultLanguage
         self.rotation = rotation
         self.tags = tags
+        self.id = id

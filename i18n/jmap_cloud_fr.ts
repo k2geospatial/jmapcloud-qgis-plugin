@@ -189,6 +189,11 @@ Connecté à: {}</translation>
         <translation>Création de sources de données</translation>
     </message>
     <message>
+       <location filename="../core/services/files_manager.py" line="311" />
+       <source>Updating datasources</source>
+       <translation>Modification des sources de données</translation>
+    </message>
+    <message>
         <location filename="../core/services/files_manager.py" line="385"/>
         <source>Server is analyzing datasources</source>
         <translation>Le serveur analyse les sources de données</translation>
@@ -265,6 +270,36 @@ Connecté à: {}</translation>
         <location filename="../ui/py_files/export_project_dialog_base_ui.py" line="96"/>
         <source>Export</source>
         <translation>Exporter</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="157"/>
+        <source>Export layer</source>
+        <translation>Exporter une couche</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="158"/>
+        <source>Export a layer to JMap Cloud</source>
+        <translation>Exporter une couche vers JMap Cloud</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="159"/>
+        <source>Select the Project :</source>
+        <translation>Sélectionnez le projet :</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="160"/>
+        <source>Create new layer</source>
+        <translation>Créer une nouvelle couche</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="161"/>
+        <source>Replace an existing layer</source>
+        <translation>Remplacer une couche existante</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog_base_ui.py" line="162"/>
+        <source>Layer to replace :</source>
+        <translation>Couche à remplacer :</translation>
     </message>
     <message>
         <location filename="../ui/py_files/open_project_dialog_base_ui.py" line="66"/>
@@ -590,6 +625,11 @@ p, li { white-space: pre-wrap; }
 <context>
     <name>JMapCloud</name>
     <message>
+        <location filename="../jmap_cloud.py" line="211"/>
+        <source>Export</source>
+        <translation>Exporter</translation>
+    </message>
+    <message>
         <location filename="../jmap_cloud.py" line="164"/>
         <source>Connection</source>
         <translation>Connexion</translation>
@@ -608,6 +648,290 @@ p, li { white-space: pre-wrap; }
         <location filename="../jmap_cloud.py" line="179"/>
         <source>Refresh token</source>
         <translation>Rafraîchir le token</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="184" />
+        <source>Export to JMap Cloud</source>
+        <translation>Exporter vers JMap Cloud</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="452"/>
+        <source>Layer replacement warning</source>
+        <translation>Avertissement de remplacement de couche</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="440"/>
+        <source>Warning:</source>
+        <translation>Avertissement :</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="441"/>
+        <source>The layer you are trying to replace is referenced by the following projects and layers:</source>
+        <translation>La couche que vous tentez de remplacer est référencée par les projets et couches suivants :</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="446"/>
+        <source>Unknown Project</source>
+        <translation>Projet inconnu</translation>
+    </message>
+    <message>
+        <location filename="../jmap_cloud.py" line="451"/>
+        <source>Replacing the layer will impact all these projects and layers. Do you want to continue?</source>
+        <translation>Le remplacement de la couche impactera tous ces projets et ces couches. Voulez-vous continuer ?</translation>
+    </message>
+</context>
+<context>
+    <name>FileUploader</name>
+    <message>
+        <location filename="../core/services/files_manager.py" line="191"/>
+        <source>Upload initialization failed: {}</source>
+        <translation>Échec de l&apos;initialisation du téléversement : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/services/files_manager.py" line="194"/>
+        <source>Upload initialization failed: no response headers</source>
+        <translation>Échec de l&apos;initialisation du téléversement : aucun en-tête de réponse</translation>
+    </message>
+    <message>
+        <location filename="../core/services/files_manager.py" line="203"/>
+        <source>Upload initialization failed: missing Location header</source>
+        <translation>Échec de l&apos;initialisation du téléversement : en-tête Location manquant</translation>
+    </message>
+</context>
+<context>
+    <name>DatasourceManager</name>
+    <message>
+        <location filename="../core/services/files_manager.py" line="453"/>
+        <source>Error updating datasource {}: {}</source>
+        <translation>Erreur lors de la mise à jour de la source de données {} : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/services/files_manager.py" line="497"/>
+        <source>Unknown error : {}</source>
+        <translation>Erreur inconnue : {}</translation>
+    </message>
+</context>
+<context>
+    <name>ExportLayerManager</name>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="71"/>
+        <source>Initializing loading</source>
+        <translation>Initialisation du chargement</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="72"/>
+        <source>&lt;h3&gt;Layer exportation canceled&lt;/h3&gt;</source>
+        <translation>&lt;h3&gt;Exportation de la couche annulée&lt;/h3&gt;</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="85"/>
+        <source>Layer not found</source>
+        <translation>Couche introuvable</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="89"/>
+        <source>Converting layer to zip</source>
+        <translation>Compression de la couche en zip</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="113"/>
+        <source>Uploading layer files</source>
+        <translation>Téléversement des fichiers de la couche</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="145"/>
+        <source>Creating datasource</source>
+        <translation>Création de la source de données</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="173"/>
+        <source>Updating datasource</source>
+        <translation>Mise à jour de la source de données</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="179"/>
+        <source>Update datasource</source>
+        <translation>Mise à jour de la source de données</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="203"/>
+        <source>Adding layer to project</source>
+        <translation>Ajout de la couche au projet</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="207"/>
+        <source>Create layer in JMC</source>
+        <translation>Créer la couche dans JMC</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="226"/>
+        <source>Replacing layer in project</source>
+        <translation>Remplacement de la couche dans le projet</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="232"/>
+        <source>Replace layer in JMC</source>
+        <translation>Remplacer la couche dans JMC</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="252"/>
+        <source>Exporting layer style</source>
+        <translation>Exportation du style de la couche</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="274"/>
+        <source>{} in task {} for layer {}</source>
+        <translation>{} dans la tâche {} pour la couche {}</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="282"/>
+        <source>{} in task {} for layer {} with file {}</source>
+        <translation>{} dans la tâche {} pour la couche {} avec le fichier {}</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="307"/>
+        <source>&lt;h3&gt;Layer exportation finished&lt;/h3&gt;</source>
+        <translation>&lt;h3&gt;Exportation de la couche terminée&lt;/h3&gt;</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_layer_manager.py" line="309"/>
+        <source>&lt;h4&gt;Some errors occurred during the process:&lt;/h4&gt;</source>
+        <translation>&lt;h4&gt;Des erreurs se sont produites pendant le processus :&lt;/h4&gt;</translation>
+    </message>
+</context>
+<context>
+    <name>CreateLayerTask</name>
+    <message>
+        <location filename="../core/tasks/create_layer_task.py" line="40"/>
+        <source>Error creating request to create layer in JMC</source>
+        <translation>Erreur lors de la création de la requête pour créer la couche dans JMC</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/create_layer_task.py" line="47"/>
+        <source>Error creating layer in JMC: {}</source>
+        <translation>Erreur lors de la création de la couche dans JMC : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/create_layer_task.py" line="109"/>
+        <source>Error creating labeling for layer {}, JMap Cloud only support single rule labeling</source>
+        <translation>Erreur lors de la création de l&apos;étiquetage pour la couche {} : JMap Cloud ne prend en charge qu&apos;une seule règle d&apos;étiquetage</translation>
+    </message>
+</context>
+<context>
+    <name>LoadJMCDataSourceReferencesTask</name>
+    <message>
+        <location filename="../core/tasks/load_jmc_datasource_references_task.py" line="31"/>
+        <source>Error loading datasource references: {}</source>
+        <translation>Erreur lors du chargement des références de la source de données : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/load_jmc_datasource_references_task.py" line="54"/>
+        <source>Error loading project details for project id {}</source>
+        <translation>Erreur lors du chargement des détails du projet d&apos;identifiant {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/load_jmc_datasource_references_task.py" line="61"/>
+        <source>Error loading project details for project id {}: {}</source>
+        <translation>Erreur lors du chargement des détails du projet d&apos;identifiant {} : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/load_jmc_datasource_references_task.py" line="77"/>
+        <source>Error loading layer details for layer id {} in project id {}</source>
+        <translation>Erreur lors du chargement des détails de la couche d&apos;identifiant {} dans le projet d&apos;identifiant {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/load_jmc_datasource_references_task.py" line="86"/>
+        <source>Error loading layer details for layer id {} in project id {}: {}</source>
+        <translation>Erreur lors du chargement des détails de la couche d&apos;identifiant {} dans le projet d&apos;identifiant {} : {}</translation>
+    </message>
+</context>
+<context>
+    <name>ReplaceLayerTask</name>
+    <message>
+        <location filename="../core/tasks/replace_layer_task.py" line="36"/>
+        <source>Error creating request to replace layer in JMC</source>
+        <translation>Erreur lors de la création de la requête pour remplacer la couche dans JMC</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/replace_layer_task.py" line="42"/>
+        <source>PATCH layer payload: {}</source>
+        <translation>Contenu PATCH de la couche : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/replace_layer_task.py" line="55"/>
+        <source>Error replacing layer in JMC: {}</source>
+        <translation>Erreur lors du remplacement de la couche dans JMC : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/replace_layer_task.py" line="62"/>
+        <source>Current JMC layer payload: {}</source>
+        <translation>Contenu actuel de la couche JMC : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/replace_layer_task.py" line="121"/>
+        <source>Error creating labeling for layer {}, JMap Cloud only support single rule labeling</source>
+        <translation>Erreur lors de la création de l&apos;étiquetage pour la couche {} : JMap Cloud ne prend en charge qu&apos;une seule règle d&apos;étiquetage</translation>
+    </message>
+</context>
+<context>
+    <name>ExportLayerDialog</name>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="88"/>
+        <source>Error loading project layers</source>
+        <translation>Erreur lors du chargement des couches du projet</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="97"/>
+        <source>No layers found in the selected project</source>
+        <translation>Aucune couche trouvée dans le projet sélectionné</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="165"/>
+        <source>Unsupported layer type</source>
+        <translation>Type de couche non pris en charge</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="175"/>
+        <source>Loading...</source>
+        <translation>Chargement...</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="187"/>
+        <source>Error loading projects</source>
+        <translation>Erreur lors du chargement des projets</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="196"/>
+        <source>No projects found</source>
+        <translation>Aucun projet trouvé</translation>
+    </message>
+</context>
+<context>
+    <name>ConvertLayerToZipTask</name>
+    <message>
+        <location filename="../core/tasks/write_layer_tasks.py" line="112"/>
+        <source>Layer {} of type {} is not supported for export</source>
+        <translation>La couche {} de type {} n&apos;est pas prise en charge pour l&apos;exportation</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/write_layer_tasks.py" line="127"/>
+        <source>Error writing layer for layer {}: {}</source>
+        <translation>Erreur lors de l&apos;écriture de la couche {} : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/write_layer_tasks.py" line="173"/>
+        <source>Error writing layer &apos;{}&apos;: unknown layer type</source>
+        <translation>Erreur lors de l&apos;écriture de la couche &apos;{}&apos; : type de couche inconnu</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/write_layer_tasks.py" line="205"/>
+        <source>Error writing layer {}: zip raster not supported</source>
+        <translation>Erreur lors de l&apos;écriture de la couche {} : les rasters zip ne sont pas pris en charge</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/write_layer_tasks.py" line="310"/>
+        <source>Unsupported file type .mid/.mif for layer {}</source>
+        <translation>Type de fichier .mid/.mif non pris en charge pour la couche {}</translation>
     </message>
 </context>
 <context>

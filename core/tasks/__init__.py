@@ -14,6 +14,7 @@ from .custom_qgs_task import CustomQgsTask
 from .export_layer_style_task import ExportLayersStyleTask, ExportLayerStyleTask
 from .load_style_task import LoadVectorStyleTask, LoadVectorTilesStyleTask
 from .write_layer_tasks import (
+    ConvertLayerToZipTask,
     ConvertLayersToZipTask,
     CustomWriteRasterLayerTask,
     CustomWriteVectorLayerTask,
@@ -27,6 +28,7 @@ __all__ = [
     "ExportLayerStyleTask",
     "LoadVectorStyleTask",
     "LoadVectorTilesStyleTask",
+    "ConvertLayerToZipTask",
     "ConvertLayersToZipTask",
     "CustomWriteVectorLayerTask",
     "CustomWriteRasterLayerTask",

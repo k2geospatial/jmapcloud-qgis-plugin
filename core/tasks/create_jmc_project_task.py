@@ -121,8 +121,10 @@ class CreateJMCProjectTask(CustomQgsTask):
             layer_dto.elementType = layer_data.element_type
             layer_dto.attributes = []
 
-            for field in layer_data.layer_file.fields[layer_data.uri_components["layerName"]]:
-                layer_dto.attributes.append({"name": field["standardizedName"]})
+            for field in self._resolve_layer_attributes(layer_data):
+                attribute_name = field.get("standardizedName") or field.get("originalName")
+                if attribute_name:
+                    layer_dto.attributes.append({"name": attribute_name})
 
             if not bool(map_tip_template):
                 display_expression = layer.displayExpression()
@@ -151,6 +153,21 @@ class CreateJMCProjectTask(CustomQgsTask):
         )
         body = layer_dto.to_json()
         return RequestManager.RequestData(url, type="POST", body=body, id=layer_data.layer_id)
+
+    def _resolve_layer_attributes(self, layer_data: LayerData) -> list[dict]:
+        if layer_data.layer_file is None:
+            return []
+
+        fields_by_layer = layer_data.layer_file.fields or {}
+        requested_layer_name = (layer_data.uri_components or {}).get("layerName")
+
+        if requested_layer_name and requested_layer_name in fields_by_layer:
+            return fields_by_layer.get(requested_layer_name, [])
+        if "defaultLayer" in fields_by_layer:
+            return fields_by_layer.get("defaultLayer", [])
+        if len(fields_by_layer) > 0:
+            return fields_by_layer.get(next(iter(fields_by_layer)), [])
+        return []
 
     def is_all_layers_exported(self, reply: RequestManager.ResponseData, layer_data: LayerData):
         if reply.status != QNetworkReply.NetworkError.NoError:

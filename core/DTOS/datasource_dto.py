@@ -13,14 +13,14 @@
 from .dto import DTO
 
 
-class DatasourceDTO(DTO):
+class CreateDatasourceDTO(DTO):
     # attributes: list = []
     columnX: str = ""
     columnY: str = ""
     crs: str = ""
     description: str = ""
     fileId: str = ""
-    indexedAttributes: list = ""
+    indexedAttributes: list = []
     layer: str = ""
     layers: list = []
     name: str = ""
@@ -28,3 +28,12 @@ class DatasourceDTO(DTO):
     tags: list[str] = []
     type: str = ""
     capabilitiesUrl: str = ""
+
+class UpdateDatasourceDTO(DTO):
+    name: str = ""
+    description: str = ""
+    fileId: str = ""
+    crs: str = ""
+    layer: str = ""
+    layers: list = []
+    params: dict = {}
