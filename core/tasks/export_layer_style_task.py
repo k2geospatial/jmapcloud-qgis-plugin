@@ -393,7 +393,6 @@ class ExportLayerStyleTask(CustomQgsTask):
         return criterias
 
     def _export_symbol_to_style(self, symbol: QgsSymbol) -> list[str]:
-
         if isinstance(symbol, QgsMarkerSymbol):
             styles = PointStyleDTO.from_symbol(symbol)
             initial_type = "POINT"
@@ -495,6 +494,10 @@ class ExportLayerStyleTask(CustomQgsTask):
                     default_style_rule["creationDate"]
                 ) > convert_jmap_datetime(style_rule["creationDate"]):
                     default_style_rule = style_rule
+        
+        if not default_style_rule:
+            return True
+
         id = default_style_rule["id"]
         request = RequestManager.RequestData("{}/{}".format(url, id), type="DELETE")
         response = self._request_manager.custom_request(request)
