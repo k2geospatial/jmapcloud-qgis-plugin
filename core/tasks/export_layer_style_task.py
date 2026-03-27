@@ -205,8 +205,8 @@ class ExportLayerStyleTask(CustomQgsTask):
         elif isinstance(renderer, QgsNullSymbolRenderer):
             return True
         else:
-            message = self.tr("Error for layer {}. Renderer type {}, not supported").format(
-                self.layer_data.layer_name, type(renderer)
+            message = self.tr("Error for layer {}, the symbology is not supported.").format(
+                self.layer_data.layer_name
             )
             self.error_occur(message, MESSAGE_CATEGORY)
             return False

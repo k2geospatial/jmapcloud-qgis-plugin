@@ -345,8 +345,8 @@ p, li { white-space: pre-wrap; }
     <name>ExportLayerStyleTask</name>
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="202"/>
-        <source>Error for layer {}. Renderer type {}, not supported</source>
-        <translation>Erreur pour la couche {}: Le type du moteur de rendu {} n'est pas supporté.</translation>
+        <source>Error for layer {}, the symbology is not supported.</source>
+        <translation>Erreur pour la couche {} : la symbologie n&apos;est pas prise en charge.</translation>
     </message>
     <message>
         <location filename="../core/tasks/export_layer_style_task.py" line="261"/>
