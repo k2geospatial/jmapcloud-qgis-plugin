@@ -71,7 +71,7 @@ class ExportLayersStyleTask(CustomQgsTask):
 
         for layer_data in self.layers_data:
             subtask = ExportLayerStyleTask(self._request_manager, layer_data, self.project_data)
-            subtask.export_layer_style_completed.connect(self._is_all_layers_style_exported)
+            subtask.export_layer_style_completed.connect(lambda _style_rule_id=None: self._is_all_layers_style_exported())
             subtask.error_occurred.connect(self.error_occurred)
             self.addSubTask(subtask, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
 
@@ -89,13 +89,14 @@ class ExportLayersStyleTask(CustomQgsTask):
 
 
 class ExportLayerStyleTask(CustomQgsTask):
-    export_layer_style_completed = pyqtSignal()
+    export_layer_style_completed = pyqtSignal(object)
 
     def __init__(self, request_manager: RequestManager, layer_data: LayerData, project_data: ProjectData):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
         self.layer_data = layer_data
         self.project_data = project_data
         self._request_manager = request_manager
+        self._new_style_rule_id = None
         self.set_total_steps(1)
 
     def run(self):
@@ -106,7 +107,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             self._delete_default_style_rules()
         else:
             self._patch_raster_style()
-        self.export_layer_style_completed.emit()
+        self.export_layer_style_completed.emit(self._new_style_rule_id)
         return True
 
     def _handle_renderer(self, layer: LayerData):
@@ -204,8 +205,8 @@ class ExportLayerStyleTask(CustomQgsTask):
         elif isinstance(renderer, QgsNullSymbolRenderer):
             return True
         else:
-            message = self.tr("Error for layer {}. Renderer type {}, not supported").format(
-                self.layer_data.layer_name, type(renderer)
+            message = self.tr("Error for layer {}, the symbology is not supported.").format(
+                self.layer_data.layer_name
             )
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
@@ -475,6 +476,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
 
+        self._new_style_rule_id = response.content["id"]
         return True
 
     def _delete_default_style_rules(self):
