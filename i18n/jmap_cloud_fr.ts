@@ -779,6 +779,11 @@ p, li { white-space: pre-wrap; }
         <translation>Exportation du style de la couche</translation>
     </message>
     <message>
+        <location filename="../core/services/export_layer_manager.py" line="265"/>
+        <source>Removing layer styles</source>
+        <translation>Suppression des styles de la couche</translation>
+    </message>
+    <message>
         <location filename="../core/services/export_layer_manager.py" line="274"/>
         <source>{} in task {} for layer {}</source>
         <translation>{} dans la tâche {} pour la couche {}</translation>
@@ -797,6 +802,19 @@ p, li { white-space: pre-wrap; }
         <location filename="../core/services/export_layer_manager.py" line="309"/>
         <source>&lt;h4&gt;Some errors occurred during the process:&lt;/h4&gt;</source>
         <translation>&lt;h4&gt;Des erreurs se sont produites pendant le processus :&lt;/h4&gt;</translation>
+    </message>
+</context>
+<context>
+    <name>RemoveLayerStyleTask</name>
+    <message>
+        <location filename="../core/tasks/remove_layer_style_task.py" line="34"/>
+        <source>Error getting layer style rules: {}</source>
+        <translation>Erreur lors de la récupération des règles de style de la couche : {}</translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/remove_layer_style_task.py" line="53"/>
+        <source>Error deleting layer style rule: {}</source>
+        <translation>Erreur lors de la suppression d&apos;une règle de style de couche : {}</translation>
     </message>
 </context>
 <context>

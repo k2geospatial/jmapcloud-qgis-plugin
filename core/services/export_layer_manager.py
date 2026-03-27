@@ -13,6 +13,7 @@ from ..tasks.write_layer_tasks import ConvertLayerToZipTask
 from ..tasks.create_layer_task import CreateLayerTask
 from ..tasks.replace_layer_task import ReplaceLayerTask
 from ..tasks.export_layer_style_task import ExportLayerStyleTask
+from ..tasks.remove_layer_style_task import RemoveLayerStyleTask
 
 from ..views import ExportSelectedLayerData, LayerData, LayerFile
 
@@ -98,6 +99,13 @@ class ExportLayerManager(QObject):
                 self._finish(False)
                 return
 
+            if layer_file is None:
+                if export_selected_layer_data.mode == ExportSelectedLayerData.ExportMode.create:
+                    self._create_datasource(layer_data, organisation_id, export_selected_layer_data)
+                else:
+                    self._update_datasource(layer_data, organisation_id, export_selected_layer_data)
+                return
+
             self._upload_layer_files(layer_data, layer_file, organisation_id, export_selected_layer_data)
         
         convert_layer_to_zip_task.tasks_completed.connect(next_step)
@@ -107,6 +115,12 @@ class ExportLayerManager(QObject):
     
     def _upload_layer_files(self, layer_data: LayerData, layer_file: LayerFile, organisation_id: str, export_selected_layer_data: ExportSelectedLayerData):
         if self._is_canceled:
+            return
+        if layer_file is None:
+            if export_selected_layer_data.mode == ExportSelectedLayerData.ExportMode.create:
+                self._create_datasource(layer_data, organisation_id, export_selected_layer_data)
+            else:
+                self._update_datasource(layer_data, organisation_id, export_selected_layer_data)
             return
 
         self._current_step += 1
@@ -234,7 +248,7 @@ class ExportLayerManager(QObject):
                 return
             
             layer_data.jmc_layer_id = export_selected_layer_data.target_JMC_layer_id
-            self._export_style(layer_data, export_selected_layer_data)
+            self._export_style(layer_data, export_selected_layer_data, should_remove_old_styles=True)
         
         replace_layer_task.layer_replacement_finished.connect(next_step)
         replace_layer_task.error_occurred.connect(lambda error_message: self._errors.append(error_message))
@@ -243,8 +257,7 @@ class ExportLayerManager(QObject):
         )
         replace_layer_task.run()
 
-
-    def _export_style(self, layer_data: LayerData, export_selected_layer_data: ExportSelectedLayerData):
+    def _export_style(self, layer_data: LayerData, export_selected_layer_data: ExportSelectedLayerData, should_remove_old_styles: bool = False):
         if self._is_canceled:
             return
         
@@ -259,9 +272,31 @@ class ExportLayerManager(QObject):
         export_layer_style_task.progressChanged.connect(
             lambda value, current_step=self._current_step: self._set_progress(value, current_step)
         )
-        export_layer_style_task.export_layer_style_completed.connect(self._finish)
+
+        if should_remove_old_styles:
+            export_layer_style_task.export_layer_style_completed.connect(
+                lambda new_style_rule_id: self._remove_layer_styles(layer_data, export_selected_layer_data, new_style_rule_id)
+            )
+        else:
+            export_layer_style_task.export_layer_style_completed.connect(lambda _style_rule_id=None: self._finish())
+
         self._feedback.canceled.connect(export_layer_style_task.cancel)
         export_layer_style_task.run()
+    
+    def _remove_layer_styles(self, layer_data: LayerData, export_selected_layer_data: ExportSelectedLayerData, new_style_rule_id: str):
+        if self._is_canceled:
+            return
+        
+        self._action_dialog.set_text(self.tr("Removing layer styles"))
+        remove_layer_style_task = RemoveLayerStyleTask(
+            self._jmap_mcs, layer_data, export_selected_layer_data.JMC_project, new_style_rule_id
+        )
+        remove_layer_style_task.error_occurred.connect(lambda error_message: self._errors.append(error_message))
+
+        remove_layer_style_task.remove_layer_style_task_completed.connect(self._finish)
+        
+        self._feedback.canceled.connect(remove_layer_style_task.cancel)
+        remove_layer_style_task.run()
 
     def _validate_layer_errors(self, layer_data: LayerData | None, step_string: str) -> LayerData | None:
         """

@@ -137,6 +137,16 @@ class JMapMCS:
         body = request.to_json()
         return self._request_manager.custom_request(RequestManager.RequestData(url, type="PATCH", body=body))
 
+    def get_layer_style_rules(self, organization_id: str, project_id: str, layer_id: str) -> RequestManager.ResponseData:
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules"
+        prefix = "error getting layer style rules"
+        return self._request_manager.get_request(url, error_prefix=prefix)
+
+    def delete_layer_style_rule(self, organization_id: str, project_id: str, layer_id: str, style_rule_id: str) -> RequestManager.ResponseData:
+        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules/{style_rule_id}"
+        prefix = "error deleting layer style rule"
+        return self._request_manager.custom_request(RequestManager.RequestData(url, type="DELETE"))
+    
 class JMapMIS:
     """Class to handle JMap MIS api end point requests"""
     def get_raster_layer_uri(self, layer_id, organization_id) -> str:
