@@ -35,7 +35,6 @@ from ..views import LayerData, LayerFile, SupportedFileType
 
 MESSAGE_CATEGORY = "WriteLayerTask"
 
-
 class ConvertLayersToZipTask(CustomTaskManager):
     tasks_completed = pyqtSignal(list, list)
 
@@ -399,9 +398,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
         elif provider_name in ["wms", "wmts"] and "url" in uri_components:
             layer_data.layer_type = LayerData.LayerType.WMS_WMTS
             return {
-                "capabilitiesUrl": "{}&SERVICE=WMS&REQUEST=GetCapabilities".format(
-                    urllib.parse.unquote_plus(uri_components["url"])
-                )
+                "capabilitiesUrl": self._build_wms_capabilities_url(uri_components["url"])
             }
 
         # ---- File-based Raster layers ----
@@ -430,6 +427,21 @@ class ConvertLayerToZipTask(CustomTaskManager):
         )
         self.error_occur(message, MESSAGE_CATEGORY)
         return None
+    
+    def _build_wms_capabilities_url(self, raw_url: str) -> str:
+        decoded_url = urllib.parse.unquote_plus(raw_url or "").strip()
+        parsed_url = urllib.parse.urlsplit(decoded_url)
+        query_items = [
+            (key, value)
+            for key, value in urllib.parse.parse_qsl(parsed_url.query, keep_blank_values=True)
+            if key.lower() not in {"service", "request"}
+        ]
+        query_items.append(("SERVICE", "WMS"))
+        query_items.append(("REQUEST", "GetCapabilities"))
+        query = urllib.parse.urlencode(query_items, doseq=True)
+        return urllib.parse.urlunsplit(
+            (parsed_url.scheme, parsed_url.netloc, parsed_url.path, query, parsed_url.fragment)
+        )
 
 class CustomWriteVectorLayerTask(CustomQgsTask):
 

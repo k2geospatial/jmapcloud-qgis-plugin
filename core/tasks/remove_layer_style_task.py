@@ -58,7 +58,7 @@ class RemoveLayerStyleTask(CustomQgsTask):
 
          response = self.jmap_mcs.delete_layer_style_rule(organization_id, jmc_project_id, jmc_layer_id, style_rule_id)
 
-         if response.status != QNetworkReply.NoError:
+         if response.status != QNetworkReply.NetworkError.NoError:
             error_message = self.tr("Error deleting layer style rule: {}").format(response.error_message)
             self.error_occur(error_message, MESSAGE_CATEGORY)
 
