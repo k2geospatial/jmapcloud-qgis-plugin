@@ -273,12 +273,15 @@ class ExportLayerManager(QObject):
             lambda value, current_step=self._current_step: self._set_progress(value, current_step)
         )
 
-        if should_remove_old_styles:
-            export_layer_style_task.export_layer_style_completed.connect(
-                lambda new_style_rule_id: self._remove_layer_styles(layer_data, export_selected_layer_data, new_style_rule_id)
-            )
-        else:
-            export_layer_style_task.export_layer_style_completed.connect(lambda _style_rule_id=None: self._finish())
+        def next_step(_style_rule_id):
+            if layer_data.layer_type == LayerData.LayerType.file_raster:
+                self._finish()
+            elif should_remove_old_styles and _style_rule_id is not None:
+                self._remove_layer_styles(layer_data, export_selected_layer_data, _style_rule_id)
+            else:
+                self._finish()
+    
+        export_layer_style_task.export_layer_style_completed.connect(next_step)
 
         self._feedback.canceled.connect(export_layer_style_task.cancel)
         export_layer_style_task.run()
