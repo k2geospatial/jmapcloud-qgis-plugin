@@ -148,8 +148,8 @@ class StyleManager:
             icons = self._get_project_icons_from_sprite_sheet(mapbox_styles["sprite"])
         filtered_styles = []
         for index, style in enumerate(mapbox_styles["layers"]):
-            matches = ["selection", "background", "hillshade", "label"]
-            if not any(x in style["id"] for x in matches):
+            matches = ["selection", "background", "hillshade", "label", "OPEN_STREET_MAP", "MAPBOX_LIGHT", ]
+            if not  ("basemap-id" in style["metadata"]) and not any(x in style["id"] for x in matches):
                 filtered_styles.append(mapbox_styles["layers"][index])
         layer_styles = {}
 
