@@ -24,9 +24,7 @@ from .session_manager import SessionManager
 class JMapMCS:
     """Class to handle JMap MCS api end point requests"""
 
-    def __init__(
-        self, request_manager: RequestManager, session_manager: SessionManager
-    ):
+    def __init__(self, request_manager: RequestManager, session_manager: SessionManager):
         self._request_manager = request_manager
         self._session_manager = session_manager
 
@@ -57,28 +55,26 @@ class JMapMCS:
         if organization_id is None:
             return None
         url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}"
-        return self._request_manager.get_request(
-            url, error_prefix="error getting project details"
-        )
+        return self._request_manager.get_request(url, error_prefix="error getting project details")
 
-    def get_layer_by_id(
-        self, project_id: str, layer_id: str
-    ) -> RequestManager.ResponseData:
+    def get_layer_by_id(self, project_id: str, layer_id: str) -> RequestManager.ResponseData:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
-        return self._request_manager.get_request(
-            url, error_prefix="error getting layer details"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}"
         )
+        return self._request_manager.get_request(url, error_prefix="error getting layer details")
 
-    def get_datasource_references_by_id(
-        self, datasource_id: str
-    ) -> RequestManager.ResponseData:
+    def get_datasource_references_by_id(self, datasource_id: str) -> RequestManager.ResponseData:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/datasources/{datasource_id}?additionalInfo=references"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/datasources/"
+            f"{datasource_id}?additionalInfo=references"
+        )
         return self._request_manager.get_request(
             url, error_prefix="error getting datasource details"
         )
@@ -115,9 +111,7 @@ class JMapMCS:
         return layer_uris
 
     def get_wmts_layer_uri(self, url: str, minZoom: int = 0, maxZoom: int = 21) -> str:
-        return "http-header:referer=&type=xyz&url={}&zmax={}&zmin={}".format(
-            url, maxZoom, minZoom
-        )
+        return "http-header:referer=&type=xyz&url={}&zmax={}&zmin={}".format(url, maxZoom, minZoom)
 
     def get_project_sprites(self, url: str) -> tuple[dict, bytes]:
         organization_id = self._session_manager.get_organization_id()
@@ -127,23 +121,19 @@ class JMapMCS:
         json_url = "{}.json".format(url)
         png_url = "{}.png".format(url)
         prefix = "Error loading sprites"
-        json_sprites = self._request_manager.get_request(
-            json_url, error_prefix=prefix
-        ).content
+        json_sprites = self._request_manager.get_request(json_url, error_prefix=prefix).content
         if not bool(json_sprites):
             return None, None
-        png_sprites = self._request_manager.get_request(
-            png_url, error_prefix=prefix
-        ).content
+        png_sprites = self._request_manager.get_request(png_url, error_prefix=prefix).content
         return json_sprites, png_sprites
 
     def get_project_extent(
         self, organization_id: str, project_id: str, epsg: str
     ) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
-        return self._request_manager.get_request(
-            url, error_prefix="error getting project extent"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
         )
+        return self._request_manager.get_request(url, error_prefix="error getting project extent")
 
     def post_project(
         self, organization_id: str, project_data: ProjectDTO
@@ -170,7 +160,9 @@ class JMapMCS:
         layer_id: str,
         request: UpdateLayerDTO,
     ) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        )
         body = request.to_json()
         return self._request_manager.custom_request(
             RequestManager.RequestData(url, type="PATCH", body=body)
@@ -179,17 +171,21 @@ class JMapMCS:
     def get_layer_style_rules(
         self, organization_id: str, project_id: str, layer_id: str
     ) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}/style-rules"
+        )
         prefix = "error getting layer style rules"
         return self._request_manager.get_request(url, error_prefix=prefix)
 
     def delete_layer_style_rule(
         self, organization_id: str, project_id: str, layer_id: str, style_rule_id: str
     ) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules/{style_rule_id}"
-        return self._request_manager.custom_request(
-            RequestManager.RequestData(url, type="DELETE")
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}/style-rules/{style_rule_id}"
         )
+        return self._request_manager.custom_request(RequestManager.RequestData(url, type="DELETE"))
 
 
 class JMapMIS:
@@ -229,9 +225,7 @@ class JMapDAS:
         )
         return uri
 
-    def get_vector_tile_uri(
-        self, spatial_datasource_id: str, organization_id: str
-    ) -> str:
+    def get_vector_tile_uri(self, spatial_datasource_id: str, organization_id: str) -> str:
         if organization_id is None:
             return None
 
