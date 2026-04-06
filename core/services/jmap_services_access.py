@@ -44,7 +44,10 @@ class JMapMCS:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers?q=elementType={elementType}"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers?q=elementType={elementType}"
+        )
         request = RequestManager.RequestData(url, type="GET")
 
         return self._request_manager.add_requests(request)
@@ -90,9 +93,10 @@ class JMapMCS:
         """
         match = re.search(r"(https?:\/\/.+\..+\?)", source)
         if match:
-            url = match.group(0)
-            url = "{}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities".format(
-                url
+            url = (
+                f"{match.group(0)}"
+                "SERVICE=WMS&VERSION=1.3.0&"
+                "REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities"
             )
         else:
             return None
