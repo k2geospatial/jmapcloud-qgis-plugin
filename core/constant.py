@@ -20,7 +20,6 @@ from qgis.core import Qgis
 
 from ..config import CONFIG
 
-
 # config
 _base_url = CONFIG["API_URL"]
 
