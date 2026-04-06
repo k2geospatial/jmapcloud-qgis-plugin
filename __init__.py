@@ -11,10 +11,10 @@
 # -----------------------------------------------------------
 
 
-
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
     from .jmap_cloud import JMapCloud
+
     """Load Jmap class from file Jmap.
 
     :param iface: A QGIS interface instance.
