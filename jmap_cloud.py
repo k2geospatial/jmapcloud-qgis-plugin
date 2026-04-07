@@ -12,32 +12,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.html.
 # -----------------------------------------------------------
-from pathlib import Path
 from html import escape
+from pathlib import Path
 
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMapLayerType, QgsProject, QgsReferencedRectangle, QgsRectangle, QgsMessageLog
+from qgis.core import (
+    Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsMapLayerType,
+    QgsMessageLog,
+    QgsProject,
+    QgsRectangle,
+    QgsReferencedRectangle,
+)
 from qgis.gui import QgisInterface
-from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, Qt
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, Qt, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
-
 
 # from JMapCloud import resources_rc
 from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
 from .core.services.auth_manager import JMapAuth
+from .core.services.export_layer_manager import ExportLayerManager
 from .core.services.export_project_manager import ExportProjectManager
 from .core.services.import_project_manager import ImportProjectManager
-from .core.services.export_layer_manager import ExportLayerManager
+from .core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from .core.services.request_manager import RequestManager
 from .core.services.session_manager import SessionManager
 from .core.services.style_manager import StyleManager
-from .core.services.jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from .core.views import ExportSelectedLayerData, ProjectData
 from .ui.py_files.action_dialog import ActionDialog
 from .ui.py_files.connection_dialog import ConnectionDialog
+from .ui.py_files.export_layer_dialog import ExportLayerDialog
 from .ui.py_files.export_project_dialog import ExportProjectDialog
 from .ui.py_files.open_project_dialog import OpenProjectDialog
-from .ui.py_files.export_layer_dialog import ExportLayerDialog
 
 
 class JMapCloud:
@@ -68,7 +75,6 @@ class JMapCloud:
         # Declare instance attributes
         self.actions = []
 
-
         # initialize services and managers
         self.session_manager = SessionManager()
         self.request_manager = RequestManager(self.session_manager)
@@ -84,8 +90,9 @@ class JMapCloud:
             self.style_manager, self.request_manager, self.jmap_mcs, self.jmap_das, self.jmap_mis
         )
         self.export_layer_manager = ExportLayerManager(self.request_manager, self.jmap_mcs)
-        self.export_layer_manager.data_source_references_loaded.connect(self._handle_project_references)
-    
+        self.export_layer_manager.data_source_references_loaded.connect(
+            self._handle_project_references
+        )
 
         # # initialize ui
         self.connection_dialog = ConnectionDialog(self.auth_manager)
@@ -190,11 +197,14 @@ class JMapCloud:
     def _create_layer_export_options_menu(self):
         """
         Create the menu entries for layer export options inside the QGIS GUI.
-        This function is called when the user click on export project button and before showing the export project dialog.
+        This function is called when the user click on export project button and
+        before showing the export project dialog.
         """
         if self._layer_tree_context_menu_connected:
             return
-        self.iface.layerTreeView().contextMenuAboutToShow.connect(self._on_layer_tree_context_menu_about_to_show)
+        self.iface.layerTreeView().contextMenuAboutToShow.connect(
+            self._on_layer_tree_context_menu_about_to_show
+        )
         self._layer_tree_context_menu_connected = True
 
     def _on_layer_tree_context_menu_about_to_show(self, menu: QMenu):
@@ -224,7 +234,9 @@ class JMapCloud:
         export_to_jmap_action.setObjectName("jmapcloud_export_layer_action")
         export_to_jmap_action.setIcon(QIcon(":images/images/icon.svg"))
         export_to_jmap_action.triggered.connect(
-            lambda checked=False, selected_layer=layer: self._open_export_layer_dialog(selected_layer)
+            lambda checked=False, selected_layer=layer: self._open_export_layer_dialog(
+                selected_layer
+            )
         )
         target_menu.addAction(export_to_jmap_action)
 
@@ -239,7 +251,9 @@ class JMapCloud:
         self._create_menu()
         self._create_layer_export_options_menu()
 
-        self.auth_manager.logged_out_signal.connect(lambda: self._set_authorized_action(AuthState.NOT_AUTHENTICATED))
+        self.auth_manager.logged_out_signal.connect(
+            lambda: self._set_authorized_action(AuthState.NOT_AUTHENTICATED)
+        )
         auth_state = self.auth_manager.get_auth_state()
         if auth_state == AuthState.AUTHENTICATED:
             self.auth_manager.get_refresh_auth_event().start()
@@ -256,7 +270,9 @@ class JMapCloud:
         self.load_project_dialog.close()
         self.export_project_dialog.close()
         if self._layer_tree_context_menu_connected:
-            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(self._on_layer_tree_context_menu_about_to_show)
+            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
+                self._on_layer_tree_context_menu_about_to_show
+            )
             self._layer_tree_context_menu_connected = False
 
         # remove the toolbar
@@ -320,11 +336,11 @@ class JMapCloud:
         """
         if not layer:
             return
-        
+
         if self.export_layer_manager.is_exporting_layer():
             self.export_layer_manager._action_dialog.show()
             return
-        
+
         claims = self.session_manager.get_claims()
         if not claims or "organizationId" not in claims:
             self.auth_manager.logout("Error : Authentication failed")
@@ -360,7 +376,13 @@ class JMapCloud:
             if auth_state == AuthState.AUTHENTICATED:
                 self.load_project_dialog.close()
                 crs = QgsCoordinateReferenceSystem(project_data["crs"])
-                initial_extent = QgsReferencedRectangle(QgsRectangle.fromWkt(project_data["initial_extent"]), crs) if project_data["initial_extent"] else None
+                initial_extent = (
+                    QgsReferencedRectangle(
+                        QgsRectangle.fromWkt(project_data["initial_extent"]), crs
+                    )
+                    if project_data["initial_extent"]
+                    else None
+                )
                 vector_layer_type = project_data["layerType"]
                 project_data = ProjectData(
                     name=project_data["name"],
@@ -394,7 +416,9 @@ class JMapCloud:
                 )
                 project_data.setup_with_QGIS_project(QgsProject.instance())
                 if self._selected_layer_for_export:
-                    selected_layer = QgsProject.instance().mapLayer(self._selected_layer_for_export.id())
+                    selected_layer = QgsProject.instance().mapLayer(
+                        self._selected_layer_for_export.id()
+                    )
                     self._selected_layer_for_export = None
                     if selected_layer:
                         project_data.layers = [selected_layer]
@@ -403,76 +427,113 @@ class JMapCloud:
     def _export_layer(self):
         """
         start the exportation of a selected layer from QGIS to JMap Cloud.
-        Before starting the exportation, we must display a warning dialog if the layer is trying to be replace can have an important
-        impact on other project that are using the same layer in JMap Cloud.
-         The warning dialog will ask the user to confirm the exportation or not.
-         If the user confirm the exportation, the exportation will be started, otherwise, the exportation will be cancelled.
-         The exportation of a layer can be done in two modes :
+        Before starting the exportation,
+        we must display a warning dialog if the layer is trying to be replaced and
+        can have an important impact on other project that are using the same layer in JMap Cloud.
+        The warning dialog will ask the user to confirm the exportation or not.
+        If the user confirm the exportation, the exportation will be started.
+        Otherwise, the exportation will be cancelled.
+        The exportation of a layer can be done in two modes :
         """
-       
+
         export_selected_layer_data = self.export_layer_dialog.get_selected_layer_to_export()
-        
+
         if not export_selected_layer_data:
             return
-        
+
         if self.auth_manager.get_auth_state() != AuthState.AUTHENTICATED:
             self.auth_manager.logout("Error : Authentication failed")
             return
-        
-        export_selected_layer_data.JMC_project.organization_id = self.session_manager.get_organization_id()
+
+        export_selected_layer_data.JMC_project.organization_id = (
+            self.session_manager.get_organization_id()
+        )
         if export_selected_layer_data.mode == ExportSelectedLayerData.ExportMode.replace:
             self.export_layer_manager.load_data_source_referenced_by_other_projects(
-                export_selected_layer_data.target_JMC_data_source_id, 
-                export_selected_layer_data.JMC_project.project_id
+                export_selected_layer_data.target_JMC_data_source_id,
+                export_selected_layer_data.JMC_project.project_id,
             )
         else:
             self.export_layer_dialog.close()
-            self.export_layer_manager.create_new_layer(self.session_manager.get_organization_id(), export_selected_layer_data)
+            self.export_layer_manager.create_new_layer(
+                self.session_manager.get_organization_id(), export_selected_layer_data
+            )
 
     def _handle_project_references(self, references: list[dict[str, list[str]]]):
-                """Handle the project references of a layer to replace before exporting it."""
-                if references is None or len(references) == 0:
-                    self.export_layer_dialog.close()
-                    self.export_layer_manager.replace_layer(self.session_manager.get_organization_id(), self.export_layer_dialog.get_selected_layer_to_export())
-                    return
-                
-                html_content = """
+        """Handle the project references of a layer to replace before exporting it."""
+        if references is None or len(references) == 0:
+            self.export_layer_dialog.close()
+            self.export_layer_manager.replace_layer(
+                self.session_manager.get_organization_id(),
+                self.export_layer_dialog.get_selected_layer_to_export(),
+            )
+            return
+
+        html_content = """
                 <p><b>{}</b> {}</p>
                 <ul>
                 """.format(
-                    self.tr("Warning:"),
-                    self.tr("The layer you are trying to replace is referenced by the following projects and layers:"),
-                )
-                for reference in references:
-                    project_name = escape(reference.get("project_name", self.tr("Unknown Project")))
-                    layer_names = reference.get("layer_names", [])
-                    html_content += f"<li>{project_name}: {', '.join(escape(name) for name in layer_names)}</li>"
-                html_content += "</ul>"
-                html_content += "<p>{}</p>".format(
-                    self.tr("Replacing the layer will impact all these projects and layers. Do you want to continue?")
-                )
+            self.tr("Warning:"),
+            self.tr(
+                "The layer you are trying to replace is referenced by the "
+                "following projects and layers:"
+            ),
+        )
+        for reference in references:
+            project_name = escape(reference.get("project_name", self.tr("Unknown Project")))
+            layer_names = reference.get("layer_names", [])
+            html_content += (
+                f"<li>{project_name}: {', '.join(escape(name) for name in layer_names)}</li>"
+            )
+        html_content += "</ul>"
+        html_content += "<p>{}</p>".format(
+            self.tr(
+                "Replacing the layer will impact all these projects and layers. "
+                "Do you want to continue?"
+            )
+        )
 
-                message_box = QMessageBox(self.iface.mainWindow())
-                message_box.setIcon(QMessageBox.Icon.Warning)
-                message_box.setWindowTitle(self.tr("Layer replacement warning"))
-                message_box.setTextFormat(Qt.TextFormat.RichText)
-                message_box.setText(html_content)
-                message_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                result = message_box.exec()
+        message_box = QMessageBox(self.iface.mainWindow())
+        message_box.setIcon(QMessageBox.Icon.Warning)
+        message_box.setWindowTitle(self.tr("Layer replacement warning"))
+        message_box.setTextFormat(Qt.TextFormat.RichText)
+        message_box.setText(html_content)
+        message_box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        result = message_box.exec()
 
-                if result == QMessageBox.StandardButton.Yes:
-                    export_selected_layer_data = self.export_layer_dialog.get_selected_layer_to_export()
-                    message_box.close()
-                    self.export_layer_dialog.close()
+        if result == QMessageBox.StandardButton.Yes:
+            export_selected_layer_data = self.export_layer_dialog.get_selected_layer_to_export()
+            message_box.close()
+            self.export_layer_dialog.close()
 
-                    if not export_selected_layer_data:
-                        return
-                    
-                    export_selected_layer_data.JMC_project.organization_id = self.session_manager.get_organization_id()
-                    self.export_layer_manager.replace_layer(export_selected_layer_data.JMC_project.organization_id, export_selected_layer_data)
+            if not export_selected_layer_data:
+                return
 
-                    QgsMessageLog.logMessage("User confirmed the layer replacement, starting exportation", level=Qgis.MessageLevel.Info)
-                else:
-                    message_box.close()
-                    QgsMessageLog.logMessage("User cancelled the layer replacement, exportation cancelled", level=Qgis.MessageLevel.Info)
-                
+            export_selected_layer_data.JMC_project.organization_id = (
+                self.session_manager.get_organization_id()
+            )
+            self.export_layer_manager.replace_layer(
+                export_selected_layer_data.JMC_project.organization_id, export_selected_layer_data
+            )
+
+            QgsMessageLog.logMessage(
+                "User confirmed the layer replacement, starting exportation",
+                level=Qgis.MessageLevel.Info,
+            )
+        else:
+            message_box.close()
+            QgsMessageLog.logMessage(
+                "User cancelled the layer replacement, exportation cancelled",
+                level=Qgis.MessageLevel.Info,
+            )
+
+            self.export_layer_manager.replace_layer(
+                export_selected_layer_data.JMC_project.organization_id, export_selected_layer_data
+            )
+
+            QgsMessageLog.logMessage(
+                "User confirmed the layer replacement, starting exportation",
+                level=Qgis.MessageLevel.Info,
+            )

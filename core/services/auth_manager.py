@@ -40,7 +40,6 @@ class JMapAuth(QObject):
         self._session_manager = session_manager
         self._request_manager = request_manager
 
-
     def get_auth_state(self) -> AuthState:
         """
         Get the current authentication state of the JMap user and refresh the token if needed.
