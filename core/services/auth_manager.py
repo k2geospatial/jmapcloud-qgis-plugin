@@ -14,19 +14,12 @@ from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
+from ..constant import ACCESS_TOKEN_SETTING_ID, API_AUTH_URL, REFRESH_TOKEN_SETTING_ID, AuthState
 from ..plugin_util import convert_jmap_datetime, time_now
 from ..qgs_message_bar_handler import Qgis, QgsMessageBarHandler
 from ..recurring_event import RecurringEvent
-
-from .session_manager import SessionManager
 from .request_manager import RequestManager
-
-from ..constant import (
-    ACCESS_TOKEN_SETTING_ID,
-    API_AUTH_URL,
-    REFRESH_TOKEN_SETTING_ID,
-    AuthState,
-)
+from .session_manager import SessionManager
 
 
 class JMapAuth(QObject):
@@ -35,8 +28,8 @@ class JMapAuth(QObject):
     def __init__(self, session_manager: SessionManager, request_manager: RequestManager):
         super().__init__()
         self._refresh_auth_event = RecurringEvent(
-              interval=240, callback=self.refresh_auth_settings, call_on_first_run=True
-          )
+            interval=240, callback=self.refresh_auth_settings, call_on_first_run=True
+        )
         self._session_manager = session_manager
         self._request_manager = request_manager
 
@@ -77,9 +70,10 @@ class JMapAuth(QObject):
     def is_token_expired(self, token_expiration: str) -> bool:
         """
         Check if the given token has expired.
-
-        :param token_expiration: The expiration of the token
-        :return: True if the token has expired, False otherwise
+        :param token_expiration:
+            The expiration of the token
+        :return:
+            True if the token has expired, False otherwise
         """
         return convert_jmap_datetime(token_expiration) < time_now()
 
@@ -87,9 +81,13 @@ class JMapAuth(QObject):
         """
         Refresh the JMap authentication settings using the provided organization ID and claims.
 
-        :param org_id: An optional organization ID to be used for refreshing authentication settings.
-        :param claims: An optional dictionary containing current authentication claims.
-        :return: A dictionary with updated authentication claims if the refresh is successful, otherwise None.
+        :param org_id:
+            An optional organization ID to be used for refreshing authentication settings.
+        :param claims:
+            An optional dictionary containing current authentication claims.
+        :return:
+            A dictionary with updated authentication claims if the refresh is successful,
+            otherwise None.
         """
         if claims is None:
             claims = self._session_manager.get_auth_settings()
@@ -160,8 +158,11 @@ class JMapAuth(QObject):
         """
         Get the user associated with the given access token.
 
-        :param access_token: An access token obtained by calling self.get_access_token
-        :return: A dictionary with the user information and all his organization ids if the request is successful, otherwise None
+        :param access_token:
+            An access token obtained by calling self.get_access_token
+        :return:
+            A dictionary with the user information and all his organization ids
+            if the request is successful, otherwise None
         """
         url = "{}/users/self".format(API_AUTH_URL)
         prefix = "Authentication Error"
@@ -175,14 +176,23 @@ class JMapAuth(QObject):
 
     def logout(self, error_message: str = None) -> None:
         """
-        try to revoke the access token from JMap and remove all the authentication settings from QGIS auth manager...
+        Try to revoke the access token from JMap and
+        remove all the authentication settings from QGIS auth manager.
+
+        :param error_message:
+            An optional error message to display in the QGIS message bar
         """
         if error_message:
-            QgsMessageBarHandler.send_message_to_message_bar(error_message, level=Qgis.MessageLevel.Warning)
+            QgsMessageBarHandler.send_message_to_message_bar(
+                error_message, level=Qgis.MessageLevel.Warning
+            )
 
         auth_manager = QgsApplication.authManager()
         self._refresh_auth_event.stop()
-        refresh_token = auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True) or None
+        refresh_token = (
+            auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
+            or None
+        )
         if refresh_token:
             url = "{}/revoke-token".format(API_AUTH_URL)
             body = {"refreshToken": refresh_token}
