@@ -62,6 +62,18 @@ class AuthState(Enum):
     NO_ORGANIZATION = auto()
 
 
+class Permission(Enum):
+    MODIFY = "MODIFY"
+    OWNER = "OWNER"
+    VIEW = "VIEW"
+
+
+class OrganisationRole(Enum):
+    ADMIN = "ORG_ADMIN"
+    EDITOR = "ORG_EDITOR"
+    VIEWER = "ORG_VIEWER"
+
+
 class ElementTypeWrapper(Enum):
     POINT = "POINT"
     LINE = "LINE"
