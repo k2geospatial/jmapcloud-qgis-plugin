@@ -28,6 +28,18 @@ class JMapMCS:
         self._request_manager = request_manager
         self._session_manager = session_manager
 
+    def get_project_permissions(self, project_id: str) -> RequestManager.ResponseData:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}"
+            "/permissions/self"
+        )
+        return self._request_manager.get_request(
+            url, error_prefix="error getting project permissions"
+        )
+
     def get_projects_async(self) -> pyqtSignal:
         organization_id = self._session_manager.get_organization_id()
 
@@ -163,6 +175,7 @@ class JMapMCS:
         url = (
             f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
         )
+
         body = request.to_json()
         return self._request_manager.custom_request(
             RequestManager.RequestData(url, type="PATCH", body=body)
