@@ -33,6 +33,16 @@ class JMapAuth(QObject):
         self._session_manager = session_manager
         self._request_manager = request_manager
 
+    def _is_token_expired(self, token_expiration: str) -> bool:
+        """
+        Check if the given token has expired.
+        :param token_expiration:
+            The expiration of the token
+        :return:
+            True if the token has expired, False otherwise
+        """
+        return convert_jmap_datetime(token_expiration) < time_now()
+
     def get_auth_state(self) -> AuthState:
         """
         Get the current authentication state of the JMap user and refresh the token if needed.
@@ -47,7 +57,7 @@ class JMapAuth(QObject):
             self.logout()
             return AuthState.NOT_AUTHENTICATED
 
-        if self.is_token_expired(claims["expiration"]):
+        if self._is_token_expired(claims["expiration"]):
             QgsApplication.authManager().storeAuthSetting(ACCESS_TOKEN_SETTING_ID, "", True)
             if not claims["organizationId"]:
                 self.logout()
@@ -66,16 +76,6 @@ class JMapAuth(QObject):
             return AuthState.NO_ORGANIZATION
 
         return AuthState.AUTHENTICATED
-
-    def is_token_expired(self, token_expiration: str) -> bool:
-        """
-        Check if the given token has expired.
-        :param token_expiration:
-            The expiration of the token
-        :return:
-            True if the token has expired, False otherwise
-        """
-        return convert_jmap_datetime(token_expiration) < time_now()
 
     def refresh_auth_settings(self, org_id: str = None, claims: dict = None) -> dict:
         """
@@ -208,3 +208,24 @@ class JMapAuth(QObject):
         :return: The recurring event that refreshes the authentication settings
         """
         return self._refresh_auth_event
+
+    def get_member_self(self) -> dict:
+        """
+        Get the member associated with the given access token.
+
+        :return:
+            A dictionary with the member information and all his organization ids
+            if the request is successful, otherwise None
+        """
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+
+        url = "{}/organizations/{}/members/self".format(API_AUTH_URL, organization_id)
+        prefix = "Unable to retrieve member information"
+        response = self._request_manager.get_request(url, error_prefix=prefix)
+
+        if response.status == QNetworkReply.NetworkError.NoError:
+            return response.content
+        else:
+            return None
