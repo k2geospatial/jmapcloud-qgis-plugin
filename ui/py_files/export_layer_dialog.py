@@ -4,8 +4,9 @@ from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
-from ...core.constant import ElementTypeWrapper
+from ...core.constant import ElementTypeWrapper, Permission
 from ...core.plugin_util import get_user_locale
+from ...core.services.auth_manager import JMapAuth
 from ...core.services.jmap_services_access import JMapMCS
 from ...core.services.request_manager import RequestManager
 from ...core.views import ExportSelectedLayerData, ProjectData
@@ -20,10 +21,11 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
     # { "id": str, "spatialDataSourceId": str }
     selected_layer_id_to_replace = pyqtSignal(dict)
 
-    def __init__(self, jmap_mcs: JMapMCS):
+    def __init__(self, jmap_mcs: JMapMCS, auth_manager: JMapAuth):
         super().__init__(iface.mainWindow())
         self.setupUi(self)
         self.jmap_mcs = jmap_mcs
+        self.auth_manager = auth_manager
         self._selected_layer_id = None
         self._selected_layer_name = None
         self._selected_layer_type = None
@@ -79,9 +81,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         if project_data:
             self.error_label.clear()
             if self.repalce_layer_radio_button.isChecked():
-                self._load_project_layers(
-                    project_data.project_id, self._selected_layer_type
-                )
+                self._load_project_layers(project_data.project_id, self._selected_layer_type)
             else:
                 self.target_layer_replace_combo_box.setEnabled(False)
                 self.target_layer_replace_combo_box.clear()
@@ -113,9 +113,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
             layers = reply.content or []
 
             if not layers:
-                self.error_label.setText(
-                    self.tr("No layers found in the selected project")
-                )
+                self.error_label.setText(self.tr("No layers found in the selected project"))
                 self.target_layer_replace_combo_box.setEnabled(False)
                 self.layer_replace_label.setEnabled(False)
                 return
@@ -154,20 +152,14 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
             self.target_layer_replace_combo_box.setEnabled(True)
             self.export_layer_pushButton.setEnabled(True)
 
-        self.jmap_mcs.get_project_layers_async(project_id, elementType).connect(
-            next_func
-        )
+        self.jmap_mcs.get_project_layers_async(project_id, elementType).connect(next_func)
 
     def _on_mode_toggled(self, mode: ExportSelectedLayerData.ExportMode, checked: bool):
         if not checked:
             return
 
-        self.layer_replace_label.setEnabled(
-            mode == ExportSelectedLayerData.ExportMode.replace
-        )
-        self.export_layer_pushButton.setEnabled(
-            mode == ExportSelectedLayerData.ExportMode.create
-        )
+        self.layer_replace_label.setEnabled(mode == ExportSelectedLayerData.ExportMode.replace)
+        self.export_layer_pushButton.setEnabled(mode == ExportSelectedLayerData.ExportMode.create)
 
         if (
             mode == ExportSelectedLayerData.ExportMode.replace
@@ -219,6 +211,23 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         self.JMap_project_combo_box.addItem(self.tr("Loading..."), None)
         self.JMap_project_combo_box.setEnabled(False)
 
+        def _can_user_modify_project(project: dict) -> bool:
+            project_id = project["id"]
+            reply = self.jmap_mcs.get_project_permissions(project_id)
+
+            if reply is None or reply.status != QNetworkReply.NetworkError.NoError:
+                return False
+
+            if len(reply.content) == 0:
+                return False
+
+            permissions_payload = reply.content[0]["permissions"] or []
+
+            return (
+                Permission.MODIFY.value in permissions_payload
+                or Permission.OWNER.value in permissions_payload
+            )
+
         def _project_display_name(project: dict) -> str:
             name = project.get("name", "Unnamed project")
             if isinstance(name, dict):
@@ -235,6 +244,10 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
 
             projects = reply.content or []
 
+            self.JMap_project_combo_box.clear()
+
+            projects = list(filter(lambda p: _can_user_modify_project(p), projects))
+
             if not projects:
                 self.JMap_project_combo_box.clear()
                 self.error_label.setText(self.tr("No projects found"))
@@ -242,11 +255,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.export_layer_pushButton.setEnabled(False)
                 return
 
-            self.JMap_project_combo_box.clear()
-
-            for project in sorted(
-                projects, key=lambda p: _project_display_name(p).lower()
-            ):
+            for project in sorted(projects, key=lambda p: _project_display_name(p).lower()):
                 project_data = ProjectData(
                     project_id=project["id"],
                     name=project["name"],
@@ -254,9 +263,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                     default_language=project["defaultLanguage"],
                 )
 
-                self.JMap_project_combo_box.addItem(
-                    _project_display_name(project), project_data
-                )
+                self.JMap_project_combo_box.addItem(_project_display_name(project), project_data)
 
             try:
                 self.JMap_project_combo_box.currentIndexChanged.disconnect(
@@ -264,9 +271,8 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 )
             except TypeError:
                 pass
-            self.JMap_project_combo_box.currentIndexChanged.connect(
-                self._on_project_selected
-            )
+
+            self.JMap_project_combo_box.currentIndexChanged.connect(self._on_project_selected)
             self.JMap_project_combo_box.setEnabled(True)
 
             self.create_layer_radio_button.setEnabled(True)
