@@ -30,7 +30,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 # from JMapCloud import resources_rc
-from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState
+from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState, OrganisationRole
 from .core.services.auth_manager import JMapAuth
 from .core.services.export_layer_manager import ExportLayerManager
 from .core.services.export_project_manager import ExportProjectManager
@@ -102,7 +102,7 @@ class JMapCloud:
         self.load_project_dialog.open_project_pushButton.clicked.connect(self._load_project)
         self.export_project_dialog = ExportProjectDialog()
         self.export_project_dialog.export_project_pushButton.clicked.connect(self._export_project)
-        self.export_layer_dialog = ExportLayerDialog(self.jmap_mcs)
+        self.export_layer_dialog = ExportLayerDialog(self.jmap_mcs, self.auth_manager)
         self.export_layer_dialog.export_layer_pushButton.clicked.connect(self._export_layer)
 
         self._layer_tree_context_menu_connected = False
@@ -207,6 +207,27 @@ class JMapCloud:
         )
         self._layer_tree_context_menu_connected = True
 
+    def _is_user_allowed_to_export_layer_JMC(self) -> bool:
+        """
+        Check if the current user is allowed to export layers to JMap Cloud
+        based on the organization permissions and the authentication state.
+        :return: True if the user is allowed, False otherwise.
+        """
+        if self.auth_manager.get_auth_state() != AuthState.AUTHENTICATED:
+            return False
+
+        member_info = self.auth_manager.get_member_self()
+
+        if member_info is None:
+            return False
+
+        roles = member_info.get("roles", [])
+
+        if not roles or len(roles) == 0:
+            return False
+
+        return OrganisationRole.ADMIN.value in roles or OrganisationRole.EDITOR.value in roles
+
     def _on_layer_tree_context_menu_about_to_show(self, menu: QMenu):
         """
         Add a custom action in the layer "Export" submenu for vector and raster layers.
@@ -230,14 +251,18 @@ class JMapCloud:
             if action.objectName() == "jmapcloud_export_layer_action":
                 return
 
-        export_to_jmap_action = QAction(self.tr("Export to JMap Cloud"), target_menu)
-        export_to_jmap_action.setObjectName("jmapcloud_export_layer_action")
-        export_to_jmap_action.setIcon(QIcon(":images/images/icon.svg"))
-        export_to_jmap_action.triggered.connect(
-            lambda checked=False, selected_layer=layer: self._open_export_layer_dialog(
+        export_to_jmap_action = self._create_actions(
+            text=self.tr("Export to JMap Cloud"),
+            icon_path=":images/images/icon.svg",
+            callback=lambda checked=False, selected_layer=layer: self._open_export_layer_dialog(
                 selected_layer
-            )
+            ),
+            parent=target_menu,
+            enabled_flag=self._is_user_allowed_to_export_layer_JMC(),
         )
+
+        export_to_jmap_action.setObjectName("jmapcloud_export_layer_action")
+
         target_menu.addAction(export_to_jmap_action)
 
     def _on_export_layer_action_placeholder(self, layer):
@@ -278,16 +303,16 @@ class JMapCloud:
         # remove the toolbar
         # del self.toolbar
 
-    def _set_authorized_action(self, authState: AuthState):
+    def _set_authorized_action(self, auth_state: AuthState):
         """
         Enable or disable project-related actions based on the authentication state.
 
-        :param authState: The current authentication state, determining whether
+        :param auth_state: The current authentication state, determining whether
                           the user is authenticated and has an organization.
         """
-        isAuthenticated = authState == AuthState.AUTHENTICATED
+        isAuthenticated = auth_state == AuthState.AUTHENTICATED
         self.load_project_action.setEnabled(isAuthenticated)
-        self.export_project_action.setEnabled(isAuthenticated)
+        self.export_project_action.setEnabled(self._is_user_allowed_to_export_layer_JMC())
         self.trigger_refresh_token_action.setEnabled(isAuthenticated)
 
     def _open_connection_dialog(self):
