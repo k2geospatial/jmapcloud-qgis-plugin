@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Export project</string>
+   <string>Export Project</string>
   </property>
   <property name="styleSheet">
    <string notr="true">background-color:rgb(36, 46, 52)</string>
@@ -29,7 +29,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap resource="../resources/resources.qrc">:/images/images/Logo_JMap_Cloud.svg</pixmap>
+    <pixmap resource="../../resources.qrc">:/images/images/Logo_JMap_Cloud.svg</pixmap>
    </property>
   </widget>
   <widget class="QWidget" name="widget" native="true">
@@ -56,7 +56,7 @@
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
      <property name="sizeConstraint">
-      <enum>QLayout::SetDefaultConstraint</enum>
+      <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
      </property>
      <item>
       <widget class="QLabel" name="title_label">
@@ -67,7 +67,7 @@
         </sizepolicy>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="styleSheet">
         <string notr="true">color: rgb(0, 0, 0);</string>
@@ -76,7 +76,7 @@
         <string>Export a project to JMap Cloud</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignCenter</set>
+        <set>Qt::AlignmentFlag::AlignCenter</set>
        </property>
       </widget>
      </item>
@@ -95,7 +95,7 @@
         <string>Project title :</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -123,7 +123,7 @@ padding: 5px;</string>
      <item>
       <spacer name="verticalSpacer">
        <property name="orientation">
-        <enum>Qt::Vertical</enum>
+        <enum>Qt::Orientation::Vertical</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -142,7 +142,7 @@ padding: 5px;</string>
         <string/>
        </property>
        <property name="alignment">
-        <set>Qt::AlignCenter</set>
+        <set>Qt::AlignmentFlag::AlignCenter</set>
        </property>
       </widget>
      </item>
@@ -155,15 +155,11 @@ padding: 5px;</string>
         </sizepolicy>
        </property>
        <property name="focusPolicy">
-        <enum>Qt::WheelFocus</enum>
+        <enum>Qt::FocusPolicy::WheelFocus</enum>
        </property>
        <property name="styleSheet">
         <string notr="true">QPushButton {
- background-color: rgb(255, 255, 255);
- color: rgb(0, 0, 0);
-}
-QPushButton:disabled {
- color: rgb(120, 120, 120);
+	color: black
 }</string>
        </property>
        <property name="text">
@@ -177,6 +173,7 @@ QPushButton:disabled {
  </widget>
  <resources>
   <include location="../../resources.qrc"/>
+  <include location="../resources/resources.qrc"/>
  </resources>
  <connections/>
 </ui>

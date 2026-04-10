@@ -12,7 +12,8 @@
 
 
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-from ...resources_rc import qInitResources
+
+from ... import resources_rc  # noqa: F401
 
 
 class Ui_Dialog(object):
@@ -36,7 +37,9 @@ class Ui_Dialog(object):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.progress_info_label = QtWidgets.QLabel(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.progress_info_label.sizePolicy().hasHeightForWidth())
@@ -46,7 +49,9 @@ class Ui_Dialog(object):
         self.progress_info_label.setObjectName("progress_info_label")
         self.verticalLayout.addWidget(self.progress_info_label)
         self.progressBar = QtWidgets.QProgressBar(self.verticalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
@@ -70,7 +75,9 @@ class Ui_Dialog(object):
         self.status_textBrowser = QtWidgets.QTextBrowser(self.verticalLayoutWidget)
         self.status_textBrowser.setObjectName("status_textBrowser")
         self.verticalLayout.addWidget(self.status_textBrowser)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
+        )
         self.verticalLayout.addItem(spacerItem)
         self.exit_pushButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
         self.exit_pushButton.setStyleSheet(
@@ -92,5 +99,3 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Action"))
         self.exit_pushButton.setText(_translate("Dialog", "Close"))
-
-qInitResources()

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Export layer</string>
+   <string>Export Layer</string>
   </property>
   <property name="styleSheet">
    <string notr="true">background-color:rgb(36, 46, 52)</string>
@@ -92,7 +92,7 @@
         <string notr="true">color: black;</string>
        </property>
        <property name="text">
-        <string>Select the Project :</string>
+        <string>Select the project :</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
@@ -156,7 +156,7 @@ QRadioButton:disabled {
 }</string>
          </property>
          <property name="text">
-          <string>Create new layer</string>
+          <string>Create a new layer</string>
          </property>
         </widget>
        </item>
