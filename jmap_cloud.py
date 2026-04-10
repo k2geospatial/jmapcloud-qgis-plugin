@@ -29,7 +29,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, Qt, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-# from JMapCloud import resources_rc
+from . import resources_rc  # noqa: F401
 from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState, OrganisationRole
 from .core.services.auth_manager import JMapAuth
 from .core.services.export_layer_manager import ExportLayerManager
@@ -167,17 +167,17 @@ class JMapCloud:
             parent=self.iface.mainWindow(),
         )
         self.load_project_action = self._create_actions(
-            text=self.tr("Open project"),
+            text=self.tr("Open Project"),
             callback=self._open_load_project_dialog,
             parent=self.iface.mainWindow(),
         )
         self.export_project_action = self._create_actions(
-            text=self.tr("Export project"),
+            text=self.tr("Export Project"),
             callback=self._open_export_project_dialog,
             parent=self.iface.mainWindow(),
         )
         self.trigger_refresh_token_action = self._create_actions(
-            text=self.tr("Refresh token"),
+            text=self.tr("Refresh Token"),
             callback=self.auth_manager.refresh_auth_settings,
             parent=self.iface.mainWindow(),
         )
