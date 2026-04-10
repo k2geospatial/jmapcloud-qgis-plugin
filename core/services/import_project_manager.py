@@ -111,7 +111,7 @@ class ImportProjectManager(CustomTaskManager):
         self._get_project_layers_data().connect(next_function)
 
     def _get_project_layers_data(self) -> pyqtSignal:
-        self.action_dialog.set_text("Getting project data")
+        self.action_dialog.set_text(self.tr("Getting project data"))
         urls = {
             # "project-data": "{}/organizations/{}/projects/{}".format(API_MCS_URL,self.project_data.organization_id,self.project_data.project_id),
             "layers-data": "{}/organizations/{}/projects/{}/layers".format(
