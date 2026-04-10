@@ -15,12 +15,7 @@ import urllib.parse
 
 from qgis.PyQt.QtCore import pyqtSignal
 
-from ..constant import (
-    API_DAS_URL,
-    API_MCS_URL,
-    API_MIS_URL,
-    AUTH_CONFIG_ID,
-)
+from ..constant import API_DAS_URL, API_MCS_URL, API_MIS_URL, AUTH_CONFIG_ID
 from ..DTOS import LayerDTO, ProjectDTO, UpdateLayerDTO
 from .request_manager import RequestManager
 from .session_manager import SessionManager
@@ -28,13 +23,26 @@ from .session_manager import SessionManager
 
 class JMapMCS:
     """Class to handle JMap MCS api end point requests"""
+
     def __init__(self, request_manager: RequestManager, session_manager: SessionManager):
         self._request_manager = request_manager
         self._session_manager = session_manager
 
+    def get_project_permissions(self, project_id: str) -> RequestManager.ResponseData:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}"
+            "/permissions/self"
+        )
+        return self._request_manager.get_request(
+            url, error_prefix="error getting project permissions"
+        )
+
     def get_projects_async(self) -> pyqtSignal:
         organization_id = self._session_manager.get_organization_id()
-        
+
         if organization_id is None:
             return None
         url = f"{API_MCS_URL}/organizations/{organization_id}/projects"
@@ -46,11 +54,14 @@ class JMapMCS:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers?q=elementType={elementType}"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers?q=elementType={elementType}"
+        )
         request = RequestManager.RequestData(url, type="GET")
 
         return self._request_manager.add_requests(request)
-    
+
     def get_project_by_id(self, project_id: str) -> RequestManager.ResponseData:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
@@ -62,15 +73,23 @@ class JMapMCS:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}"
+        )
         return self._request_manager.get_request(url, error_prefix="error getting layer details")
 
     def get_datasource_references_by_id(self, datasource_id: str) -> RequestManager.ResponseData:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        url = f"{API_MCS_URL}/organizations/{organization_id}/datasources/{datasource_id}?additionalInfo=references"
-        return self._request_manager.get_request(url, error_prefix="error getting datasource details")
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/datasources/"
+            f"{datasource_id}?additionalInfo=references"
+        )
+        return self._request_manager.get_request(
+            url, error_prefix="error getting datasource details"
+        )
 
     def get_wms_layer_uri(self, source: str) -> dict:
         """
@@ -82,8 +101,11 @@ class JMapMCS:
         """
         match = re.search(r"(https?:\/\/.+\..+\?)", source)
         if match:
-            url = match.group(0)
-            url = "{}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities".format(url)
+            url = (
+                f"{match.group(0)}"
+                "SERVICE=WMS&VERSION=1.3.0&"
+                "REQUEST=GetCapabilities&SERVICE=WMS&REQUEST=GetCapabilities"
+            )
         else:
             return None
         match2 = re.search(r"&?LAYERS=(\w+(,\w+)*)&?", source)
@@ -95,7 +117,9 @@ class JMapMCS:
         safe_string = urllib.parse.quote_plus(url)
         layer_uris = {}
         for layer in layers:
-            layer_uris[layer] = "format=image/png&layers={}&styles&url={}".format(layer, safe_string)
+            layer_uris[layer] = "format=image/png&layers={}&styles&url={}".format(
+                layer, safe_string
+            )
         return layer_uris
 
     def get_wmts_layer_uri(self, url: str, minZoom: int = 0, maxZoom: int = 21) -> str:
@@ -105,7 +129,7 @@ class JMapMCS:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
             return None
-        
+
         json_url = "{}.json".format(url)
         png_url = "{}.png".format(url)
         prefix = "Error loading sprites"
@@ -115,45 +139,78 @@ class JMapMCS:
         png_sprites = self._request_manager.get_request(png_url, error_prefix=prefix).content
         return json_sprites, png_sprites
 
-    def get_project_extent(self, organization_id: str, project_id: str, epsg: str) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
+    def get_project_extent(
+        self, organization_id: str, project_id: str, epsg: str
+    ) -> RequestManager.ResponseData:
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/extent?crs={epsg}"
+        )
         return self._request_manager.get_request(url, error_prefix="error getting project extent")
 
-    def post_project(self, organization_id: str, project_data: ProjectDTO) -> RequestManager.ResponseData:
+    def post_project(
+        self, organization_id: str, project_data: ProjectDTO
+    ) -> RequestManager.ResponseData:
         url = "{}/organizations/{}/projects".format(API_MCS_URL, organization_id)
         prefix = "error creating project"
         body = project_data.to_json()
         return self._request_manager.post_request(url, body, error_prefix=prefix)
-    
-    def post_layer(self, organization_id: str, project_id: str, layer_data: LayerDTO) -> RequestManager.ResponseData:
-        url = "{}/organizations/{}/projects/{}/layers".format(API_MCS_URL, organization_id, project_id)
+
+    def post_layer(
+        self, organization_id: str, project_id: str, layer_data: LayerDTO
+    ) -> RequestManager.ResponseData:
+        url = "{}/organizations/{}/projects/{}/layers".format(
+            API_MCS_URL, organization_id, project_id
+        )
         prefix = "error creating layer"
         body = layer_data.to_json()
         return self._request_manager.post_request(url, body, error_prefix=prefix)
-    
-    def patch_layer(self, organization_id: str, project_id: str, layer_id: str, request: UpdateLayerDTO) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
-        prefix = "error updating layer"
-        body = request.to_json()
-        return self._request_manager.custom_request(RequestManager.RequestData(url, type="PATCH", body=body))
 
-    def get_layer_style_rules(self, organization_id: str, project_id: str, layer_id: str) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules"
+    def patch_layer(
+        self,
+        organization_id: str,
+        project_id: str,
+        layer_id: str,
+        request: UpdateLayerDTO,
+    ) -> RequestManager.ResponseData:
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}"
+        )
+
+        body = request.to_json()
+        return self._request_manager.custom_request(
+            RequestManager.RequestData(url, type="PATCH", body=body)
+        )
+
+    def get_layer_style_rules(
+        self, organization_id: str, project_id: str, layer_id: str
+    ) -> RequestManager.ResponseData:
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}/style-rules"
+        )
         prefix = "error getting layer style rules"
         return self._request_manager.get_request(url, error_prefix=prefix)
 
-    def delete_layer_style_rule(self, organization_id: str, project_id: str, layer_id: str, style_rule_id: str) -> RequestManager.ResponseData:
-        url = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}/layers/{layer_id}/style-rules/{style_rule_id}"
-        prefix = "error deleting layer style rule"
+    def delete_layer_style_rule(
+        self, organization_id: str, project_id: str, layer_id: str, style_rule_id: str
+    ) -> RequestManager.ResponseData:
+        url = (
+            f"{API_MCS_URL}/organizations/{organization_id}/projects/"
+            f"{project_id}/layers/{layer_id}/style-rules/{style_rule_id}"
+        )
         return self._request_manager.custom_request(RequestManager.RequestData(url, type="DELETE"))
-    
+
+
 class JMapMIS:
     """Class to handle JMap MIS api end point requests"""
+
     def get_raster_layer_uri(self, layer_id, organization_id) -> str:
         if organization_id is None:
             return None
 
-        safe_string = urllib.parse.quote_plus("organizationId={}&VERSION=1.3.0".format(organization_id))
+        safe_string = urllib.parse.quote_plus(
+            "organizationId={}&VERSION=1.3.0".format(organization_id)
+        )
         uri = (
             "authcfg={}".format(AUTH_CONFIG_ID)
             + "&crs=EPSG:3857"
@@ -166,6 +223,7 @@ class JMapMIS:
             + "&request=GetMap"
         )
         return uri
+
 
 class JMapDAS:
     def get_vector_layer_uri(self, layer_id, organization_id) -> str:
@@ -183,10 +241,12 @@ class JMapDAS:
     def get_vector_tile_uri(self, spatial_datasource_id: str, organization_id: str) -> str:
         if organization_id is None:
             return None
-        
+
         uri = (
             "type=xyz"
-            + "&url={}/organizations/{}/mvt/datasources/{}".format(API_DAS_URL, organization_id, spatial_datasource_id)
+            + "&url={}/organizations/{}/mvt/datasources/{}".format(
+                API_DAS_URL, organization_id, spatial_datasource_id
+            )
             + "/{x}/{y}/{z}"
             + "&zmax=23"
             + "&zmin=0"

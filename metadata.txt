@@ -45,11 +45,12 @@ changelog=
     1.0.4
     - Make the plugin compatible with QGIS 4.0
     - Added the possibility to export a single layer to an existing JMap Cloud project
+    - Fixed an issue when opening a JMap Cloud project by excluding basemap layers
+    - Fixed an issue when exporting a layer or a project to JMap Cloud when the users had no permission to do so
     - Fixed an issue when exporting GML/KML/TAB files to JMap Cloud
     - Fixed an issue when dragging and dropping a folder containing geospatial files into QGIS
     - Fixed an issue when exporting a database vector layer to JMap Cloud
     - Fixed an issue when the opacity of raster layers was not applied when importing a JMap Cloud project
-    - Fixed an issue when opening a JMap Cloud projet by excluding basemaps layers
     1.0.3
     - Fixed an issue where the scale-dependent visibility of labels was not exported to JMap Cloud
     - Fixed an issue where font marker symbols were not exported correctly to JMap Cloud

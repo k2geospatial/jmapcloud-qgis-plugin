@@ -1,27 +1,31 @@
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import pyqtSignal
-from qgis.utils import iface
 from qgis.PyQt.QtNetwork import QNetworkReply
-from qgis.core import QgsMapLayer, QgsVectorLayer, QgsRasterLayer
+from qgis.utils import iface
 
-from ...core.views import ExportSelectedLayerData, ProjectData
+from ...core.constant import ElementTypeWrapper, Permission
+from ...core.plugin_util import get_user_locale
+from ...core.services.auth_manager import JMapAuth
 from ...core.services.jmap_services_access import JMapMCS
 from ...core.services.request_manager import RequestManager
-from ...core.plugin_util import get_user_locale
-from ...core.constant import ElementTypeWrapper
-
+from ...core.views import ExportSelectedLayerData, ProjectData
 from .export_layer_dialog_base_ui import Ui_Dialog
 
 
 class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
-    selected_project = pyqtSignal(object) # emits selected project
+    selected_project = pyqtSignal(object)  # emits selected project
     layer_export_mode_changed = pyqtSignal(object)  # emits ExportMode
-    selected_layer_id_to_replace = pyqtSignal(dict) # emits selected layer id to replace when in replace mode paylaod contains { "id": str, "spatialDataSourceId": str }
 
-    def __init__(self, jmap_mcs: JMapMCS):
+    # emits selected layer id to replace when in replace mode paylaod contains
+    # { "id": str, "spatialDataSourceId": str }
+    selected_layer_id_to_replace = pyqtSignal(dict)
+
+    def __init__(self, jmap_mcs: JMapMCS, auth_manager: JMapAuth):
         super().__init__(iface.mainWindow())
         self.setupUi(self)
         self.jmap_mcs = jmap_mcs
+        self.auth_manager = auth_manager
         self._selected_layer_id = None
         self._selected_layer_name = None
         self._selected_layer_type = None
@@ -47,14 +51,29 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def get_selected_layer_to_export(self) -> ExportSelectedLayerData:
         """
-        Get the data of the selected layer to export, the target project and layer (if in replace mode)
+        Get the data of the selected layer to export,
+        the target project and layer (if in replace mode)
         """
         return ExportSelectedLayerData(
             source_layer_id=self._selected_layer_id,
             JMC_project=self.JMap_project_combo_box.currentData(),
-            mode=ExportSelectedLayerData.ExportMode.replace if self.repalce_layer_radio_button.isChecked() else ExportSelectedLayerData.ExportMode.create,
-            target_JMC_layer_id=self.target_layer_replace_combo_box.currentData()["id"] if self.repalce_layer_radio_button.isChecked() and self.target_layer_replace_combo_box.currentData() else None,
-            target_JMC_data_source_id=self.target_layer_replace_combo_box.currentData()["spatialDataSourceId"] if self.repalce_layer_radio_button.isChecked() and self.target_layer_replace_combo_box.currentData() else None
+            mode=(
+                ExportSelectedLayerData.ExportMode.replace
+                if self.repalce_layer_radio_button.isChecked()
+                else ExportSelectedLayerData.ExportMode.create
+            ),
+            target_JMC_layer_id=(
+                self.target_layer_replace_combo_box.currentData()["id"]
+                if self.repalce_layer_radio_button.isChecked()
+                and self.target_layer_replace_combo_box.currentData()
+                else None
+            ),
+            target_JMC_data_source_id=(
+                self.target_layer_replace_combo_box.currentData()["spatialDataSourceId"]
+                if self.repalce_layer_radio_button.isChecked()
+                and self.target_layer_replace_combo_box.currentData()
+                else None
+            ),
         )
 
     def _on_project_selected(self, index):
@@ -67,13 +86,13 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.target_layer_replace_combo_box.setEnabled(False)
                 self.target_layer_replace_combo_box.clear()
                 self.layer_replace_label.setEnabled(False)
-            
-            
+
             self.selected_project.emit(project_data)
 
     def _load_project_layers(self, project_id: str, elementType: str):
         def next_func(reply: RequestManager.ResponseData):
-            # Ignore stale replies when user changed mode/project while request was in-flight.
+            # Ignore stale replies when user changed mode/project
+            # while request was in-flight.
             if (
                 not self.repalce_layer_radio_button.isChecked()
                 or not self.JMap_project_combo_box.currentData()
@@ -90,7 +109,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.layer_replace_label.setEnabled(False)
                 self.target_layer_replace_combo_box.clear()
                 return
-            
+
             layers = reply.content or []
 
             if not layers:
@@ -106,15 +125,29 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
 
             layers = sorted(
                 map(
-                    lambda layer: {"id": layer["id"], "spatialDataSourceId": layer["spatialDataSourceId"], "name": layer["name"][locale] if locale in layer["name"] else next(iter(layer["name"].values())) }, 
-                    layers
-                ), 
-                key=lambda l: l["name"].lower()
+                    lambda layer: {
+                        "id": layer["id"],
+                        "spatialDataSourceId": layer["spatialDataSourceId"],
+                        "name": (
+                            layer["name"][locale]
+                            if locale in layer["name"]
+                            else next(iter(layer["name"].values()))
+                        ),
+                    },
+                    layers,
+                ),
+                key=lambda layer: layer["name"].lower(),
             )
-            
+
             for layer in layers:
-                self.target_layer_replace_combo_box.addItem(layer["name"], { "id": layer["id"], "spatialDataSourceId": layer["spatialDataSourceId"] })
-            
+                self.target_layer_replace_combo_box.addItem(
+                    layer["name"],
+                    {
+                        "id": layer["id"],
+                        "spatialDataSourceId": layer["spatialDataSourceId"],
+                    },
+                )
+
             self.layer_replace_label.setEnabled(True)
             self.target_layer_replace_combo_box.setEnabled(True)
             self.export_layer_pushButton.setEnabled(True)
@@ -128,7 +161,10 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         self.layer_replace_label.setEnabled(mode == ExportSelectedLayerData.ExportMode.replace)
         self.export_layer_pushButton.setEnabled(mode == ExportSelectedLayerData.ExportMode.create)
 
-        if mode == ExportSelectedLayerData.ExportMode.replace and self.JMap_project_combo_box.currentData():
+        if (
+            mode == ExportSelectedLayerData.ExportMode.replace
+            and self.JMap_project_combo_box.currentData()
+        ):
             project_id = self.JMap_project_combo_box.currentData().project_id
             self._load_project_layers(project_id, self._selected_layer_type)
         else:
@@ -142,7 +178,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
     def _on_layer_to_replace_selected(self, index):
         if index < 0:
             return
-        
+
         payload = self.target_layer_replace_combo_box.itemData(index)
         if payload:
             self.selected_layer_id_to_replace.emit(payload)
@@ -156,7 +192,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
 
         self._selected_layer_id = layer.id()
         self._selected_layer_name = layer.name()
-        
+
         if isinstance(layer, QgsVectorLayer):
             self._selected_layer_type = layer.geometryType().name.lower()
         elif isinstance(layer, QgsRasterLayer):
@@ -175,6 +211,23 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         self.JMap_project_combo_box.addItem(self.tr("Loading..."), None)
         self.JMap_project_combo_box.setEnabled(False)
 
+        def _can_user_modify_project(project: dict) -> bool:
+            project_id = project["id"]
+            reply = self.jmap_mcs.get_project_permissions(project_id)
+
+            if reply is None or reply.status != QNetworkReply.NetworkError.NoError:
+                return False
+
+            if len(reply.content) == 0:
+                return False
+
+            permissions_payload = reply.content[0]["permissions"] or []
+
+            return (
+                Permission.MODIFY.value in permissions_payload
+                or Permission.OWNER.value in permissions_payload
+            )
+
         def _project_display_name(project: dict) -> str:
             name = project.get("name", "Unnamed project")
             if isinstance(name, dict):
@@ -188,8 +241,12 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.JMap_project_combo_box.setEnabled(False)
                 self.export_layer_pushButton.setEnabled(False)
                 return
-          
+
             projects = reply.content or []
+
+            self.JMap_project_combo_box.clear()
+
+            projects = list(filter(lambda p: _can_user_modify_project(p), projects))
 
             if not projects:
                 self.JMap_project_combo_box.clear()
@@ -197,8 +254,6 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.JMap_project_combo_box.setEnabled(False)
                 self.export_layer_pushButton.setEnabled(False)
                 return
-
-            self.JMap_project_combo_box.clear()
 
             for project in sorted(projects, key=lambda p: _project_display_name(p).lower()):
                 project_data = ProjectData(
@@ -211,19 +266,24 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 self.JMap_project_combo_box.addItem(_project_display_name(project), project_data)
 
             try:
-                self.JMap_project_combo_box.currentIndexChanged.disconnect(self._on_project_selected)
+                self.JMap_project_combo_box.currentIndexChanged.disconnect(
+                    self._on_project_selected
+                )
             except TypeError:
                 pass
+
             self.JMap_project_combo_box.currentIndexChanged.connect(self._on_project_selected)
             self.JMap_project_combo_box.setEnabled(True)
-            
+
             self.create_layer_radio_button.setEnabled(True)
             try:
                 self.create_layer_radio_button.toggled.disconnect()
             except TypeError:
                 pass
             self.create_layer_radio_button.toggled.connect(
-                lambda checked: self._on_mode_toggled(ExportSelectedLayerData.ExportMode.create, checked)
+                lambda checked: self._on_mode_toggled(
+                    ExportSelectedLayerData.ExportMode.create, checked
+                )
             )
             self.repalce_layer_radio_button.setEnabled(True)
             try:
@@ -231,7 +291,9 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
             except TypeError:
                 pass
             self.repalce_layer_radio_button.toggled.connect(
-                lambda checked: self._on_mode_toggled(ExportSelectedLayerData.ExportMode.replace, checked)
+                lambda checked: self._on_mode_toggled(
+                    ExportSelectedLayerData.ExportMode.replace, checked
+                )
             )
 
             self.error_label.clear()

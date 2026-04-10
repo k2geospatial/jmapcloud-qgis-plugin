@@ -20,7 +20,6 @@ from qgis.core import Qgis
 
 from ..config import CONFIG
 
-
 # config
 _base_url = CONFIG["API_URL"]
 
@@ -63,6 +62,18 @@ class AuthState(Enum):
     NO_ORGANIZATION = auto()
 
 
+class Permission(Enum):
+    MODIFY = "MODIFY"
+    OWNER = "OWNER"
+    VIEW = "VIEW"
+
+
+class OrganisationRole(Enum):
+    ADMIN = "ORG_ADMIN"
+    EDITOR = "ORG_EDITOR"
+    VIEWER = "ORG_VIEWER"
+
+
 class ElementTypeWrapper(Enum):
     POINT = "POINT"
     LINE = "LINE"
@@ -101,8 +112,14 @@ class JMCOperator(Enum):
             r"<=": cls.LOWER_OR_EQUALS_TO.name,
             r">": cls.GREATER_THAN.name,
             r"<": cls.LOWER_THAN.name,
-            r"!=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+[nN][oO][tT]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": cls.IS_NOT_NULL.name,
-            r"=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|[iI][sS]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])": cls.IS_NULL.name,
+            (
+                r"!=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|"
+                r"[iI][sS]\s+[nN][oO][tT]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])"
+            ): cls.IS_NOT_NULL.name,
+            (
+                r"=\s*(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])|"
+                r"[iI][sS]\s+(?:[nN][uU][lL][lL]|[nN][oO][nN][eE])"
+            ): cls.IS_NULL.name,
             r"!=|[iI][sS]\s+[nN][oO][tT]": cls.NOT_EQUALS.name,
             r"=|[iI][sS]": cls.EQUALS.name,
         }

@@ -24,7 +24,7 @@ from ..constant import (
 
 class SessionManager:
     def __init__(self):
-            self.claims = self.get_auth_settings()
+        self.claims = self.get_auth_settings()
 
     def set_claims(self, claims):
         self.claims = claims
@@ -61,15 +61,15 @@ class SessionManager:
         """
 
         auth_manager = QgsApplication.authManager()
-        if refresh_token != None:
+        if refresh_token is not None:
             auth_manager.storeAuthSetting(REFRESH_TOKEN_SETTING_ID, refresh_token, True)
-        if expiration != None:
+        if expiration is not None:
             auth_manager.storeAuthSetting(EXPIRATION_SETTING_ID, expiration, True)
-        if organization_id != None:
+        if organization_id is not None:
             auth_manager.storeAuthSetting(ORGANIZATION_SETTING_ID, organization_id, True)
-        if username != None:
+        if username is not None:
             auth_manager.storeAuthSetting(USERNAME_SETTING_ID, username, True)
-        if access_token != None:
+        if access_token is not None:
             auth_manager.storeAuthSetting(ACCESS_TOKEN_SETTING_ID, access_token, True)
             self.store_auth_config(access_token)
 
@@ -98,13 +98,25 @@ class SessionManager:
         """
         auth_manager = QgsApplication.authManager()
         claims = {
-            "accessToken": (auth_manager.authSetting(ACCESS_TOKEN_SETTING_ID, defaultValue="", decrypt=True) or None),
-            "refreshToken": (auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True) or None),
-            "expiration": (auth_manager.authSetting(EXPIRATION_SETTING_ID, defaultValue="", decrypt=True) or None),
-            "organizationId": (
-                auth_manager.authSetting(ORGANIZATION_SETTING_ID, defaultValue="", decrypt=True) or None
+            "accessToken": (
+                auth_manager.authSetting(ACCESS_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
+                or None
             ),
-            "username": (auth_manager.authSetting(USERNAME_SETTING_ID, defaultValue="", decrypt=True) or None),
+            "refreshToken": (
+                auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
+                or None
+            ),
+            "expiration": (
+                auth_manager.authSetting(EXPIRATION_SETTING_ID, defaultValue="", decrypt=True)
+                or None
+            ),
+            "organizationId": (
+                auth_manager.authSetting(ORGANIZATION_SETTING_ID, defaultValue="", decrypt=True)
+                or None
+            ),
+            "username": (
+                auth_manager.authSetting(USERNAME_SETTING_ID, defaultValue="", decrypt=True) or None
+            ),
         }
 
         return claims
@@ -119,6 +131,6 @@ class SessionManager:
         auth_config = QgsAuthMethodConfig("APIHeader")
         auth_config.setId(AUTH_CONFIG_ID)
         auth_config.setName("JMap_Session")
-        auth_config.setConfig("Authorization", f"")
+        auth_config.setConfig("Authorization", "")
         auth_manager.storeAuthenticationConfig(auth_config, True)
         self.set_claims(None)
