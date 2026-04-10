@@ -20,7 +20,7 @@ The `Layer Tree Icons` plugin is optional. It changes some icons in the QGIS lay
 
 ## Development Configuration
 
-This repository uses a local Python virtual environment in [`.venv`](/Users/jacobchaar/Documents/k2geospatial/jmapcloud-qgis-plugin/.venv) for development tooling.
+This repository uses a local Python virtual environment in .venv for development tooling.
 
 ### Prerequisites
 
@@ -41,27 +41,6 @@ You can also use the provided target once the virtual environment exists:
 ```bash
 make install-dev
 ```
-
-### Environment Files
-
-Create a local `.env` at the root of the repository for development so VS Code can load the QGIS Python packages.
-
-Example:
-
-```bash
-PYTHONPATH=/Applications/QGIS-final-4_0_0.app/Contents/Frameworks/lib/python3.12/site-packages
-```
-
-This path should point to your local QGIS Python `site-packages` directory.
-
-VS Code references this file through [`.vscode/settings.json`](/Users/jacobchaar/Documents/k2geospatial/jmapcloud-qgis-plugin/.vscode/settings.json).
-
-VS Code uses it through:
-
-- `python.terminal.useEnvFile`
-- `python.envFile=${workspaceFolder}/.env`
-
-This is mainly editor and terminal configuration so imports resolve correctly during development. The plugin code does not appear to load `.env` directly.
 
 ### Formatting and Checks
 
@@ -90,6 +69,24 @@ To format a single file instead, run:
 .venv/bin/black path/to/file.py
 ```
 
+### Make Targets
+
+The `Makefile` also includes helper commands for the Qt Designer and translation workflow:
+
+```bash
+make designer
+make ui-compile UI=ui/ui_files/export_layer_dialog_base.ui
+make translations-update
+make translations-compile
+```
+
+- `make designer` opens Qt Designer when the `designer` binary is available on your `PATH`.
+- `make ui-compile UI=...` converts a `.ui` file into its generated Python file under `ui/py_files`. For example, `export_layer_dialog_base.ui` generates [export_layer_dialog_base_ui.py](ui/py_files/export_layer_dialog_base_ui.py).
+- `make translations-update` refreshes the `.ts` translation source files from [i18n/jmap_cloud.pro](i18n/jmap_cloud.pro) using `lupdate-pro`. Run this after changing translatable strings in Python or UI files.
+- `make translations-compile` compiles a `.ts` file such as [i18n/jmap_cloud_fr.ts](i18n/jmap_cloud_fr.ts) into the corresponding `.qm` file using `lrelease`. Run this after updating translations so QGIS can use the latest compiled catalog.
+
+If the Qt tools are not on your `PATH`, the targets also support explicit overrides such as `DESIGNER=/path/to/designer`, `PYUIC=/path/to/pyuic6`, `LUPDATE_PRO=/path/to/lupdate-pro`, and `LRELEASE=/path/to/lrelease`.
+
 ### VS Code Auto Format
 
 If VS Code is configured for Python format-on-save, saving the current file will automatically format it.
@@ -116,12 +113,12 @@ This project uses `black` and `isort`, so automatic formatting on save depends o
 - `ms-python.flake8` for inline linting with `flake8`
 - `eamodio.gitlens` for Git history, blame, and file insight in the editor
 
-If you regularly work on this plugin in VS Code, it also helps to point the editor at the correct Python interpreter, typically [`.venv/bin/python`](/Users/jacobchaar/Documents/k2geospatial/jmapcloud-qgis-plugin/.venv/bin/python).
+If you regularly work on this plugin in VS Code, it also helps to point the editor at the correct Python interpreter, typically `.venv/bin/python`.
 
 ### Formatting Rules
 
-Formatting is configured in [pyproject.toml](/Users/jacobchaar/Documents/k2geospatial/jmapcloud-qgis-plugin/pyproject.toml):
-
+Formatting is configured in [pyproject.toml](pyproject.toml):
+    
 - `black` line length: `88`
 - `black` target version: `py312`
 - `isort` profile: `black`
@@ -134,4 +131,4 @@ To build the distributable QGIS plugin archive:
 make package
 ```
 
-The generated zip file is written to [dist/JMapCloud.zip](/Users/jacobchaar/Documents/k2geospatial/jmapcloud-qgis-plugin/dist/JMapCloud.zip).
+The generated zip file is written to [dist/JMapCloud.zip](dist/JMapCloud.zip).
