@@ -10,10 +10,10 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from typing import Union
 import urllib.parse
 import zipfile
 from pathlib import Path
+from typing import Union
 
 from qgis.core import (
     QgsApplication,
@@ -30,10 +30,11 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import pyqtSignal
 
-from .custom_qgs_task import CustomQgsTask, CustomTaskManager
 from ..views import LayerData, LayerFile, SupportedFileType
+from .custom_qgs_task import CustomQgsTask, CustomTaskManager
 
 MESSAGE_CATEGORY = "WriteLayerTask"
+
 
 class ConvertLayersToZipTask(CustomTaskManager):
     tasks_completed = pyqtSignal(list, list)
@@ -91,6 +92,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         if all(existing.file_path != layer_file.file_path for existing in self.layer_files):
             self.layer_files.append(layer_file)
 
+
 class ConvertLayerToZipTask(CustomTaskManager):
     tasks_completed = pyqtSignal(object, object)  # layer_data, layer_file
 
@@ -108,12 +110,16 @@ class ConvertLayerToZipTask(CustomTaskManager):
             return False
 
         if not isinstance(self.layer, (QgsRasterLayer, QgsVectorLayer)):
-            message = self.tr("Layer {} of type {} is not supported for export").format(self.layer.name(), type(self.layer))
+            message = self.tr("Layer {} of type {} is not supported for export").format(
+                self.layer.name(), type(self.layer)
+            )
             self.error_occur(message, MESSAGE_CATEGORY)
             self.tasks_completed.emit(None, None)
             return False
 
-        self.layer_data = LayerData(layer=self.layer, layer_id=self.layer.id(), layer_name=self.layer.name())
+        self.layer_data = LayerData(
+            layer=self.layer, layer_id=self.layer.id(), layer_name=self.layer.name()
+        )
         if isinstance(self.layer, QgsVectorLayer):
             self.layer_data.element_type = self.layer.geometryType().name.upper()
 
@@ -148,8 +154,12 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 )
                 write_subtask.error_occurred.connect(on_convert_error)
                 compress_task.error_occurred.connect(on_convert_error)
-                compress_task.taskCompleted.connect(lambda task=compress_task: self._on_sub_task_finished(task))
-                compress_task.taskTerminated.connect(lambda task=compress_task: self._on_sub_task_finished(task))
+                compress_task.taskCompleted.connect(
+                    lambda task=compress_task: self._on_sub_task_finished(task)
+                )
+                compress_task.taskTerminated.connect(
+                    lambda task=compress_task: self._on_sub_task_finished(task)
+                )
                 self._tasks.append(compress_task)
                 self._total_tasks += 1
 
@@ -164,12 +174,18 @@ class ConvertLayerToZipTask(CustomTaskManager):
 
                 write_task = CustomWriteRasterLayerTask(sources[0], self.layer_data.layer)
                 write_task.error_occurred.connect(on_convert_error)
-                write_task.taskCompleted.connect(lambda task=write_task: self._on_sub_task_finished(task))
-                write_task.taskTerminated.connect(lambda task=write_task: self._on_sub_task_finished(task))
+                write_task.taskCompleted.connect(
+                    lambda task=write_task: self._on_sub_task_finished(task)
+                )
+                write_task.taskTerminated.connect(
+                    lambda task=write_task: self._on_sub_task_finished(task)
+                )
                 self._tasks.append(write_task)
                 self._total_tasks += 1
             else:
-                message = self.tr("Error writing layer '{}': unknown layer type").format(self.layer_data.layer_name)
+                message = self.tr("Error writing layer '{}': unknown layer type").format(
+                    self.layer_data.layer_name
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 self.layer_data.status = LayerData.Status.file_creation_error
                 self.tasks_completed.emit(self.layer_data, None)
@@ -194,14 +210,20 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 if self.layer_data.file_type != SupportedFileType.zip:
                     compress_task = compressFilesToZipTask(sources, output_path)
                     compress_task.error_occurred.connect(on_convert_error)
-                    compress_task.taskCompleted.connect(lambda task=compress_task: self._on_sub_task_finished(task))
-                    compress_task.taskTerminated.connect(lambda task=compress_task: self._on_sub_task_finished(task))
+                    compress_task.taskCompleted.connect(
+                        lambda task=compress_task: self._on_sub_task_finished(task)
+                    )
+                    compress_task.taskTerminated.connect(
+                        lambda task=compress_task: self._on_sub_task_finished(task)
+                    )
                     self._tasks.append(compress_task)
                     self._total_tasks += 1
 
             elif self.layer_data.layer_type == LayerData.LayerType.file_raster:
                 if self.layer_data.file_type == SupportedFileType.zip:
-                    message = self.tr("Error writing layer {}: zip raster not supported").format(self.layer_data.layer_name)
+                    message = self.tr("Error writing layer {}: zip raster not supported").format(
+                        self.layer_data.layer_name
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     self.layer_data.status = LayerData.Status.file_creation_error
                     self.tasks_completed.emit(self.layer_data, None)
@@ -229,7 +251,9 @@ class ConvertLayerToZipTask(CustomTaskManager):
         if task in self._tasks:
             self._tasks.remove(task)
         if self._total_tasks > 0:
-            self.progress_changed.emit((self._total_tasks - len(self._tasks)) / self._total_tasks * 100.0)
+            self.progress_changed.emit(
+                (self._total_tasks - len(self._tasks)) / self._total_tasks * 100.0
+            )
         if len(self._tasks) == 0:
             self.tasks_completed.emit(self.layer_data, self.layer_file)
 
@@ -239,16 +263,24 @@ class ConvertLayerToZipTask(CustomTaskManager):
             task.cancel()
 
     def get_layer_source(self, layer_data: LayerData) -> Union[list, dict, None]:
-        """Retrieve all files or sources associated with a QGIS layer, ensuring required files exist."""
+        """
+        Retrieve all files or sources associated with a QGIS layer,
+        ensuring required files exist.
+        """
         layer = layer_data.layer
         if not layer:
             return None
 
         provider_name = layer.dataProvider().name().lower()
-        uri_components = QgsProviderRegistry.instance().decodeUri(provider_name, layer.publicSource())
+        uri_components = QgsProviderRegistry.instance().decodeUri(
+            provider_name, layer.publicSource()
+        )
         layer_data.uri_components = uri_components
 
-        if "layerName" not in layer_data.uri_components or layer_data.uri_components["layerName"] == None:
+        if (
+            "layerName" not in layer_data.uri_components
+            or layer_data.uri_components["layerName"] is None
+        ):
             layer_data.uri_components["layerName"] = "defaultLayer"
 
         # if "layerName" in uri_components and uri_components["layerName"] != None:
@@ -264,9 +296,13 @@ class ConvertLayerToZipTask(CustomTaskManager):
             collectionId = uri.param("typename")
             return {"landingPageUrl": url, "collectionId": collectionId}
 
-        # --- Database vector layers --- 
+        # --- Database vector layers ---
         # TODO check other DB providers
-        elif isinstance(layer, QgsVectorLayer) and layer.isSpatial() and provider_name in ["spatialite", "postgres", "mysql", "oracle", "mssql"]:
+        elif (
+            isinstance(layer, QgsVectorLayer)
+            and layer.isSpatial()
+            and provider_name in ["spatialite", "postgres", "mysql", "oracle", "mssql"]
+        ):
             # Any spatial vector provider that comes from a database, export to GeoJSON
             layer_data.layer_type = LayerData.LayerType.file_vector
             layer_data.file_type = SupportedFileType.GeoJSON
@@ -279,7 +315,12 @@ class ConvertLayerToZipTask(CustomTaskManager):
             base_path = Path(uri_components["path"])
             storage_type = layer.dataProvider().storageType()
             ext = base_path.suffix.lower()
-            if base_path.is_dir() and ext not in [".gdb", "mdb"] and "layerName" in uri_components and bool(uri_components["layerName"]):
+            if (
+                base_path.is_dir()
+                and ext not in [".gdb", "mdb"]
+                and "layerName" in uri_components
+                and bool(uri_components["layerName"])
+            ):
                 base_path = base_path / uri_components["layerName"]
                 ext = base_path.suffix.lower()
             # --- Zip file ---
@@ -296,24 +337,34 @@ class ConvertLayerToZipTask(CustomTaskManager):
 
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = self.tr("Missing required files for {}: {}").format(base_path.name, missing_files)
+                    message = self.tr("Missing required files for {}: {}").format(
+                        base_path.name, missing_files
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
                 layer_data.file_type = SupportedFileType.SHP
-                return [Path(base_path.with_suffix(e)) for e in all_files if base_path.with_suffix(e).exists()]
+                return [
+                    Path(base_path.with_suffix(e))
+                    for e in all_files
+                    if base_path.with_suffix(e).exists()
+                ]
             # --- MapInfo TAB (requires all files) ---
             elif storage_type == "MapInfo File":
                 layer_data.uri_components["layerName"] = base_path.stem
-                
-                if (base_path.with_suffix(".mid").exists() or base_path.with_suffix(".mif").exists()):
-                    message = self.tr("Unsupported file type .mid/.mif for layer {}").format(layer_data.layer_name)
+
+                if base_path.with_suffix(".mid").exists() or base_path.with_suffix(".mif").exists():
+                    message = self.tr("Unsupported file type .mid/.mif for layer {}").format(
+                        layer_data.layer_name
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
-                
+
                 required_files = [".tab", ".dat", ".map", ".id"]
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = self.tr("Missing required files for {}: {}").format(base_path.name, missing_files)
+                    message = self.tr("Missing required files for {}: {}").format(
+                        base_path.name, missing_files
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
                 layer_data.file_type = SupportedFileType.MapInfo
@@ -323,7 +374,9 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.uri_components["layerName"] = "defaultLayer"
 
                 if base_path.suffix.lower() not in [".geojson", ".json"]:
-                    message = self.tr("Unsupported file type {} for layer {}").format(base_path.suffix.lower(), layer_data.layer_name)
+                    message = self.tr("Unsupported file type {} for layer {}").format(
+                        base_path.suffix.lower(), layer_data.layer_name
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
                 layer_data.file_type = SupportedFileType.GeoJSON
@@ -332,11 +385,15 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 supported_file_extensions = [".csv", ".txt"]
 
                 if base_path.suffix.lower() not in supported_file_extensions:
-                    message = self.tr("Unsupported file type {} for layer {}").format(base_path.suffix.lower(), layer_data.layer_name)
+                    message = self.tr("Unsupported file type {} for layer {}").format(
+                        base_path.suffix.lower(), layer_data.layer_name
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
 
-                open_options: Union[list, None] = uri_components["openOptions"] if "openOptions" in uri_components else None
+                open_options: Union[list, None] = (
+                    uri_components["openOptions"] if "openOptions" in uri_components else None
+                )
                 xField = None
                 yField = None
                 if open_options:
@@ -356,21 +413,19 @@ class ConvertLayerToZipTask(CustomTaskManager):
                     xField = uri_components["xField"]
                 if not yField and "yField" in uri_components:
                     yField = uri_components["yField"]
-                
+
                 layer_data.longitude = xField
                 layer_data.latitude = yField
                 layer_data.file_type = SupportedFileType.CSV
 
                 if not (layer_data.longitude and layer_data.latitude):
-                    # list = [f.name().capitalize() for f in fields if f.typeName() in ["Double", "Real"]]
-                    # if len(list) >= 2: # TODO
-                    #    return None
-                    # else:
                     return None
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "GML":
                 if base_path.suffix.lower() != ".gml":
-                    message = self.tr("Unsupported file type {} for layer {}").format(base_path.suffix.lower(), layer_data.layer_name)
+                    message = self.tr("Unsupported file type {} for layer {}").format(
+                        base_path.suffix.lower(), layer_data.layer_name
+                    )
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return None
 
@@ -378,28 +433,28 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "GPKG":
                 layer_data.file_type = SupportedFileType.GeoPackage
-                
+
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "LIBKML":
                 layer_data.file_type = SupportedFileType.KML
                 return [Path(base_path)] if base_path.exists() else None
-            elif storage_type == "OpenFileGDB" :  # FileGeoDatabase
+            elif storage_type == "OpenFileGDB":  # FileGeoDatabase
                 layer_data.file_type = SupportedFileType.FileGeoDatabase
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "DXF":  # CAD files
                 layer_data.file_type = SupportedFileType.CAD
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
+                message = self.tr("Unsupported file type {} for layer {}").format(
+                    ext, layer_data.layer_name
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
 
         # ---- WMS / WMTS ----
         elif provider_name in ["wms", "wmts"] and "url" in uri_components:
             layer_data.layer_type = LayerData.LayerType.WMS_WMTS
-            return {
-                "capabilitiesUrl": self._build_wms_capabilities_url(uri_components["url"])
-            }
+            return {"capabilitiesUrl": self._build_wms_capabilities_url(uri_components["url"])}
 
         # ---- File-based Raster layers ----
         elif isinstance(layer, QgsRasterLayer) and "path" in uri_components:
@@ -407,7 +462,16 @@ class ConvertLayerToZipTask(CustomTaskManager):
 
             base_path = Path(uri_components["path"])
             ext = base_path.suffix.lower()
-            # extensions = [".tif", ".tiff", ".jp2", ".ecw", ".sid", ".img", ".vrt", ".asc"] not supported now
+            # not supported now
+            # extensions = [
+            # ".tif",
+            # ".tiff",
+            # ".jp2",
+            # ".ecw",
+            # ".sid",
+            # ".img",
+            # ".vrt",
+            # ".asc"]
             extensions = [".tif", ".tiff"]
 
             if ext in extensions:
@@ -417,7 +481,9 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.zip
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = self.tr("Unsupported file type {} for layer {}").format(ext, layer_data.layer_name)
+                message = self.tr("Unsupported file type {} for layer {}").format(
+                    ext, layer_data.layer_name
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
 
@@ -427,7 +493,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
         )
         self.error_occur(message, MESSAGE_CATEGORY)
         return None
-    
+
     def _build_wms_capabilities_url(self, raw_url: str) -> str:
         decoded_url = urllib.parse.unquote_plus(raw_url or "").strip()
         parsed_url = urllib.parse.urlsplit(decoded_url)
@@ -443,6 +509,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
             (parsed_url.scheme, parsed_url.netloc, parsed_url.path, query, parsed_url.fragment)
         )
 
+
 class CustomWriteVectorLayerTask(CustomQgsTask):
 
     def __init__(self, output_path: Path, layer: QgsVectorLayer):
@@ -455,8 +522,12 @@ class CustomWriteVectorLayerTask(CustomQgsTask):
         writer_options.attributes = layer.fields().allAttributesList()
 
         self.main_task = QgsVectorFileWriterTask(layer, str(output_path), writer_options)
-        self.main_task.errorOccurred.connect(lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY))
-        self.addSubTask(self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
+        self.main_task.errorOccurred.connect(
+            lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY)
+        )
+        self.addSubTask(
+            self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask
+        )
 
     def run(self):
         if self.isCanceled():
@@ -479,9 +550,13 @@ class CustomWriteRasterLayerTask(CustomQgsTask):
         self.main_task = QgsRasterFileWriterTask(
             file_writer, pipe, layer.width(), layer.height(), provider.extent(), provider.crs()
         )
-        self.main_task.errorOccurred.connect(lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY))
+        self.main_task.errorOccurred.connect(
+            lambda _, error_message: self.error_occur(error_message, MESSAGE_CATEGORY)
+        )
         self.main_task.writeComplete.connect(self.write_layer_completed)
-        self.addSubTask(self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
+        self.addSubTask(
+            self.main_task, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask
+        )
 
 
 class compressFilesToZipTask(CustomQgsTask):
@@ -511,7 +586,9 @@ class compressFilesToZipTask(CustomQgsTask):
                                 arcname = file_path.relative_to(input_path)  # Preserve structure
                                 zip_file.write(file_path, arcname=arcname)
                     else:
-                        message = self.tr("Error: {} is not a valid file or folder.").format(input_path)
+                        message = self.tr("Error: {} is not a valid file or folder.").format(
+                            input_path
+                        )
                         raise Exception(message)
                     self.next_steps()
 
