@@ -1,3 +1,5 @@
+from typing import Union
+
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
@@ -62,7 +64,7 @@ class CreateLayerTask(CustomQgsTask):
         self.layer_creation_finished.emit(self._layer_data)
         return True
 
-    def _create_layer_post_request(self, layer_data: LayerData) -> LayerDTO | None:
+    def _create_layer_post_request(self, layer_data: LayerData) -> Union[LayerDTO, None]:
         layer = layer_data.layer
 
         if layer_data.layer_type == LayerData.LayerType.file_vector:
