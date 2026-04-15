@@ -13,6 +13,7 @@
 import base64
 import math
 from pathlib import Path
+from typing import Union
 
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
@@ -222,7 +223,7 @@ class FileUploader(CustomTaskManager):
             self._fail_upload(self.tr("Upload initialization failed: no response headers"))
             return False
 
-        location: str | None = None
+        location: Union[str, None] = None
         for header, value in response.headers.items():
             if header.lower() == "location":
                 location = value

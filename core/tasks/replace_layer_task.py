@@ -1,3 +1,5 @@
+from typing import Union
+
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
@@ -87,7 +89,7 @@ class ReplaceLayerTask(CustomQgsTask):
         self.layer_replacement_finished.emit(self._layer_data)
         return True
 
-    def _create_layer_patch_request(self, layer_data: LayerData) -> UpdateLayerDTO | None:
+    def _create_layer_patch_request(self, layer_data: LayerData) -> Union[UpdateLayerDTO, None]:
         qgis_layer = layer_data.layer
 
         if not qgis_layer:

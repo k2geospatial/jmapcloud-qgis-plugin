@@ -67,7 +67,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 total_progress = sum(self._progress_by_layer) / len(self._progress_by_layer)
                 self.progress_changed.emit(total_progress)
 
-            def on_completed(layer_data: LayerData, layer_file: LayerFile | None):
+            def on_completed(layer_data: LayerData, layer_file: Union[LayerFile, None]):
                 if layer_data is not None:
                     self.layers_data.append(layer_data)
                     if layer_file is not None:
@@ -100,8 +100,8 @@ class ConvertLayerToZipTask(CustomTaskManager):
         super().__init__("ConvertLayerToZipTask")
         self.dir_path = dir_path
         self.layer = layer
-        self.layer_data: LayerData | None = None
-        self.layer_file: LayerFile | None = None
+        self.layer_data: Union[LayerData, None] = None
+        self.layer_file: Union[LayerFile, None] = None
         self._tasks: list[QgsTask] = []
         self._total_tasks = 0
 

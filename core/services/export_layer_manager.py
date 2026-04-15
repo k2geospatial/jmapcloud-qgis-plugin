@@ -1,4 +1,5 @@
 from tempfile import TemporaryDirectory
+from typing import Union
 
 from qgis.core import Qgis, QgsApplication, QgsFeedback, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QObject, pyqtSignal
@@ -374,8 +375,8 @@ class ExportLayerManager(QObject):
         remove_layer_style_task.run()
 
     def _validate_layer_errors(
-        self, layer_data: LayerData | None, step_string: str
-    ) -> LayerData | None:
+        self, layer_data: Union[LayerData, None], step_string: str
+    ) -> Union[LayerData, None]:
         """
         Validate a single layer for the current step and aggregate/log errors.
         """
