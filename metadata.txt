@@ -42,6 +42,8 @@ deprecated=False
 server=False
 
 changelog=
+    1.0.5
+    - Fixed incompatibility with QGIS 3.40
     1.0.4
     - Make the plugin compatible with QGIS 4.0
     - Added the possibility to export a single layer to an existing JMap Cloud project
