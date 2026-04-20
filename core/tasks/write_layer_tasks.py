@@ -277,10 +277,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
         )
         layer_data.uri_components = uri_components
 
-        if (
-            "layerName" not in layer_data.uri_components
-            or layer_data.uri_components["layerName"] is None
-        ):
+        if layer_data.uri_components.get("layerName") is None:
             layer_data.uri_components["layerName"] = "defaultLayer"
 
         # if "layerName" in uri_components and uri_components["layerName"] != None:
