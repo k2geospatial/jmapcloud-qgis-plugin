@@ -36,6 +36,7 @@ class SupportedFileType(Enum):
     raster = "RASTER"
     zip = "ZIP"
 
+
 class LayerFile:
 
     class Status(Enum):
@@ -144,6 +145,7 @@ class ExportSelectedLayerData:
         self.mode = mode
         self.target_JMC_layer_id = target_JMC_layer_id
         self.target_JMC_data_source_id = target_JMC_data_source_id
+
 
 class ProjectData:
     project_id: str
