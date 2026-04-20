@@ -48,8 +48,8 @@ from ..plugin_util import (
     transparency_to_opacity,
 )
 from ..services.request_manager import RequestManager
-from .custom_qgs_task import CustomQgsTask
 from ..views import LayerData, ProjectData
+from .custom_qgs_task import CustomQgsTask
 
 DEFAULT_SINGLE_STYLE_RULE_NAME = "Simple Symbol"
 DEFAULT_GRADUATED_STYLE_RULE_NAME = "Graduated Symbol"
@@ -60,7 +60,12 @@ MESSAGE_CATEGORY = "JMCExportLayerStyleTask"
 class ExportLayersStyleTask(CustomQgsTask):
     layer_styles_exportation_finished = pyqtSignal()
 
-    def __init__(self, request_manager: RequestManager, layers_data: list[LayerData], project_data: ProjectData):
+    def __init__(
+        self,
+        request_manager: RequestManager,
+        layers_data: list[LayerData],
+        project_data: ProjectData,
+    ):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
 
         self.layers_data = layers_data
@@ -71,9 +76,13 @@ class ExportLayersStyleTask(CustomQgsTask):
 
         for layer_data in self.layers_data:
             subtask = ExportLayerStyleTask(self._request_manager, layer_data, self.project_data)
-            subtask.export_layer_style_completed.connect(lambda _style_rule_id=None: self._is_all_layers_style_exported())
+            subtask.export_layer_style_completed.connect(
+                lambda _style_rule_id=None: self._is_all_layers_style_exported()
+            )
             subtask.error_occurred.connect(self.error_occurred)
-            self.addSubTask(subtask, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask)
+            self.addSubTask(
+                subtask, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask
+            )
 
     def run(self):
         if self.isCanceled():
@@ -91,7 +100,9 @@ class ExportLayersStyleTask(CustomQgsTask):
 class ExportLayerStyleTask(CustomQgsTask):
     export_layer_style_completed = pyqtSignal(object)
 
-    def __init__(self, request_manager: RequestManager, layer_data: LayerData, project_data: ProjectData):
+    def __init__(
+        self, request_manager: RequestManager, layer_data: LayerData, project_data: ProjectData
+    ):
         super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
         self.layer_data = layer_data
         self.project_data = project_data
@@ -102,7 +113,10 @@ class ExportLayerStyleTask(CustomQgsTask):
     def run(self):
         if self.isCanceled():
             return False
-        if self.layer_data.layer_type in [LayerData.LayerType.file_vector, LayerData.LayerType.API_FEATURES]:
+        if self.layer_data.layer_type in [
+            LayerData.LayerType.file_vector,
+            LayerData.LayerType.API_FEATURES,
+        ]:
             self._handle_renderer(self.layer_data)
             self._delete_default_style_rules()
         else:
@@ -144,13 +158,12 @@ class ExportLayerStyleTask(CustomQgsTask):
             self.set_total_steps(total)
             self._handle_rule(renderer.rootRule())
         elif isinstance(renderer, QgsGraduatedSymbolRenderer):
-            layer_name = layer.uri_components["layerName"]
-            fields: list[dict] = layer.layer_file.fields[layer_name]
+            fields = self._resolve_layer_fields(layer)
             style_rule = StyleRuleDTO(
-                {self.project_data.default_language: DEFAULT_GRADUATED_STYLE_RULE_NAME}, default_rule_data["active"]
+                {self.project_data.default_language: DEFAULT_GRADUATED_STYLE_RULE_NAME},
+                default_rule_data["active"],
             )
-            self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
-            attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields) 
+            attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields)
             if not bool(attribute):
                 return False
             self.set_total_steps(len(renderer.ranges()) + 1)
@@ -160,13 +173,19 @@ class ExportLayerStyleTask(CustomQgsTask):
                 lowerValue = range.lowerValue()
                 if bool(lowerValue):
                     default_rule_data["filterExpression"].append(
-                        CriteriaDTO(attributeName=attribute, operator=JMCOperator.GREATER_THAN.name, value=lowerValue)
+                        CriteriaDTO(
+                            attributeName=attribute,
+                            operator=JMCOperator.GREATER_THAN.name,
+                            value=lowerValue,
+                        )
                     )
                 upperValue = range.upperValue()
                 if bool(upperValue):
                     default_rule_data["filterExpression"].append(
                         CriteriaDTO(
-                            attributeName=attribute, operator=JMCOperator.LOWER_OR_EQUALS_TO.name, value=upperValue
+                            attributeName=attribute,
+                            operator=JMCOperator.LOWER_OR_EQUALS_TO.name,
+                            value=upperValue,
                         )
                     )
                 self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
@@ -175,12 +194,14 @@ class ExportLayerStyleTask(CustomQgsTask):
             self._export_style_rules(style_rule)
             self.next_steps()
         elif isinstance(renderer, QgsCategorizedSymbolRenderer):
-            layer_name = layer.uri_components["layerName"]
-            fields: list[dict] = layer.layer_file.fields[layer_name]
+            fields = self._resolve_layer_fields(layer)
             style_rule = StyleRuleDTO(
-                {self.project_data.default_language: DEFAULT_CATEGORIZED_STYLE_RULE_NAME}, default_rule_data["active"]
+                {self.project_data.default_language: DEFAULT_CATEGORIZED_STYLE_RULE_NAME},
+                default_rule_data["active"],
             )
-            other_value_style_rule = StyleRuleDTO({self.project_data.default_language: "other values"}, True)
+            other_value_style_rule = StyleRuleDTO(
+                {self.project_data.default_language: "other values"}, True
+            )
             attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields)
             if not bool(attribute):
                 return False
@@ -191,12 +212,16 @@ class ExportLayerStyleTask(CustomQgsTask):
                 value = category.value()
                 if bool(value):
                     default_rule_data["filterExpression"] = [
-                        CriteriaDTO(attributeName=attribute, operator=JMCOperator.EQUALS.name, value=value)
+                        CriteriaDTO(
+                            attributeName=attribute, operator=JMCOperator.EQUALS.name, value=value
+                        )
                     ]
                     self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
                     default_rule_data["filterExpression"] = []
                 else:
-                    self._add_condition_to_style_rule(style_ids, default_rule_data, other_value_style_rule)
+                    self._add_condition_to_style_rule(
+                        style_ids, default_rule_data, other_value_style_rule
+                    )
                 self.next_steps()
             if len(other_value_style_rule.conditions) > 0:
                 self._export_style_rules(other_value_style_rule)
@@ -215,17 +240,21 @@ class ExportLayerStyleTask(CustomQgsTask):
         return True
 
     def _handle_rule(
-        self, rule: QgsRuleBasedRenderer.Rule, rule_data: dict = None, style_rule_dto: StyleRuleDTO = None
+        self,
+        rule: QgsRuleBasedRenderer.Rule,
+        rule_data: dict = None,
+        style_rule_dto: StyleRuleDTO = None,
     ) -> bool:
         if self.isCanceled():
             return False
         """
         Recursive function that handle a root-rule and its children.
 
-        If rule_data is None, it will be created, else it will be updated following passed rule's data.\n
-        If rule children exist it will be recursively called.\n
-        If any rule child have symbols it will create a style rule.\n
-        If symbol exist in rule it will be exported but it need a style_rule_id.\n
+        If rule_data is None, it will be created,
+        else it will be updated following passed rule's data.
+        If rule children exist it will be recursively called.
+        If any rule child have symbols it will create a style rule.
+        If symbol exist in rule it will be exported but it need a style_rule_id.
         """
         if not rule_data:
             rule_data = {
@@ -237,7 +266,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             }
         # update rule data
         active = rule.active()
-        if active != None:
+        if active is not None:
             rule_data["active"] = rule_data["active"] and active
 
         label = rule.label()
@@ -264,7 +293,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         symbol = rule.symbol()
         if symbol:
             if not style_rule_dto:
-                message = self.tr("Unexpected rule '{}' have symbol but no parent rule were found").format(rule.label())
+                message = self.tr(
+                    "Unexpected rule '{}' have symbol but no parent rule were found"
+                ).format(rule.label())
                 self.error_occur(message, MESSAGE_CATEGORY)
                 self.add_exception(Exception(message))
                 return False
@@ -289,13 +320,18 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         return True
 
-    def _add_condition_to_style_rule(self, style_ids: list[str], rule_data: dict, style_rule_dto: StyleRuleDTO):
+    def _add_condition_to_style_rule(
+        self, style_ids: list[str], rule_data: dict, style_rule_dto: StyleRuleDTO
+    ):
 
         for style_id in style_ids:
             condition_DTO = ConditionDTO(
-                rule_data["filterExpression"], name={self.project_data.default_language: rule_data["label"] or "None"}
+                rule_data["filterExpression"],
+                name={self.project_data.default_language: rule_data["label"] or "None"},
             )
-            style_map_scale = StyleMapScaleDTO(rule_data["minimumZoom"], rule_data["maximumZoom"], style_id)
+            style_map_scale = StyleMapScaleDTO(
+                rule_data["minimumZoom"], rule_data["maximumZoom"], style_id
+            )
             condition_DTO.styleMapScales.append(style_map_scale)
             style_rule_dto.conditions.append(condition_DTO)
 
@@ -342,7 +378,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         def _split_operator(expression: str) -> list[str]:
             parts = re.split(any_operator_pattern, expression)
             if len(parts) != 2:
-                message = self.tr("invalid expression '{}', too many or no valid operators").format(expression)
+                message = self.tr("invalid expression '{}', too many or no valid operators").format(
+                    expression
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return None
             parts.append(re.search(any_operator_pattern, expression).group(0))
@@ -352,7 +390,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         criterias: list[CriteriaDTO] = []
         # or operator not supported
         if re.search(r"\b[oO][rR]\b", expression):
-            message = self.tr("error in expression '{}'. 'OR' operator not supported in JMap Cloud").format(expression)
+            message = self.tr(
+                "error in expression '{}'. 'OR' operator not supported in JMap Cloud"
+            ).format(expression)
             self.error_occur(message, MESSAGE_CATEGORY)
             return []
         # split and expression for multiple conditions
@@ -367,7 +407,9 @@ class ExportLayerStyleTask(CustomQgsTask):
             # get operator
             operator = JMCOperator.translate(parts[2].strip())
             if operator is None:
-                message = self.tr("invalid operator {} in expression '{}'").format(parts[2].strip(), expression)
+                message = self.tr("invalid operator {} in expression '{}'").format(
+                    parts[2].strip(), expression
+                )
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return []
             # find attribute
@@ -375,16 +417,19 @@ class ExportLayerStyleTask(CustomQgsTask):
             if not attribute:
                 attribute = _find_attribute(parts[1].strip())
                 if not attribute:
-                    message = self.tr("invalid attribute in expression '{}'. Attributes: not in fileds : {}").format(
-                        expression, fields
-                    )
+                    message = self.tr(
+                        "invalid attribute in expression '{}'. Attributes: not in fileds : {}"
+                    ).format(expression, fields)
                     self.error_occur(message, MESSAGE_CATEGORY)
                     return []
                 operator = JMCOperator.reverse(operator)
                 value = _find_value(parts[0].strip())
             else:
                 value = _find_value(parts[1].strip())
-            if not bool(value) and operator not in [JMCOperator.IS_NULL.name, JMCOperator.IS_NOT_NULL.name]:
+            if not bool(value) and operator not in [
+                JMCOperator.IS_NULL.name,
+                JMCOperator.IS_NOT_NULL.name,
+            ]:
                 message = self.tr("invalid value {} in expression '{}' ").format(value, expression)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 return []
@@ -405,7 +450,9 @@ class ExportLayerStyleTask(CustomQgsTask):
             initial_type = "POLYGON"
         else:
             self.error_occur(
-                self.tr("Unsupported symbol type '{}' for layer '{}'.").format(type(symbol), self.layer_data.layer_name),
+                self.tr("Unsupported symbol type '{}' for layer '{}'.").format(
+                    type(symbol), self.layer_data.layer_name
+                ),
                 MESSAGE_CATEGORY,
             )
             return []
@@ -417,7 +464,8 @@ class ExportLayerStyleTask(CustomQgsTask):
             )
             if isinstance(style, PolygonStyleDTO):
                 style.borderTransparency = opacity_to_transparency(
-                    transparency_to_opacity(style.borderTransparency) * self.layer_data.layer.opacity()
+                    transparency_to_opacity(style.borderTransparency)
+                    * self.layer_data.layer.opacity()
                 )
 
         style_ids = []
@@ -427,9 +475,9 @@ class ExportLayerStyleTask(CustomQgsTask):
         # create every style (post Style)
         for style in styles:
             if style is None:
-                message = self.tr("Export style error for layer '{}'. Unsupported symbol layer").format(
-                    self.layer_data.layer_name
-                )
+                message = self.tr(
+                    "Export style error for layer '{}'. Unsupported symbol layer"
+                ).format(self.layer_data.layer_name)
                 self.error_occur(message, MESSAGE_CATEGORY)
                 continue
             body = style.to_json()
@@ -457,18 +505,24 @@ class ExportLayerStyleTask(CustomQgsTask):
     def _export_style_rules(self, style_rule_dto: StyleRuleDTO):
         if len(style_rule_dto.conditions) == 0:
             message = self.tr(
-                "Error exporting style rule for layer '{}': no condition in style rule to export with"
+                (
+                    "Error exporting style rule for layer '{}': ",
+                    "no condition in style rule to export with",
+                )
             ).format(self.layer_data.layer_name)
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
         url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
-            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+            API_MCS_URL,
+            self.project_data.organization_id,
+            self.project_data.project_id,
+            self.layer_data.jmc_layer_id,
         )
 
         body = style_rule_dto.to_json()
         request = RequestManager.RequestData(url, type="POST", body=body)
         response = self._request_manager.custom_request(request)
-        
+
         if response.status != QNetworkReply.NetworkError.NoError:
             error_message = self.tr("Error exporting style rule for layer '{}': {}").format(
                 self.layer_data.layer_name, response.error_message
@@ -481,7 +535,10 @@ class ExportLayerStyleTask(CustomQgsTask):
 
     def _delete_default_style_rules(self):
         url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
-            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+            API_MCS_URL,
+            self.project_data.organization_id,
+            self.project_data.project_id,
+            self.layer_data.jmc_layer_id,
         )
 
         request = RequestManager.RequestData(url, type="GET")
@@ -496,7 +553,7 @@ class ExportLayerStyleTask(CustomQgsTask):
                     default_style_rule["creationDate"]
                 ) > convert_jmap_datetime(style_rule["creationDate"]):
                     default_style_rule = style_rule
-        
+
         if not default_style_rule:
             return True
 
@@ -513,7 +570,10 @@ class ExportLayerStyleTask(CustomQgsTask):
         dto.transparency = opacity_to_transparency(layer.opacity())
 
         url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
-            API_MCS_URL, self.project_data.organization_id, self.project_data.project_id, self.layer_data.jmc_layer_id
+            API_MCS_URL,
+            self.project_data.organization_id,
+            self.project_data.project_id,
+            self.layer_data.jmc_layer_id,
         )
         request_data = RequestManager.RequestData(url, type="GET")
         response = self._request_manager.custom_request(request_data)
@@ -527,11 +587,15 @@ class ExportLayerStyleTask(CustomQgsTask):
         try:
             style_id = response.content[0]["conditions"][0]["styleMapScales"][0]["styleId"]
         except Exception as e:
-            error_message = self.tr("Error getting style for layer '{}': {}").format(self.layer_data.layer_name, e)
+            error_message = self.tr("Error getting style for layer '{}': {}").format(
+                self.layer_data.layer_name, e
+            )
             self.error_occur(error_message, MESSAGE_CATEGORY)
             return False
 
-        url = "{}/organizations/{}/styles/{}".format(API_MCS_URL, self.project_data.organization_id, style_id)
+        url = "{}/organizations/{}/styles/{}".format(
+            API_MCS_URL, self.project_data.organization_id, style_id
+        )
         body = dto.to_json()
         request = RequestManager.RequestData(url, type="PATCH", body=body)
         response = self._request_manager.custom_request(request)
@@ -548,3 +612,17 @@ class ExportLayerStyleTask(CustomQgsTask):
             if field["originalName"] == original_name:
                 return field["standardizedName"]
         return original_name
+
+    def _resolve_layer_fields(self, layer: LayerData) -> list[dict]:
+        fields_by_layer = layer.layer_file.fields if layer.layer_file else {}
+        uri_layer_name = None
+        if layer.uri_components:
+            uri_layer_name = layer.uri_components.get("layerName")
+
+        if uri_layer_name and uri_layer_name in fields_by_layer:
+            return fields_by_layer[uri_layer_name]
+        if "defaultLayer" in fields_by_layer:
+            return fields_by_layer["defaultLayer"]
+        if len(fields_by_layer) > 0:
+            return next(iter(fields_by_layer.values()))
+        return []
