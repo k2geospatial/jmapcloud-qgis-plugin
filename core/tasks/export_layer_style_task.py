@@ -505,10 +505,8 @@ class ExportLayerStyleTask(CustomQgsTask):
     def _export_style_rules(self, style_rule_dto: StyleRuleDTO):
         if len(style_rule_dto.conditions) == 0:
             message = self.tr(
-                (
-                    "Error exporting style rule for layer '{}': ",
-                    "no condition in style rule to export with",
-                )
+                "Error exporting style rule for layer '{}': ",
+                "no condition in style rule to export with",
             ).format(self.layer_data.layer_name)
             self.error_occur(message, MESSAGE_CATEGORY)
             return False
