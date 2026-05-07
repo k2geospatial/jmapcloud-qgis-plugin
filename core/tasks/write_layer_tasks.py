@@ -71,7 +71,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 if layer_data is not None:
                     self.layers_data.append(layer_data)
                     if layer_file is not None:
-                        self._register_layer_file(layer_file)
+                        self._register_layer_file(layer_file, layer_data)
                 self._completed_count += 1
                 if self._completed_count == len(self.layers):
                     self.progress_changed.emit(100.0)
@@ -88,9 +88,12 @@ class ConvertLayersToZipTask(CustomTaskManager):
         for layer_task in self._layer_tasks:
             layer_task.cancel()
 
-    def _register_layer_file(self, layer_file: LayerFile):
-        if all(existing.file_path != layer_file.file_path for existing in self.layer_files):
-            self.layer_files.append(layer_file)
+    def _register_layer_file(self, layer_file: LayerFile, layer_data: LayerData):
+        for existing in self.layer_files:
+            if existing.file_path == layer_file.file_path:
+                layer_data.layer_file = existing  # point to the already-registered object
+                return
+        self.layer_files.append(layer_file)
 
 
 class ConvertLayerToZipTask(CustomTaskManager):
