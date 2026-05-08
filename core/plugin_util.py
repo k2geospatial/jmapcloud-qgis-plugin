@@ -80,6 +80,8 @@ _REPL_MO_ELEMENTID = r"[%if(attribute('jmap_id'), attribute('jmap_id'), '')%]"
 _REPL_MO_USERNAME = "[%@user_account_name%]"
 # --- end JMap expression pattern constants ---
 
+_SVG_PARAM_PATTERN = re.compile(r"param\(\s*([^)]+?)\s*\)\s*([^\"';\s>]*)")
+
 
 def _convert_latitude_to_radians(latitude: float) -> float:
     """Convert latitude in degrees to radians."""
@@ -288,32 +290,12 @@ def resolve_polygon_svg_params(symbol_layer: QgsSVGFillSymbolLayer) -> str:
 
     svg_content = svg_path.read_text(encoding="utf-8").replace("\n", "")
 
-    param_to_value = {
-        "fill": properties.get("color", "#000000").split(",")[0],  # fallback to black
-        "fill-opacity": "1",  # can extract alpha if needed
-        "outline": properties.get("outline_color", "#000000").split(",")[0],
-        "outline-opacity": "1",  # can extract alpha if needed
-        "outline-width": properties.get("outline_width", "1"),
-    }
-
-    # Replace values with accurate RGBA
-    if "color" in properties:
-        fill_color, fill_opacity = _extract_rgba(properties["color"])
-        param_to_value["fill"] = fill_color
-        param_to_value["fill-opacity"] = fill_opacity
-
-    if "outline_color" in properties:
-        outline_color, outline_opacity = _extract_rgba(properties["outline_color"])
-        param_to_value["outline"] = outline_color
-        param_to_value["outline-opacity"] = outline_opacity
+    param_to_value = _build_svg_param_map(properties)
 
     # Step 4: Replace param(...) with actual values
     # Replace existing width/height or add them if missing
-    final_svg = re.sub(r"param\((.*?)\)", lambda m: _replace_param(m, param_to_value), svg_content)
-
-    final_svg = (
-        '<?xml version="1.0" encoding="UTF-8"?>' + final_svg
-    )  # Ensure the SVG starts with the XML declaration
+    final_svg = _replace_svg_params_in_text(svg_content, param_to_value)
+    final_svg = _ensure_xml_declaration(final_svg)
 
     # Step 5: Print or save final SVG
     return final_svg
@@ -341,34 +323,13 @@ def resolve_point_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
     )
     svg_content = svg_path.read_text(encoding="utf-8").replace("\n", "")
 
-    param_to_value = {
-        "fill": properties.get("color", "#000000").split(",")[0],  # fallback to black
-        "fill-opacity": "1",  # can extract alpha if needed
-        "outline": properties.get("outline_color", "#000000").split(",")[0],
-        "outline-opacity": "1",  # can extract alpha if needed
-        "outline-width": properties.get("outline_width", "1"),
-    }
-
-    # Replace values with accurate RGBA
-    if "color" in properties:
-        fill_color, fill_opacity = _extract_rgba(properties["color"])
-        param_to_value["fill"] = fill_color
-        param_to_value["fill-opacity"] = fill_opacity
-
-    if "outline_color" in properties:
-        outline_color, outline_opacity = _extract_rgba(properties["outline_color"])
-        param_to_value["outline"] = outline_color
-        param_to_value["outline-opacity"] = outline_opacity
+    param_to_value = _build_svg_param_map(properties)
 
     # Step 4: Replace param(...) with actual values
     # Replace existing width/height or add them if missing
-    svg_content = re.sub(r'width="[^"]*"', f'width="{width}"', svg_content)
-    svg_content = re.sub(r'height="[^"]*"', f'height="{height}"', svg_content)
-    final_svg = re.sub(r"param\((.*?)\)", lambda m: _replace_param(m, param_to_value), svg_content)
-
-    final_svg = (
-        '<?xml version="1.0" encoding="UTF-8"?>' + final_svg
-    )  # Ensure the SVG starts with the XML declaration
+    svg_content = _set_svg_root_dimensions(svg_content, width, height)
+    final_svg = _replace_svg_params_in_text(svg_content, param_to_value)
+    final_svg = _ensure_xml_declaration(final_svg)
 
     # Step 5: Print or save final SVG
     return final_svg
@@ -708,6 +669,75 @@ def _extract_rgba(qgis_color_string):
     return "#000000", "1"
 
 
-def _replace_param(match, param_to_value):
-    key = match.group(1)
-    return param_to_value.get(key, f"param({key})")  # leave untouched if not found
+def _build_svg_param_map(properties: dict) -> dict[str, str]:
+    fill_color, fill_opacity = _extract_rgba(
+        find_value_in_dict_or_first(properties, ["color", "fill"], "0,0,0,255")
+    )
+    outline_color, outline_opacity = _extract_rgba(
+        find_value_in_dict_or_first(properties, ["outline_color", "outline"], "0,0,0,255")
+    )
+
+    outline_width = find_value_in_dict_or_first(
+        properties,
+        ["outline_width", "outline-width", "stroke_width", "stroke-width"],
+        "1",
+    )
+
+    return {
+        "fill": fill_color,
+        "fill-opacity": fill_opacity,
+        "outline": outline_color,
+        "outline-opacity": outline_opacity,
+        "outline-width": str(outline_width),
+    }
+
+
+def _normalize_svg_param_key(key: str) -> str:
+    normalized = key.strip().strip("'\"")
+    normalized = re.split(r"[,\s]", normalized, maxsplit=1)[0]
+    return normalized.lower()
+
+
+def _replace_svg_param_match(match, param_to_value):
+    key = _normalize_svg_param_key(match.group(1))
+    fallback = match.group(2).strip() if match.group(2) else ""
+    if key in param_to_value:
+        return param_to_value[key]
+    if fallback:
+        return fallback
+    return match.group(0)
+
+
+def _replace_svg_params_in_text(svg_content: str, param_to_value: dict[str, str]) -> str:
+    return _SVG_PARAM_PATTERN.sub(
+        lambda m: _replace_svg_param_match(m, param_to_value),
+        svg_content,
+    )
+
+
+def _set_svg_root_dimensions(svg_content: str, width: int, height: int) -> str:
+    svg_tag_match = re.search(r"<svg\b[^>]*>", svg_content)
+    if not svg_tag_match:
+        return svg_content
+
+    svg_tag = svg_tag_match.group(0)
+
+    if re.search(r'\bwidth="[^"]*"', svg_tag):
+        svg_tag = re.sub(r'\bwidth="[^"]*"', f'width="{width}"', svg_tag)
+    else:
+        svg_tag = svg_tag[:-1] + f' width="{width}">'
+
+    if re.search(r'\bheight="[^"]*"', svg_tag):
+        svg_tag = re.sub(r'\bheight="[^"]*"', f'height="{height}"', svg_tag)
+    else:
+        svg_tag = svg_tag[:-1] + f' height="{height}">'
+
+    return svg_content[: svg_tag_match.start()] + svg_tag + svg_content[svg_tag_match.end() :]
+
+
+def _ensure_xml_declaration(svg_content: str) -> str:
+    return (
+        svg_content
+        if svg_content.lstrip().startswith("<?xml")
+        else '<?xml version="1.0" encoding="UTF-8"?>' + svg_content
+    )
