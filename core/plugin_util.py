@@ -47,23 +47,22 @@ METERS_PER_INCH = 0.0254
 DEFAULT_OGC_WMS_DPI = 25.4 / 0.28  # 90.7142857142857 dpi
 
 # --- JMap expression pattern constants ---
-# backreference are not quoted while {num} are quoted if they do not refer to a placeholder
-_PAT_EV = r"[eE][vV]\(\s*(\w+)\s*\)"
-_PAT_IFNOTNULL = r"[iI][fF][nN][oO][tT][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
-_PAT_IFNULL = r"[iI][fF][nN][uU][lL][lL]\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
-_PAT_LINELENGTH = r"[Ll][Ii][Nn][Ee][lL][Ee][Nn][Gg][Tt][Hh]\(\s*\)"
-_PAT_POLYGONAREA = r"[Pp][Oo][Ll][Yy][Gg][Oo][Nn][Aa][Rr][Ee][Aa]\(\s*\)"
-_PAT_PROJECTNAME = r"[Pp][Rr][Oo][Jj][Ee][Cc][Tt][nN][Aa][Mm][Ee]\(\s*\)"
-_PAT_DATE = r"[Dd][Aa][Tt][Ee]\(\s*\)"
+# Case-insensitive patterns: use re.IGNORECASE flag in regex operations
+_PAT_EV = r"ev\(\s*(\w+)\s*\)"
+_PAT_IFNOTNULL = r"ifnotnull\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
+_PAT_IFNULL = r"ifnull\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
+_PAT_LINELENGTH = r"linelength\(\s*\)"
+_PAT_POLYGONAREA = r"polygonarea\(\s*\)"
+_PAT_PROJECTNAME = r"projectname\(\s*\)"
+_PAT_DATE = r"date\(\s*\)"
 _PAT_SUBSTRING = (
-    r"[Ss][Uu][Bb][Ss][Tt][Rr][Ii][Nn][Gg]"
-    r"\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)"
+    r"substring" r"\(\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*,\s*([\w]+|\{\d+\})\s*\)"
 )
-_PAT_FORMAT_DATE = r"[fF][oO][rR][mM][aA][tT]\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
-_PAT_FORMAT_NUMBER = r"[fF][oO][rR][mM][aA][tT]\(\s*(\w+)\s*,\s*[\'\"]?((?:[#0.,]+))[\'\"]?\s*\)"
-_PAT_CENTROID = r"[cC][eE][nN][tT][rR][oO][iI][dD]\(\s*\)"
-_PAT_ELEMENTID = r"[eE][lL][eE][mM][eE][nN][tT][iI][dD]\(\s*\)"
-_PAT_USERNAME = r"[uU][sS][eE][rR][nN][aA][mM][eE]\(\s*\)"
+_PAT_FORMAT_DATE = r"format\(\s*(\w+)\s*,\s*([^)]+)\s*\)"
+_PAT_FORMAT_NUMBER = r"format\(\s*(\w+)\s*,\s*[\'\"]?((?:[#0.,]+))[\'\"]?\s*\)"
+_PAT_CENTROID = r"centroid\(\s*\)"
+_PAT_ELEMENTID = r"elementid\(\s*\)"
+_PAT_USERNAME = r"username\(\s*\)"
 
 _REPL_MO_EV = r"[%if(attribute('\1'), attribute('\1'), '')%]"
 _REPL_MO_IFNOTNULL = r"[%if(attribute('\1'), attribute('\1'), '')%]"
@@ -519,21 +518,21 @@ def convert_jmap_text_mouse_over_expression(text: str) -> str:
 
     # 🔹 **Step 1: Process one match at a time until no more matches are found**
     while True:
-        match = re.search(pattern_regex, new_text)
+        match = re.search(pattern_regex, new_text, re.IGNORECASE)
         if not match:  # No more functions found → stop processing
             break
 
         formatted_group = match.group(0)
         # Apply the corresponding pattern replacement
         for pattern, replacement in patterns.items():
-            sub_matches = re.search(pattern, formatted_group)
+            sub_matches = re.search(pattern, formatted_group, re.IGNORECASE)
             if not sub_matches:
                 continue
             # quote all non placeholder formatter groups
             # quoted_group = [quote(group) for grou`p in sub_matches.groups()]
 
             # replacement is quoted if specified in the pattern replacement
-            formatted_group = re.sub(pattern, replacement, formatted_group)
+            formatted_group = re.sub(pattern, replacement, formatted_group, flags=re.IGNORECASE)
 
         replacements[replacement_counter] = formatted_group
         key = f"{{{replacement_counter}}}"
@@ -587,21 +586,23 @@ def convert_jmap_text_label_expression(text: str) -> str:
 
     # 🔹 **Step 1: Process one match at a time until no more matches are found**
     while True:
-        match = re.search(pattern_regex, new_text)
+        match = re.search(pattern_regex, new_text, re.IGNORECASE)
         if not match:  # No more functions found → stop processing
             break
 
         formatted_group = match.group(0)
         # Apply the corresponding pattern replacement
         for pattern, replacement in patterns.items():
-            sub_matches = re.search(pattern, formatted_group)
+            sub_matches = re.search(pattern, formatted_group, re.IGNORECASE)
             if not sub_matches:
                 continue
             # quote all non placeholder formatter groups
             quoted_group = [quote(group) for group in sub_matches.groups()]
 
             # replacement is quoted if specified in the pattern replacement
-            formatted_group = re.sub(pattern, replacement.format(*quoted_group), formatted_group)
+            formatted_group = re.sub(
+                pattern, replacement.format(*quoted_group), formatted_group, flags=re.IGNORECASE
+            )
 
         replacements[replacement_counter] = formatted_group
         key = f"{{{replacement_counter}}}"
