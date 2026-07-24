@@ -1,6 +1,7 @@
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt import QtWidgets
-from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtCore import QSortFilterProxyModel, Qt, pyqtSignal
+from qgis.PyQt.QtGui import QStandardItem, QStandardItemModel
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
@@ -29,14 +30,27 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         self._selected_layer_id = None
         self._selected_layer_name = None
         self._selected_layer_type = None
+
+        # Tree model + recursive filter proxy backing the "layer to replace" tree.
+        self._layer_model = QStandardItemModel()
+        self._proxy = QSortFilterProxyModel(self)
+        self._proxy.setSourceModel(self._layer_model)
+        self._proxy.setRecursiveFilteringEnabled(True)
+        self._proxy.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.target_layer_tree_view.setModel(self._proxy)
+        self.target_layer_tree_view.setHeaderHidden(True)
+        self.layer_filter_line_edit.textChanged.connect(self._on_filter_text_changed)
+        self.target_layer_tree_view.selectionModel().selectionChanged.connect(
+            self._on_tree_selection_changed
+        )
+
         self.reset_dialog_state()
 
     def reset_dialog_state(self):
         self.error_label.clear()
         self.export_layer_pushButton.setEnabled(False)
         self.layer_replace_label.setEnabled(False)
-        self.target_layer_replace_combo_box.clear()
-        self.target_layer_replace_combo_box.setEnabled(False)
+        self._clear_layer_tree()
 
         # Uncheck both radio buttons even though they are auto-exclusive.
         self.create_layer_radio_button.setAutoExclusive(False)
@@ -49,31 +63,49 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
         self.create_layer_radio_button.setEnabled(False)
         self.repalce_layer_radio_button.setEnabled(False)
 
+    def _clear_layer_tree(self):
+        """Reset and disable the layer tree + filter box."""
+        self._layer_model.clear()
+        self.layer_filter_line_edit.clear()
+        self.layer_filter_line_edit.setEnabled(False)
+        self.target_layer_tree_view.setEnabled(False)
+
+    def _resolve_name(self, name: dict, locale: str) -> str:
+        """Resolve a locale-keyed name dict to a display string."""
+        if not isinstance(name, dict) or not name:
+            return str(name) if name else ""
+        if locale in name:
+            return name[locale]
+        return next(iter(name.values()))
+
+    def _selected_target_payload(self) -> dict:
+        """Return {"id", "spatialDataSourceId"} of the selected layer, or None."""
+        indexes = self.target_layer_tree_view.selectionModel().selectedIndexes()
+        if not indexes:
+            return None
+        source_index = self._proxy.mapToSource(indexes[0])
+        item = self._layer_model.itemFromIndex(source_index)
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
     def get_selected_layer_to_export(self) -> ExportSelectedLayerData:
         """
         Get the data of the selected layer to export,
         the target project and layer (if in replace mode)
         """
+        is_replace = self.repalce_layer_radio_button.isChecked()
+        payload = self._selected_target_payload() if is_replace else None
         return ExportSelectedLayerData(
             source_layer_id=self._selected_layer_id,
             JMC_project=self.JMap_project_combo_box.currentData(),
             mode=(
                 ExportSelectedLayerData.ExportMode.replace
-                if self.repalce_layer_radio_button.isChecked()
+                if is_replace
                 else ExportSelectedLayerData.ExportMode.create
             ),
-            target_JMC_layer_id=(
-                self.target_layer_replace_combo_box.currentData()["id"]
-                if self.repalce_layer_radio_button.isChecked()
-                and self.target_layer_replace_combo_box.currentData()
-                else None
-            ),
-            target_JMC_data_source_id=(
-                self.target_layer_replace_combo_box.currentData()["spatialDataSourceId"]
-                if self.repalce_layer_radio_button.isChecked()
-                and self.target_layer_replace_combo_box.currentData()
-                else None
-            ),
+            target_JMC_layer_id=payload["id"] if payload else None,
+            target_JMC_data_source_id=payload["spatialDataSourceId"] if payload else None,
         )
 
     def _on_project_selected(self, index):
@@ -83,14 +115,13 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
             if self.repalce_layer_radio_button.isChecked():
                 self._load_project_layers(project_data.project_id, self._selected_layer_type)
             else:
-                self.target_layer_replace_combo_box.setEnabled(False)
-                self.target_layer_replace_combo_box.clear()
+                self._clear_layer_tree()
                 self.layer_replace_label.setEnabled(False)
 
             self.selected_project.emit(project_data)
 
     def _load_project_layers(self, project_id: str, elementType: str):
-        def next_func(reply: RequestManager.ResponseData):
+        def next_func(replies: dict):
             # Ignore stale replies when user changed mode/project
             # while request was in-flight.
             if (
@@ -98,90 +129,147 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
                 or not self.JMap_project_combo_box.currentData()
                 or self.JMap_project_combo_box.currentData().project_id != project_id
             ):
-                self.target_layer_replace_combo_box.setEnabled(False)
                 self.layer_replace_label.setEnabled(False)
-                self.target_layer_replace_combo_box.clear()
+                self._clear_layer_tree()
                 return
 
-            if reply.status != QNetworkReply.NetworkError.NoError:
+            layers_reply = replies.get("layers")
+            groups_reply = replies.get("layer-groups")
+
+            if (
+                layers_reply is None
+                or groups_reply is None
+                or layers_reply.status != QNetworkReply.NetworkError.NoError
+                or groups_reply.status != QNetworkReply.NetworkError.NoError
+            ):
                 self.error_label.setText(self.tr("Error loading project layers"))
-                self.target_layer_replace_combo_box.setEnabled(False)
                 self.layer_replace_label.setEnabled(False)
-                self.target_layer_replace_combo_box.clear()
+                self._clear_layer_tree()
                 return
 
-            layers = reply.content or []
+            layers = layers_reply.content or []
 
             if not layers:
                 self.error_label.setText(self.tr("No layers found in the selected project"))
-                self.target_layer_replace_combo_box.setEnabled(False)
                 self.layer_replace_label.setEnabled(False)
+                self._clear_layer_tree()
                 return
 
-            self.target_layer_replace_combo_box.clear()
+            locale: str = get_user_locale()
+            spatialDataSourceIdByLayerId = {
+                layer["id"]: layer["spatialDataSourceId"] for layer in layers
+            }
+
+            self._layer_model.clear()
+            self.layer_filter_line_edit.clear()
             self.error_label.clear()
 
-            locale: str = get_user_locale()
-
-            layers = sorted(
-                map(
-                    lambda layer: {
-                        "id": layer["id"],
-                        "spatialDataSourceId": layer["spatialDataSourceId"],
-                        "name": (
-                            layer["name"][locale]
-                            if locale in layer["name"]
-                            else next(iter(layer["name"].values()))
-                        ),
-                    },
-                    layers,
-                ),
-                key=lambda layer: layer["name"].lower(),
+            self._populate_tree(
+                groups_reply.content or [],
+                spatialDataSourceIdByLayerId,
+                locale,
+                self._layer_model.invisibleRootItem(),
             )
 
-            for layer in layers:
-                self.target_layer_replace_combo_box.addItem(
-                    layer["name"],
-                    {
-                        "id": layer["id"],
-                        "spatialDataSourceId": layer["spatialDataSourceId"],
-                    },
-                )
+            if self._layer_model.invisibleRootItem().rowCount() == 0:
+                self.error_label.setText(self.tr("No layers found in the selected project"))
+                self.layer_replace_label.setEnabled(False)
+                self._clear_layer_tree()
+                return
+
+            self.target_layer_tree_view.expandAll()
 
             self.layer_replace_label.setEnabled(True)
-            self.target_layer_replace_combo_box.setEnabled(True)
-            self.export_layer_pushButton.setEnabled(True)
+            self.layer_filter_line_edit.setEnabled(True)
+            self.target_layer_tree_view.setEnabled(True)
+            # Export stays disabled until a valid layer is selected.
+            self.export_layer_pushButton.setEnabled(False)
 
-        self.jmap_mcs.get_project_layers_async(project_id, elementType).connect(next_func)
+        signal = self.jmap_mcs.get_project_layers_and_groups_async(project_id, elementType)
+        if signal is not None:
+            signal.connect(next_func)
+
+    def _populate_tree(
+        self,
+        nodes: list,
+        spatialDataSourceIdByLayerId: dict,
+        locale: str,
+        parent_item: QStandardItem,
+    ) -> bool:
+        """
+        Recursively build the layer/group tree under parent_item, preserving the
+        JMap Cloud project's original layer/group ordering.
+
+        Only LAYER nodes present in `spatialDataSourceIdByLayerId` (matching geometry
+        type) are kept; GROUP nodes are kept only if they contain at least one kept
+        descendant (empty groups are pruned). Returns True if anything was appended.
+        """
+        kept_any = False
+        for node in nodes:
+            node_type = str(node.get("nodeType", "")).upper()
+            name = self._resolve_name(node.get("name", {}), locale)
+
+            if node_type == "GROUP":
+                group_item = QStandardItem(name)
+                group_item.setEditable(False)
+                group_item.setSelectable(False)
+                has_children = self._populate_tree(
+                    node.get("children", []) or [],
+                    spatialDataSourceIdByLayerId,
+                    locale,
+                    group_item,
+                )
+                if has_children:
+                    parent_item.appendRow(group_item)
+                    kept_any = True
+            elif node_type == "LAYER":
+                layer_id = node.get("id")
+                if layer_id in spatialDataSourceIdByLayerId:
+                    layer_item = QStandardItem(name)
+                    layer_item.setEditable(False)
+                    layer_item.setData(
+                        {
+                            "id": layer_id,
+                            "spatialDataSourceId": spatialDataSourceIdByLayerId[layer_id],
+                        },
+                        Qt.ItemDataRole.UserRole,
+                    )
+                    parent_item.appendRow(layer_item)
+                    kept_any = True
+
+        return kept_any
+
+    def _on_filter_text_changed(self, text: str):
+        self._proxy.setFilterFixedString(text)
+        self.target_layer_tree_view.expandAll()
 
     def _on_mode_toggled(self, mode: ExportSelectedLayerData.ExportMode, checked: bool):
         if not checked:
             return
 
-        self.layer_replace_label.setEnabled(mode == ExportSelectedLayerData.ExportMode.replace)
+        is_replace = mode == ExportSelectedLayerData.ExportMode.replace
+        self.layer_replace_label.setEnabled(is_replace)
+        # In replace mode the Export button is enabled only once a layer is selected.
         self.export_layer_pushButton.setEnabled(mode == ExportSelectedLayerData.ExportMode.create)
 
-        if (
-            mode == ExportSelectedLayerData.ExportMode.replace
-            and self.JMap_project_combo_box.currentData()
-        ):
+        if is_replace and self.JMap_project_combo_box.currentData():
             project_id = self.JMap_project_combo_box.currentData().project_id
             self._load_project_layers(project_id, self._selected_layer_type)
         else:
             self.error_label.clear()
             self.layer_replace_label.setEnabled(False)
-            self.target_layer_replace_combo_box.setEnabled(False)
-            self.target_layer_replace_combo_box.clear()
+            self._clear_layer_tree()
 
         self.layer_export_mode_changed.emit(mode)
 
-    def _on_layer_to_replace_selected(self, index):
-        if index < 0:
-            return
-
-        payload = self.target_layer_replace_combo_box.itemData(index)
+    def _on_tree_selection_changed(self, selected, deselected):
+        payload = self._selected_target_payload()
         if payload:
+            self.export_layer_pushButton.setEnabled(True)
             self.selected_layer_id_to_replace.emit(payload)
+        else:
+            # A group (non-selectable) or nothing valid is selected.
+            self.export_layer_pushButton.setEnabled(False)
 
     def set_selected_layer(self, layer: QgsMapLayer):
         if not layer:
