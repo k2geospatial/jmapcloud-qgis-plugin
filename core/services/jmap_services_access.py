@@ -62,6 +62,19 @@ class JMapMCS:
 
         return self._request_manager.add_requests(request)
 
+    def get_project_layers_and_groups_async(self, project_id: str, elementType: str) -> pyqtSignal:
+        organization_id = self._session_manager.get_organization_id()
+        if organization_id is None:
+            return None
+        base = f"{API_MCS_URL}/organizations/{organization_id}/projects/{project_id}"
+        requests = [
+            RequestManager.RequestData(
+                f"{base}/layers?q=elementType={elementType}", type="GET", id="layers"
+            ),
+            RequestManager.RequestData(f"{base}/layers-groups", type="GET", id="layer-groups"),
+        ]
+        return self._request_manager.multi_request_async(requests)
+
     def get_project_by_id(self, project_id: str) -> RequestManager.ResponseData:
         organization_id = self._session_manager.get_organization_id()
         if organization_id is None:
