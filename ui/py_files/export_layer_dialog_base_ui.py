@@ -14,25 +14,24 @@ from ... import resources_rc  # noqa: F401
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(702, 433)
+        Dialog.resize(702, 560)
         Dialog.setStyleSheet("background-color:rgb(36, 46, 52)")
+        self.mainLayout = QtWidgets.QVBoxLayout(Dialog)
+        self.mainLayout.setObjectName("mainLayout")
         self.jmap_image_label = QtWidgets.QLabel(parent=Dialog)
-        self.jmap_image_label.setGeometry(QtCore.QRect(10, 10, 121, 71))
+        self.jmap_image_label.setMinimumSize(QtCore.QSize(121, 71))
+        self.jmap_image_label.setMaximumSize(QtCore.QSize(121, 71))
         self.jmap_image_label.setText("")
         self.jmap_image_label.setPixmap(QtGui.QPixmap(":/images/images/Logo_JMap_Cloud.svg"))
         self.jmap_image_label.setObjectName("jmap_image_label")
+        self.mainLayout.addWidget(self.jmap_image_label)
         self.widget = QtWidgets.QWidget(parent=Dialog)
-        self.widget.setGeometry(QtCore.QRect(10, 100, 681, 321))
         self.widget.setStyleSheet("background-color:rgb(220, 220, 220)\n" "")
         self.widget.setObjectName("widget")
-        self.verticalLayoutWidget = QtWidgets.QWidget(parent=self.widget)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 10, 661, 301))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.widget)
         self.verticalLayout.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.title_label = QtWidgets.QLabel(parent=self.verticalLayoutWidget)
+        self.title_label = QtWidgets.QLabel(parent=self.widget)
         sizePolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Preferred
         )
@@ -45,7 +44,7 @@ class Ui_Dialog(object):
         self.title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.title_label.setObjectName("title_label")
         self.verticalLayout.addWidget(self.title_label)
-        self.project_selection_label = QtWidgets.QLabel(parent=self.verticalLayoutWidget)
+        self.project_selection_label = QtWidgets.QLabel(parent=self.widget)
         sizePolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
         )
@@ -61,7 +60,7 @@ class Ui_Dialog(object):
         )
         self.project_selection_label.setObjectName("project_selection_label")
         self.verticalLayout.addWidget(self.project_selection_label)
-        self.JMap_project_combo_box = QtWidgets.QComboBox(parent=self.verticalLayoutWidget)
+        self.JMap_project_combo_box = QtWidgets.QComboBox(parent=self.widget)
         self.JMap_project_combo_box.setEnabled(True)
         self.JMap_project_combo_box.setAutoFillBackground(False)
         self.JMap_project_combo_box.setStyleSheet(
@@ -79,28 +78,28 @@ class Ui_Dialog(object):
             40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
         self.horizontalLayout.addItem(spacerItem)
-        self.create_layer_radio_button = QtWidgets.QRadioButton(parent=self.verticalLayoutWidget)
+        self.create_layer_radio_button = QtWidgets.QRadioButton(parent=self.widget)
         self.create_layer_radio_button.setEnabled(False)
         self.create_layer_radio_button.setStyleSheet(
-            "QRadioButton { \n"
-            "    color: black; \n"
+            "QRadioButton {\n"
+            "    color: black;\n"
             "}\n"
             "\n"
-            "QRadioButton:disabled { \n"
-            "    color: #9e9e9e; \n"
+            "QRadioButton:disabled {\n"
+            "    color: #9e9e9e;\n"
             "}"
         )
         self.create_layer_radio_button.setObjectName("create_layer_radio_button")
         self.horizontalLayout.addWidget(self.create_layer_radio_button)
-        self.repalce_layer_radio_button = QtWidgets.QRadioButton(parent=self.verticalLayoutWidget)
+        self.repalce_layer_radio_button = QtWidgets.QRadioButton(parent=self.widget)
         self.repalce_layer_radio_button.setEnabled(False)
         self.repalce_layer_radio_button.setStyleSheet(
-            "QRadioButton { \n"
-            "    color: black; \n"
+            "QRadioButton {\n"
+            "    color: black;\n"
             "}\n"
             "\n"
-            "QRadioButton:disabled { \n"
-            "    color: #9e9e9e; \n"
+            "QRadioButton:disabled {\n"
+            "    color: #9e9e9e;\n"
             "}"
         )
         self.repalce_layer_radio_button.setObjectName("repalce_layer_radio_button")
@@ -112,7 +111,7 @@ class Ui_Dialog(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.verticalLayout_replace_layer = QtWidgets.QVBoxLayout()
         self.verticalLayout_replace_layer.setObjectName("verticalLayout_replace_layer")
-        self.layer_replace_label = QtWidgets.QLabel(parent=self.verticalLayoutWidget)
+        self.layer_replace_label = QtWidgets.QLabel(parent=self.widget)
         self.layer_replace_label.setEnabled(False)
         self.layer_replace_label.setStyleSheet(
             "QLabel {\n"
@@ -125,35 +124,63 @@ class Ui_Dialog(object):
         )
         self.layer_replace_label.setObjectName("layer_replace_label")
         self.verticalLayout_replace_layer.addWidget(self.layer_replace_label)
-        self.target_layer_replace_combo_box = QtWidgets.QComboBox(parent=self.verticalLayoutWidget)
-        self.target_layer_replace_combo_box.setEnabled(False)
-        self.target_layer_replace_combo_box.setStyleSheet(
-            "QComboBox {\n"
+        self.layer_filter_line_edit = QtWidgets.QLineEdit(parent=self.widget)
+        self.layer_filter_line_edit.setEnabled(False)
+        self.layer_filter_line_edit.setStyleSheet(
+            "QLineEdit {\n"
             "    background-color: white;\n"
             "    color: black;\n"
             "}\n"
             "\n"
-            "QComboBox:disabled {\n"
+            "QLineEdit:disabled {\n"
+            "    background: #f0f0f0;\n"
+            "    color: #9e9e9e;\n"
+            "}\n"
+            ""
+        )
+        self.layer_filter_line_edit.setClearButtonEnabled(True)
+        self.layer_filter_line_edit.setObjectName("layer_filter_line_edit")
+        self.verticalLayout_replace_layer.addWidget(self.layer_filter_line_edit)
+        self.target_layer_tree_view = QtWidgets.QTreeView(parent=self.widget)
+        self.target_layer_tree_view.setEnabled(False)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(1)
+        sizePolicy.setHeightForWidth(self.target_layer_tree_view.sizePolicy().hasHeightForWidth())
+        self.target_layer_tree_view.setSizePolicy(sizePolicy)
+        self.target_layer_tree_view.setStyleSheet(
+            "QTreeView {\n"
+            "    background-color: white;\n"
+            "    color: black;\n"
+            "}\n"
+            "\n"
+            "QTreeView:disabled {\n"
             "    background: #f0f0f0;\n"
             "    color: #9e9e9e;\n"
             "}\n"
             "\n"
+            "QTreeView::item:selected {\n"
+            "    background-color: rgb(0, 120, 215);\n"
+            "    color: white;\n"
+            "}\n"
             ""
         )
-        self.target_layer_replace_combo_box.setObjectName("target_layer_replace_combo_box")
-        self.verticalLayout_replace_layer.addWidget(self.target_layer_replace_combo_box)
-        self.verticalLayout.addLayout(self.verticalLayout_replace_layer)
-        spacerItem2 = QtWidgets.QSpacerItem(
-            20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
+        self.target_layer_tree_view.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers
         )
-        self.verticalLayout.addItem(spacerItem2)
-        self.error_label = QtWidgets.QLabel(parent=self.verticalLayoutWidget)
+        self.target_layer_tree_view.setHeaderHidden(True)
+        self.target_layer_tree_view.setObjectName("target_layer_tree_view")
+        self.verticalLayout_replace_layer.addWidget(self.target_layer_tree_view)
+        self.verticalLayout.addLayout(self.verticalLayout_replace_layer)
+        self.error_label = QtWidgets.QLabel(parent=self.widget)
         self.error_label.setStyleSheet("color:rgb(255, 0, 0)")
         self.error_label.setText("")
         self.error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.error_label.setObjectName("error_label")
         self.verticalLayout.addWidget(self.error_label)
-        self.export_layer_pushButton = QtWidgets.QPushButton(parent=self.verticalLayoutWidget)
+        self.export_layer_pushButton = QtWidgets.QPushButton(parent=self.widget)
         self.export_layer_pushButton.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
@@ -169,11 +196,12 @@ class Ui_Dialog(object):
             "}\n"
             "\n"
             "QPushButton:disabled {\n"
-            "     color: #9e9e9e; \n"
+            "     color: #9e9e9e;\n"
             "}"
         )
         self.export_layer_pushButton.setObjectName("export_layer_pushButton")
         self.verticalLayout.addWidget(self.export_layer_pushButton)
+        self.mainLayout.addWidget(self.widget)
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -186,4 +214,5 @@ class Ui_Dialog(object):
         self.create_layer_radio_button.setText(_translate("Dialog", "Create a new layer"))
         self.repalce_layer_radio_button.setText(_translate("Dialog", "Replace an existing layer"))
         self.layer_replace_label.setText(_translate("Dialog", "Layer to replace :"))
+        self.layer_filter_line_edit.setPlaceholderText(_translate("Dialog", "Filter layers…"))
         self.export_layer_pushButton.setText(_translate("Dialog", "Export"))
