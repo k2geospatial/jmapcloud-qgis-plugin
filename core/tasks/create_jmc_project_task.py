@@ -34,7 +34,13 @@ MESSAGE_CATEGORY = "CreateJMCProjectTask"
 class CreateJMCProjectTask(CustomQgsTask):
     project_creation_finished = pyqtSignal(list)
 
-    def __init__(self, request_manager: RequestManager, jmap_mcs: JMapMCS, layers_data: list[LayerData], project_data: ProjectData):
+    def __init__(
+        self,
+        request_manager: RequestManager,
+        jmap_mcs: JMapMCS,
+        layers_data: list[LayerData],
+        project_data: ProjectData,
+    ):
         super().__init__("Create JMC Project", CustomQgsTask.CanCancel)
         self.layers_data = layers_data
         self.project_data = project_data
@@ -66,7 +72,9 @@ class CreateJMCProjectTask(CustomQgsTask):
         )
         reply = self._jmap_mcs.post_project(self.project_data.organization_id, project_dto)
         if reply.status != QNetworkReply.NetworkError.NoError:
-            self.error_occur(self.tr("Error creating project : {}").format(reply.error_message), MESSAGE_CATEGORY)
+            self.error_occur(
+                self.tr("Error creating project : {}").format(reply.error_message), MESSAGE_CATEGORY
+            )
             return False
         content = reply.content
         self.next_steps()
@@ -93,20 +101,32 @@ class CreateJMCProjectTask(CustomQgsTask):
             dto_type = "OGC_API_FEATURES"
         elif layer_data.layer_type == LayerData.LayerType.file_raster:
             dto_type = "RASTER"
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif layer_data.layer_type == LayerData.LayerType.WMS:
             dto_type = "WMS"
+        elif layer_data.layer_type == LayerData.LayerType.WMTS:
+            dto_type = "WMTS"
         else:  # TODO
             return None
 
         layer_dto = LayerDTO(
-            layer_data.datasource_id, {self.project_data.default_language: layer_data.layer_name}, dto_type
+            layer_data.datasource_id,
+            {self.project_data.default_language: layer_data.layer_name},
+            dto_type,
         )
 
         layer_dto.description = {self.project_data.default_language: ""}  # todo
         layer_dto.visible = True
         layer_dto.listed = True
-        layer_dto.minimumZoom = convert_scale_to_zoom(layer.minimumScale()) if layer.hasScaleBasedVisibility() and layer.minimumScale() > 0 else None
-        layer_dto.maximumZoom = convert_scale_to_zoom(layer.maximumScale()) if layer.hasScaleBasedVisibility() and layer.maximumScale() > 0 else None
+        layer_dto.minimumZoom = (
+            convert_scale_to_zoom(layer.minimumScale())
+            if layer.hasScaleBasedVisibility() and layer.minimumScale() > 0
+            else None
+        )
+        layer_dto.maximumZoom = (
+            convert_scale_to_zoom(layer.maximumScale())
+            if layer.hasScaleBasedVisibility() and layer.maximumScale() > 0
+            else None
+        )
         layer_dto.spatialDataSourceId = layer_data.datasource_id
         layer_dto.tags = []
         layer_dto.selectable = True
@@ -117,7 +137,10 @@ class CreateJMCProjectTask(CustomQgsTask):
             mouse_over_text = MouseOverConfigDTO.convert_qgis_map_tip_template(map_tip_template)
             mouse_over_text = {self.project_data.default_language: mouse_over_text}
 
-        if layer_data.layer_type in [LayerData.LayerType.API_FEATURES, LayerData.LayerType.file_vector]:
+        if layer_data.layer_type in [
+            LayerData.LayerType.API_FEATURES,
+            LayerData.LayerType.file_vector,
+        ]:
             layer_dto.elementType = layer_data.element_type
             layer_dto.attributes = []
 
@@ -133,20 +156,29 @@ class CreateJMCProjectTask(CustomQgsTask):
 
             if layer.labelsEnabled():
                 labeling = layer.labeling()
-                labeling_dto = LabelingConfigDTO.from_qgs_labeling(labeling, self.project_data.default_language)
-                if labeling_dto == None:
+                labeling_dto = LabelingConfigDTO.from_qgs_labeling(
+                    labeling, self.project_data.default_language
+                )
+                if labeling_dto is None:
                     message = self.tr(
-                        "Error creating labeling for layer {}, JMap Cloud only support single rule labeling"
+                        "Error creating labeling for layer {}, "
+                        "JMap Cloud only support single rule labeling"
                     ).format(layer_data.layer_name)
                     self.error_occur(message, MESSAGE_CATEGORY)
                 else:
                     layer_dto.labellingConfiguration = labeling_dto
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif layer_data.layer_type == LayerData.LayerType.WMS:
             layer_dto.layers = [layer_data.uri_components["layers"]]
             layer_dto.styles = ["default"]
             layer_dto.imageFormat = layer_data.uri_components["format"]
+        elif layer_data.layer_type == LayerData.LayerType.WMTS:
+            layer_dto.layer = layer_data.uri_components["layers"]
+            layer_dto.style = "default"
+            layer_dto.imageFormat = layer_data.uri_components["format"]
 
-        layer_dto.mouseOverConfiguration = MouseOverConfigDTO(layer.mapTipsEnabled(), mouse_over_text)
+        layer_dto.mouseOverConfiguration = MouseOverConfigDTO(
+            layer.mapTipsEnabled(), mouse_over_text
+        )
 
         url = "{}/organizations/{}/projects/{}/layers".format(
             API_MCS_URL, self.project_data.organization_id, self.project_data.project_id

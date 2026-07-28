@@ -452,9 +452,15 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 return None
 
         # ---- WMS / WMTS ----
-        elif provider_name in ["wms", "wmts"] and "url" in uri_components:
-            layer_data.layer_type = LayerData.LayerType.WMS_WMTS
-            return {"capabilitiesUrl": self._build_wms_capabilities_url(uri_components["url"])}
+        # Note: WMS and WMTS both come through the "wms" provider, so the service has to be
+        # resolved from the URI itself before the layer type can be set.
+        elif provider_name == "wms" and "url" in uri_components:
+            service = self._resolve_ogc_service(uri_components)
+            if service == "WMTS":
+                layer_data.layer_type = LayerData.LayerType.WMTS
+            else:
+                layer_data.layer_type = LayerData.LayerType.WMS
+            return {"capabilitiesUrl": self._build_ogc_capabilities_url(uri_components, service)}
 
         # ---- File-based Raster layers ----
         elif isinstance(layer, QgsRasterLayer) and "path" in uri_components:
@@ -494,20 +500,37 @@ class ConvertLayerToZipTask(CustomTaskManager):
         self.error_occur(message, MESSAGE_CATEGORY)
         return None
 
-    def _build_wms_capabilities_url(self, raw_url: str) -> str:
-        decoded_url = urllib.parse.unquote_plus(raw_url or "").strip()
-        parsed_url = urllib.parse.urlsplit(decoded_url)
+    def _build_ogc_capabilities_url(self, uri_components: dict, service: str) -> str:
+        """Build the GetCapabilities URL for the given OGC service ("WMS" or "WMTS")."""
+        parsed_url = urllib.parse.urlsplit(self._decoded_ogc_url(uri_components))
         query_items = [
             (key, value)
             for key, value in urllib.parse.parse_qsl(parsed_url.query, keep_blank_values=True)
             if key.lower() not in {"service", "request"}
         ]
-        query_items.append(("SERVICE", "WMS"))
+        query_items.append(("SERVICE", service))
         query_items.append(("REQUEST", "GetCapabilities"))
         query = urllib.parse.urlencode(query_items, doseq=True)
         return urllib.parse.urlunsplit(
             (parsed_url.scheme, parsed_url.netloc, parsed_url.path, query, parsed_url.fragment)
         )
+
+    def _decoded_ogc_url(self, uri_components: dict) -> str:
+        return urllib.parse.unquote_plus(uri_components.get("url") or "").strip()
+
+    def _resolve_ogc_service(self, uri_components: dict) -> str:
+        """WMS and WMTS both come through the "wms" provider, so the service can't be read
+        off the provider name. A tileMatrixSet is only ever present on a WMTS URI; failing
+        that, trust the service already in the URL before defaulting to WMS."""
+        if uri_components.get("tileMatrixSet"):
+            return "WMTS"
+
+        query = urllib.parse.urlsplit(self._decoded_ogc_url(uri_components)).query
+        for key, value in urllib.parse.parse_qsl(query, keep_blank_values=True):
+            if key.lower() == "service" and value.strip().upper() in {"WMS", "WMTS"}:
+                return value.strip().upper()
+
+        return "WMS"
 
 
 class CustomWriteVectorLayerTask(CustomQgsTask):

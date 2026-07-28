@@ -358,6 +358,11 @@ class DatasourceManager(CustomTaskManager):
         request_DTO.name = layer_data.layer_name
         request_DTO.type = layer_data.layer_type.value
 
+        if layer_data.layer_type in (LayerData.LayerType.WMS, LayerData.LayerType.WMTS):
+            request_DTO.type = "WMS_WMTS"
+        else:
+            request_DTO.type = layer_data.layer_type.value
+
         if layer_data.layer_type == LayerData.LayerType.file_vector:
             uri_layer_name = layer_data.uri_components["layerName"]
             crs = convert_crs_to_epsg(layer_data.layer.crs())
@@ -414,7 +419,10 @@ class DatasourceManager(CustomTaskManager):
                 "landingPageUrl": layer_data.datasource["landingPageUrl"],
                 "collectionId": layer_data.datasource["collectionId"],
             }
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif (
+            layer_data.layer_type == LayerData.LayerType.WMS
+            or layer_data.layer_type == LayerData.LayerType.WMTS
+        ):
             request_DTO.capabilitiesUrl = layer_data.datasource["capabilitiesUrl"]
         else:
             return False
@@ -476,7 +484,10 @@ class DatasourceManager(CustomTaskManager):
                 "landingPageUrl": layer_data.datasource["landingPageUrl"],
                 "collectionId": layer_data.datasource["collectionId"],
             }
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif (
+            layer_data.layer_type == LayerData.LayerType.WMS
+            or layer_data.layer_type == LayerData.LayerType.WMTS
+        ):
             request_DTO.capabilitiesUrl = layer_data.datasource["capabilitiesUrl"]
         else:
             return False

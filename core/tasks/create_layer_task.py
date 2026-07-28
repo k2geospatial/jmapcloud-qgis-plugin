@@ -73,8 +73,10 @@ class CreateLayerTask(CustomQgsTask):
             dto_type = "OGC_API_FEATURES"
         elif layer_data.layer_type == LayerData.LayerType.file_raster:
             dto_type = "RASTER"
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif layer_data.layer_type == LayerData.LayerType.WMS:
             dto_type = "WMS"
+        elif layer_data.layer_type == LayerData.LayerType.WMTS:
+            dto_type = "WMTS"
         else:  # TODO
             return None
 
@@ -139,14 +141,19 @@ class CreateLayerTask(CustomQgsTask):
                     self.error_occur(message, MESSAGE_CATEGORY)
                 else:
                     layer_dto.labellingConfiguration = labeling_dto
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
+        elif layer_data.layer_type == LayerData.LayerType.WMS:
             layer_dto.layers = [layer_data.uri_components["layers"]]
             layer_dto.styles = ["default"]
+            layer_dto.imageFormat = layer_data.uri_components["format"]
+        elif layer_data.layer_type == LayerData.LayerType.WMTS:
+            layer_dto.layer = layer_data.uri_components["layers"]
+            layer_dto.style = "default"
             layer_dto.imageFormat = layer_data.uri_components["format"]
 
         layer_dto.mouseOverConfiguration = MouseOverConfigDTO(
             layer.mapTipsEnabled(), mouse_over_text
         )
+
         return layer_dto
 
     def _resolve_layer_attributes(self, layer_data: LayerData) -> list[dict]:

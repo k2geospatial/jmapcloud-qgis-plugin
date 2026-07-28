@@ -11,6 +11,7 @@
 # -----------------------------------------------------------
 
 from typing import Union
+
 from .dto import DTO
 from .labeling_config_dto import LabelingConfigDTO
 from .mouse_over_config_dto import MouseOverConfigDTO
@@ -20,7 +21,8 @@ class LayerDTO(DTO):
     spatialDataSourceId: str
     name: dict[str, str]
     type: str
-    layers: list[str]
+    layers: list[str]  # used for wms only
+    layer: str  # used for wmts only
     elementType: str
     description: dict[str, str]
     visible: bool
@@ -29,7 +31,8 @@ class LayerDTO(DTO):
     maximumZoom: Union[int, None]
     tags: list[str]
     selectable: bool
-    styles: list[str]
+    styles: list[str]  # used for wms only
+    style: str  # used for wmts only
     imageFormat: str
     attributes: list[dict[str, str]]
     mouseOverConfiguration: MouseOverConfigDTO
@@ -46,17 +49,21 @@ class LayerDTO(DTO):
         self.name = name
         self.type = type
 
+
 class UpdateLayerDTO(DTO):
     name: dict[str, str]
     description: dict[str, str]
+    layers: list[str]  # used for wms only
+    layer: str  # used for wmts only
     visible: bool
     listed: bool
     minimumZoom: Union[int, None]
     maximumZoom: Union[int, None]
     selectable: bool
+    styles: list[str]  # used for wms only
+    style: str  # used for wmts only
     attributes: list[dict[str, str]]
     mouseOverConfiguration: MouseOverConfigDTO
     labellingConfiguration: LabelingConfigDTO
-    layers: list[str]
+
     imageFormat: str
- 

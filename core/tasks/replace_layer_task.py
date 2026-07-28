@@ -158,8 +158,13 @@ class ReplaceLayerTask(CustomQgsTask):
                     )
                 else:
                     layer_dto.labellingConfiguration = labeling_config_dto
-        elif layer_data.layer_type == LayerData.LayerType.WMS_WMTS:
-            layer_dto.layers = [layer_data.uri_components["layerName"]]
+        elif layer_data.layer_type == LayerData.LayerType.WMS:
+            layer_dto.layers = [layer_data.uri_components["layers"]]
+            layer_dto.styles = ["default"]
+            layer_dto.imageFormat = layer_data.uri_components["format"]
+        elif layer_data.layer_type == LayerData.LayerType.WMTS:
+            layer_dto.layer = layer_data.uri_components["layers"]
+            layer_dto.style = "default"
             layer_dto.imageFormat = layer_data.uri_components["format"]
 
         layer_dto.mouseOverConfiguration = MouseOverConfigDTO(
