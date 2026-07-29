@@ -83,7 +83,8 @@ class LayerData:
         file_vector = "FILE_VECTOR"
         file_raster = "FILE_RASTER"
         API_FEATURES = "OGC_API_FEATURES"
-        WMS_WMTS = "WMS_WMTS"
+        WMS = "WMS"
+        WMTS = "WMTS"
 
     class ElementType(Enum):
         POINT = "POINT"

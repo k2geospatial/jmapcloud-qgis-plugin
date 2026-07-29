@@ -29,6 +29,7 @@ class CreateDatasourceDTO(DTO):
     type: str = ""
     capabilitiesUrl: str = ""
 
+
 class UpdateDatasourceDTO(DTO):
     name: str = ""
     description: str = ""
