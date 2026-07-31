@@ -28,7 +28,7 @@ class ProjectDTO(DTO):
         name: dict[str, str] = {DEFAULT_LANGUAGE: DEFAULT_PROJECT_NAME},
         description: dict[str, str] = {},
         measurementCrs: str = DEFAULT_MEASUREMENT_CRS,
-        initialExtent="null",
+        initialExtent: dict = None,
         backgroundColor: str = DEFAULT_BACKGROUND_COLOR,
         defaultSelectionColor: str = DEFAULT_SELECTION_COLOR,
         defaultLanguage: str = DEFAULT_LANGUAGE,

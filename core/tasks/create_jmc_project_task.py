@@ -21,7 +21,11 @@ from ..DTOS import (
     MouseOverConfigDTO,
     ProjectDTO,
 )
-from ..plugin_util import convert_QGIS_text_expression_to_JMap, convert_scale_to_zoom
+from ..plugin_util import (
+    convert_QGIS_text_expression_to_JMap,
+    convert_scale_to_zoom,
+    is_extent_usable,
+)
 from ..services.jmap_services_access import JMapMCS
 from ..services.request_manager import RequestManager
 from ..tasks.custom_qgs_task import CustomQgsTask
@@ -56,12 +60,17 @@ class CreateJMCProjectTask(CustomQgsTask):
         return self.create_jmc_project()
 
     def create_jmc_project(self):
-        rectangle = {
-            "x1": self.project_data.initial_extent.xMinimum(),
-            "y1": self.project_data.initial_extent.yMinimum(),
-            "x2": self.project_data.initial_extent.xMaximum(),
-            "y2": self.project_data.initial_extent.yMaximum(),
-        }
+        initial_extent = self.project_data.initial_extent
+        rectangle = (
+            {
+                "x1": initial_extent.xMinimum(),
+                "y1": initial_extent.yMinimum(),
+                "x2": initial_extent.xMaximum(),
+                "y2": initial_extent.yMaximum(),
+            }
+            if is_extent_usable(initial_extent)
+            else None
+        )
 
         project_dto = ProjectDTO(
             name={self.project_data.default_language: self.project_data.name},
