@@ -46,7 +46,6 @@ changelog=
     - Added a browsable, searchable layer tree to easily find the layer to replace when exporting to an existing JMap Cloud layer
     - Fixed an issue when exporting a WMTS layer to JMap Cloud
     - Fixed an issue when creating a style-rules layer in JJMap Cloud when exporting a QGIS layer with a categorized or graduated symbology that has attributes names with double quotes
-    - Fixed the creation of a JMap Cloud project when the QGIS project extent is undefined or infinite
     1.0.6
     - Fixed an issue when exporting multiple layers from the same GeoPackage file to JMap Cloud
     1.0.5
