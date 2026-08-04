@@ -13,8 +13,8 @@ from enum import Enum, auto
 
 from qgis.core import QgsSymbol
 
-from .dto import DTO
 from ..plugin_util import opacity_to_transparency, transparency_to_opacity
+from .dto import DTO
 
 
 class StyleDTO(DTO):
@@ -51,7 +51,9 @@ class StyleDTO(DTO):
                 # symbol layer instead of dropping it silently
                 dtos.append(None)
                 continue
-            dto.transparency = opacity_to_transparency(transparency_to_opacity(dto.transparency) * symbol.opacity())
+            dto.transparency = opacity_to_transparency(
+                transparency_to_opacity(dto.transparency) * symbol.opacity()
+            )
             dtos.append(dto)
         return dtos
 
