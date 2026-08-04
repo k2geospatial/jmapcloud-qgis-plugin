@@ -27,12 +27,16 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsFontMarkerSymbolLayer,
+    QgsLinePatternFillSymbolLayer,
+    QgsLineSymbol,
+    QgsLineSymbolLayer,
     QgsMapSettings,
     QgsMessageLog,
     QgsProject,
     QgsRasterMarkerSymbolLayer,
     QgsRectangle,
     QgsRenderContext,
+    QgsSimpleLineSymbolLayer,
     QgsSVGFillSymbolLayer,
     QgsSvgMarkerSymbolLayer,
     QgsSymbol,
@@ -43,6 +47,11 @@ from qgis.PyQt.QtSvg import QSvgGenerator
 
 MAX_SCALE_LIMIT = 295828763
 TILE_SIZE_IN_PIXELS = 512
+"""JMap Cloud rejects a patternData wider or taller than this."""
+MAX_PATTERN_SIZE_IN_PIXELS = 100
+MIN_PATTERN_SIZE_IN_PIXELS = 32
+"""Grow a pattern tile by whole periods up to at least this, to limit rounding."""
+MAX_HATCH_ANGLE_SNAP_IN_DEGREES = 5.0
 EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR = 40075016.686
 METERS_PER_PX_AT_EQUATOR = EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR / TILE_SIZE_IN_PIXELS
 METERS_PER_INCH = 0.0254
@@ -321,6 +330,242 @@ def resolve_polygon_svg_params(symbol_layer: QgsSVGFillSymbolLayer) -> str:
 
     # Step 5: Print or save final SVG
     return final_svg
+
+
+def _resolve_seamless_hatch_tile(
+    distance: float,
+    angle_degrees: float,
+    max_side: float,
+    max_snap_degrees: float = MAX_HATCH_ANGLE_SNAP_IN_DEGREES,
+    max_term: int = 8,
+) -> tuple[float, float, bool]:
+    """
+    Finds how big a square of hatch has to be so copies of it sit side by side
+    without the lines breaking, and the angle to draw those lines at.
+
+    Picture the square repeated across the polygon. Wherever two copies meet, a
+    line leaving one square has to continue exactly where a line enters the next
+    one. That only happens at certain sizes, and which sizes work depends on the
+    angle. For lines at 45 degrees the smallest square that works is the spacing
+    times the square root of 2; for horizontal or vertical lines it is just the
+    spacing. In general the size is the spacing times sqrt(m*m + n*n), where m/n
+    is a simple fraction that matches the slope of the lines (the fraction for 45
+    degrees is 1/1, for horizontal 0/1).
+
+    The catch is that most angles have no simple fraction, so this nudges the
+    angle to the nearest one that does and reports that nudged angle back. The
+    lines have to be drawn at it, not at the original angle, or they will not meet
+    up after all. A nudge of a degree or so cannot be seen, so it is the cheapest
+    thing to give up.
+
+    Bigger nudges are not cheap, and sometimes no small square exists at all: a
+    hatch at 30 degrees with lines 20 pixels apart needs a square 161 pixels wide,
+    which is larger than JMap allows. Forcing it to fit would either turn the
+    hatch to a noticeably different angle or crush the lines much closer together.
+    So once the nudge would exceed max_snap_degrees, this gives up on making the
+    lines meet: it returns the real angle and is_seamless False, and the caller
+    gets a square with the right angle and the right spacing that simply shows a
+    small jump where copies meet. That is the least ugly of the three options.
+
+    The size comes back as a fraction of a pixel on purpose. Rounding it to a
+    whole pixel is exactly what makes a hatch look fuzzy, because then the lines
+    no longer meet; the caller deals with whole pixels a different way.
+
+    Args:
+        distance: Gap between neighbouring lines, measured straight across
+            them (not along the square's edge), in pixels.
+        angle_degrees: Angle of the lines, as QGIS reports it.
+        max_side: Largest square JMap will accept, in pixels.
+        max_snap_degrees: How far the hatch may be turned to make the lines meet.
+    Returns:
+        tuple: (square size in pixels, angle in radians to draw the lines at,
+                whether the lines actually meet where copies touch)
+    """
+    angle_degrees = angle_degrees % 180.0
+    angle = math.radians(angle_degrees)
+    if abs(math.cos(angle)) < 1e-6:  # vertical lines, spacing is horizontal
+        if distance > max_side:  # one gap is already wider than the whole square
+            return max_side, angle, False
+        return distance, angle, True
+
+    # a fraction m/n can only describe an angle up to 90 degrees, so match against
+    # the mirrored angle for anything steeper and flip the result back at the end
+    acute = math.radians(angle_degrees if angle_degrees <= 90.0 else 180.0 - angle_degrees)
+    max_snap = math.radians(max_snap_degrees)
+    best = None
+    best_angle_error = None
+
+    for n in range(0, max_term + 1):
+        for m in range(0, max_term + 1):
+            if m == 0 and n == 0:
+                continue
+            side = distance * math.sqrt(m * m + n * n)
+            if side > max_side:
+                continue
+            snapped = math.atan2(m, n)
+            angle_error = abs(snapped - acute)
+            if angle_error > max_snap:
+                continue
+            if best_angle_error is None or angle_error < best_angle_error:
+                best, best_angle_error = (side, snapped), angle_error
+
+    if best is None:
+        return max_side, angle, False
+
+    side, snapped = best
+    if angle_degrees > 90.0:
+        snapped = math.pi - snapped
+    return side, snapped, True
+
+
+def _resolve_line_sub_symbol_stroke(sub_symbol: QgsLineSymbol) -> tuple[float, QColor, list[float]]:
+    """
+    Stroke width in pixels, colour and dash pattern of a line sub symbol.
+
+    The unit comes from the first line symbol layer rather than from
+    QgsSymbol.outputUnit(), which reports Unknown as soon as the symbol's layers
+    disagree on units.
+    """
+    if sub_symbol is None:
+        return 0.0, None, []
+
+    for sub_symbol_layer in sub_symbol.symbolLayers():
+        if not isinstance(sub_symbol_layer, QgsLineSymbolLayer):
+            continue
+        width = convert_measurement_to_pixel(sub_symbol_layer.width(), sub_symbol_layer.widthUnit())
+        dash_pattern = []
+        if (
+            isinstance(sub_symbol_layer, QgsSimpleLineSymbolLayer)
+            and sub_symbol_layer.useCustomDashPattern()
+        ):
+            dash_pattern = convert_measurement_to_pixel(
+                sub_symbol_layer.customDashVector(), sub_symbol_layer.customDashPatternUnit()
+            )
+        return width, sub_symbol_layer.color(), dash_pattern
+
+    return 0.0, sub_symbol.color(), []
+
+
+def resolve_line_pattern_fill_svg(
+    symbol_layer: QgsLinePatternFillSymbolLayer,
+) -> tuple[str, int]:
+    """
+    Draws a QGIS hatch (a fill made of parallel lines) as a small SVG square that
+    JMap can repeat side by side to fill a polygon.
+
+    JMap has no hatch of its own, so the only way to send one is as an image in
+    patternData, which JMap repeats like tiled wallpaper. That makes the size of
+    the square the hard part: get it even slightly wrong and the lines in one
+    square do not meet the lines in the next one, so the hatch looks blurred and
+    broken instead of like straight lines. _resolve_seamless_hatch_tile works out
+    the size where they do meet.
+
+    That size is almost never a whole number of pixels: 5.6569 for a hatch at 45
+    degrees with lines 4 pixels apart. An SVG can keep the fractional size in its
+    viewBox, the coordinate system it draws in, while its width and height stay
+    whole pixels. The square then holds a whole number of lines, so they always
+    meet, and the only cost is that the lines sit a hair closer together than in
+    QGIS (0.17% in that example, far too little to see).
+
+    The size is returned along with the SVG text because the caller has to turn
+    that text into a PNG at exactly this size. JMap cannot read SVG, only images
+    such as PNG. Another size would still repeat correctly, but the lines would
+    come out thicker or thinner, and further apart or closer together, than the
+    ones QGIS draws.
+
+    Args:
+        symbol_layer: The QgsLinePatternFillSymbolLayer object.
+    Returns:
+        tuple: (SVG content, tile side in pixels), or ("", 0) when the layer has
+               no usable geometry (a spacing of zero draws nothing).
+    """
+    distance = convert_measurement_to_pixel(symbol_layer.distance(), symbol_layer.distanceUnit())
+    if distance <= 0:
+        return "", 0
+
+    side, angle, is_seamless = _resolve_seamless_hatch_tile(
+        distance, symbol_layer.lineAngle(), MAX_PATTERN_SIZE_IN_PIXELS
+    )
+    if side <= 0:
+        return "", 0
+
+    if is_seamless:
+        # repeat whole periods until the tile is big enough for rounding to be
+        # negligible, without ever exceeding what JMap accepts
+        repetitions = max(1, math.ceil(MIN_PATTERN_SIZE_IN_PIXELS / side))
+        while repetitions > 1 and round(repetitions * side) > MAX_PATTERN_SIZE_IN_PIXELS:
+            repetitions -= 1
+        view_box_side = repetitions * side
+        pixel_side = min(MAX_PATTERN_SIZE_IN_PIXELS, max(1, round(view_box_side)))
+    else:
+        # no tile of an acceptable angle fits: keep one pixel per unit so the
+        # angle and the spacing stay true, and let the tile edge fall where it may
+        view_box_side = pixel_side = MAX_PATTERN_SIZE_IN_PIXELS
+
+    stroke_width, stroke_color, dash_pattern = _resolve_line_sub_symbol_stroke(
+        symbol_layer.subSymbol()
+    )
+    line_width = convert_measurement_to_pixel(
+        symbol_layer.lineWidth(), symbol_layer.lineWidthUnit()
+    )
+    if line_width > 0:  # an explicit width on the fill overrides the sub symbol
+        stroke_width = line_width
+    if stroke_width <= 0:
+        stroke_width = 1.0
+    if stroke_color is None:
+        stroke_color = symbol_layer.color()
+
+    # the angle comes from the tile: drawing at any other angle breaks the tiling
+    # SVG y grows downward, so negating sin keeps the QGIS orientation
+    direction_x, direction_y = math.cos(angle), -math.sin(angle)
+    normal_x, normal_y = math.sin(angle), math.cos(angle)
+    offset = convert_measurement_to_pixel(symbol_layer.offset(), symbol_layer.offsetUnit())
+
+    centre = view_box_side / 2.0
+    reach = view_box_side * 2.0  # long enough for every line to cross the tile
+    line_count = math.ceil(view_box_side * 1.5 / distance) + 2
+
+    lines = []
+    for index in range(-line_count, line_count + 1):
+        distance_to_centre = index * distance + offset
+        x = centre + distance_to_centre * normal_x
+        y = centre + distance_to_centre * normal_y
+        lines.append(
+            '<line x1="{:.4f}" y1="{:.4f}" x2="{:.4f}" y2="{:.4f}"/>'.format(
+                x - direction_x * reach,
+                y - direction_y * reach,
+                x + direction_x * reach,
+                y + direction_y * reach,
+            )
+        )
+
+    dash_attribute = ""
+    if dash_pattern:
+        dash_attribute = ' stroke-dasharray="{}"'.format(
+            " ".join("{:.4f}".format(v) for v in dash_pattern)
+        )
+
+    svg_content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="{pixel_side}" height="{pixel_side}" '
+        'viewBox="0 0 {side:.4f} {side:.4f}">'
+        '<defs><clipPath id="tile">'
+        '<rect x="0" y="0" width="{side:.4f}" height="{side:.4f}"/>'
+        "</clipPath></defs>"
+        '<g clip-path="url(#tile)" stroke="{color}" stroke-opacity="{opacity:.4f}" '
+        'stroke-width="{width:.4f}" stroke-linecap="butt"{dash}>{lines}</g>'
+        "</svg>"
+    ).format(
+        pixel_side=pixel_side,
+        side=view_box_side,
+        color=stroke_color.name(),
+        opacity=stroke_color.alphaF(),
+        width=stroke_width,
+        dash=dash_attribute,
+        lines="".join(lines),
+    )
+
+    return svg_content, pixel_side
 
 
 def resolve_point_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
