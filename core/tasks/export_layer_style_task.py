@@ -606,6 +606,10 @@ class ExportLayerStyleTask(CustomQgsTask):
         return True
 
     def _get_standardized_attribute_name(self, original_name: str, fields: list[dict]) -> str:
+        # QGIS returns the class attribute as an expression, so field references may be quoted
+        original_name = original_name.strip()
+        if len(original_name) > 1 and original_name.startswith('"') and original_name.endswith('"'):
+            original_name = original_name[1:-1]
         for field in fields:
             if field["originalName"] == original_name:
                 return field["standardizedName"]

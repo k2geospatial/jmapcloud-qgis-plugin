@@ -17,6 +17,7 @@ import base64
 import math
 import pathlib
 import re
+import sys
 import tempfile
 from datetime import datetime, timezone
 from typing import Union
@@ -30,6 +31,7 @@ from qgis.core import (
     QgsMessageLog,
     QgsProject,
     QgsRasterMarkerSymbolLayer,
+    QgsRectangle,
     QgsRenderContext,
     QgsSVGFillSymbolLayer,
     QgsSvgMarkerSymbolLayer,
@@ -184,6 +186,27 @@ def convert_crs_to_epsg(
     crs: QgsCoordinateReferenceSystem,
 ) -> QgsCoordinateReferenceSystem:  # TODO: convert to epsg
     return crs
+
+
+def is_extent_usable(extent: Union[QgsRectangle, None]) -> bool:
+    """Tell if an extent can be sent to JMap Cloud.
+
+    An extent is not usable when it is null (empty project) or infinite, which QGIS
+    represents either with inf/NaN coordinates or with the coordinates of
+    QgsRectangle.infiniteRect() (+/- the maximum double value).
+    """
+
+    if extent is None or extent.isNull():
+        return False
+    return all(
+        math.isfinite(coordinate) and abs(coordinate) < sys.float_info.max
+        for coordinate in (
+            extent.xMinimum(),
+            extent.yMinimum(),
+            extent.xMaximum(),
+            extent.yMaximum(),
+        )
+    )
 
 
 def find_value_in_dict_or_first(dict: dict, keys: list, default_value: any = None) -> any:
