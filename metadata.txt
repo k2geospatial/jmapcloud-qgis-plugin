@@ -47,6 +47,7 @@ changelog=
     - Fixed an issue when exporting a WMTS layer to JMap Cloud
     - Fixed an issue when creating a style-rules layer in JMap Cloud when exporting a QGIS layer with a categorized or graduated symbology that has attributes names with double quotes
     - Fixed an issue when exporting a QGIS project with invalid map extent to JMap Cloud
+    - Fixed an issue when exporting a QGIS polygon layer with a hatched symbol (line pattern fill) to JMap Cloud
     1.0.6
     - Fixed an issue when exporting multiple layers from the same GeoPackage file to JMap Cloud
     1.0.5

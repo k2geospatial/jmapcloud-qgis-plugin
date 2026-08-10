@@ -459,6 +459,8 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         # patch layer opacity
         for style in styles:
+            if style is None:  # unsupported symbol layer, reported below
+                continue
             style.transparency = opacity_to_transparency(
                 transparency_to_opacity(style.transparency) * self.layer_data.layer.opacity()
             )
