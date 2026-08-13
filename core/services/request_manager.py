@@ -59,7 +59,9 @@ class RequestManager(QObject):
 
         def ensure_prepared(self, request_manager: "RequestManager"):
             if self.request is None:
-                self.request = request_manager._prepare_request(self.url, self.headers, self.no_auth)
+                self.request = request_manager._prepare_request(
+                    self.url, self.headers, self.no_auth
+                )
 
     class ResponseData:
         def __init__(
@@ -89,7 +91,9 @@ class RequestManager(QObject):
         self.queue: list[tuple["RequestManager.RequestData", TemporarySignalObject]] = []
         self.finished_requests = {}
         self.pending_request = {}
-        self.trigger_next_request.connect(self._send_next_request, Qt.ConnectionType.QueuedConnection)
+        self.trigger_next_request.connect(
+            self._send_next_request, Qt.ConnectionType.QueuedConnection
+        )
 
     def add_requests(self, request: "RequestManager.RequestData") -> pyqtSignal:
         """add a request to the queue"""
@@ -105,16 +109,22 @@ class RequestManager(QObject):
 
             request, signal_obj = self.queue.pop(0)
 
-            def _handle_queue_response(response: RequestManager.ResponseData, signal_obj=signal_obj):
+            def _handle_queue_response(
+                response: RequestManager.ResponseData, signal_obj=signal_obj
+            ):
                 self.pending_request.pop(response.id, None)
                 signal_obj.signal.emit(response)
                 self.active_requests -= 1
                 self._send_next_request()
 
-            self.pending_request[request.id] = self.custom_request_async(request, _handle_queue_response)
+            self.pending_request[request.id] = self.custom_request_async(
+                request, _handle_queue_response
+            )
             self.active_requests += 1
 
-    def get_request(self, url: str, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False) -> ResponseData:
+    def get_request(
+        self, url: str, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
+    ) -> ResponseData:
         """
         Perform an blocking GET request to a given URL.
 
@@ -132,22 +142,33 @@ class RequestManager(QObject):
             reply = request_manager.reply()
             if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
                 QgsMessageBarHandler.send_message_to_message_bar(
-                    str(reply.content(), "utf-8"), prefix=error_prefix, level=Qgis.MessageLevel.Warning
+                    str(reply.content(), "utf-8"),
+                    prefix=error_prefix,
+                    level=Qgis.MessageLevel.Warning,
                 )
 
         except Exception as e:
-            QgsMessageBarHandler.send_message_to_message_bar(str(e), prefix=error_prefix, level=Qgis.MessageLevel.Critical)
+            QgsMessageBarHandler.send_message_to_message_bar(
+                str(e), prefix=error_prefix, level=Qgis.MessageLevel.Critical
+            )
             return self.ResponseData.no_reply()
 
         if response != QgsBlockingNetworkRequest.ErrorCode.NoError:
             message = "{}, {}".format(reply.errorString(), str(reply.content(), "utf-8"))
-            QgsMessageBarHandler.send_message_to_message_bar(message, prefix=error_prefix, level=Qgis.MessageLevel.Warning)
+            QgsMessageBarHandler.send_message_to_message_bar(
+                message, prefix=error_prefix, level=Qgis.MessageLevel.Warning
+            )
         response_data = self._handle_reply(reply)
         reply.clear()
         return response_data
 
     def post_request(
-        self, url: str, body=None, headers: dict = {}, error_prefix: str = "JMap Error", no_auth: bool = False
+        self,
+        url: str,
+        body=None,
+        headers: dict = {},
+        error_prefix: str = "JMap Error",
+        no_auth: bool = False,
     ) -> ResponseData:
         """
         Perform an blocking POST request to a given URL.
@@ -192,7 +213,9 @@ class RequestManager(QObject):
         request_data.ensure_prepared(self)
         request_manager = QgsNetworkAccessManager.instance()
         if request_data.body is None:
-            reply = request_manager.sendCustomRequest(request_data.request, request_data.type.encode())
+            reply = request_manager.sendCustomRequest(
+                request_data.request, request_data.type.encode()
+            )
         else:
             reply = request_manager.sendCustomRequest(
                 request_data.request, request_data.type.encode(), request_data.body
@@ -203,7 +226,9 @@ class RequestManager(QObject):
         response_data = self._handle_reply(reply, request_data.id)
         return response_data
 
-    def custom_request_async(self, request_data: RequestData, callback: callable = None) -> QNetworkReply:
+    def custom_request_async(
+        self, request_data: RequestData, callback: callable = None
+    ) -> QNetworkReply:
         """
         Perform an async custom request to a given URL.
 
@@ -226,11 +251,16 @@ class RequestManager(QObject):
                 request_data.body,
             )
         if callback:
+
             def on_finished(reply=reply, id=request_data.id):
                 try:
                     reply.finished.disconnect(on_finished)
                 except Exception:
-                    pass
+                    QgsMessageLog.logMessage(
+                        self.tr("Failed to disconnect finished signal for request {}").format(id),
+                        MESSAGE_CATEGORY,
+                        Qgis.MessageLevel.Warning,
+                    )
                 response_data = self._handle_reply(reply, id)
                 callback(response_data)
 
@@ -239,7 +269,8 @@ class RequestManager(QObject):
 
     def multi_request_async(self, requests_data: list[RequestData]) -> pyqtSignal:
         """
-        Perform multiple async custom requests to given URLs. and emit a signal when all requests are finished
+        Perform multiple async custom requests to given URLs
+        and emit a signal when all requests are finished
 
         :param requests_data: The list of data for the requests
         :return: The signal that will emit when all requests are finished
@@ -251,8 +282,6 @@ class RequestManager(QObject):
 
         def request_counter(reply, id: str):
             nonlocal no_request_finished
-            nonlocal replies
-            nonlocal signal_object
             no_request_finished += 1
             replies[id] = reply
             request_manager.pending_request.pop(id)
@@ -261,17 +290,27 @@ class RequestManager(QObject):
                 signal_object.signal.emit(replies)
 
         for request_data in requests_data:
-            recursive_callback = lambda reply, id=request_data.id: request_counter(reply, id)
+
+            # `id` is bound as a default argument so each callback keeps its own
+            # request id rather than closing over the loop variable
+            def recursive_callback(reply, id=request_data.id):
+                request_counter(reply, id)
+
             request_manager.pending_request[request_data.id] = self.custom_request_async(
                 request_data, recursive_callback
             )
         return signal_object.signal
 
-    def _prepare_request(self, url, headers: dict[str, str] = {}, no_auth: bool = False) -> QNetworkRequest:
+    def _prepare_request(
+        self, url, headers: dict[str, str] = {}, no_auth: bool = False
+    ) -> QNetworkRequest:
         request = QNetworkRequest(QUrl(url))
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         if not no_auth:
-            request.setRawHeader("Authorization".encode(), f"Bearer {self.session_manager.get_access_token()}".encode())
+            request.setRawHeader(
+                "Authorization".encode(),
+                f"Bearer {self.session_manager.get_access_token()}".encode(),
+            )
         for key, value in headers.items():
             request.setRawHeader(key.encode(), value.encode())
         return request
@@ -291,7 +330,7 @@ class RequestManager(QObject):
             return body.encode("utf-8")
         else:
             return body
-        
+
     def _handle_reply(self, reply, id=None):
         if isinstance(reply, QgsNetworkReplyContent):
             content = reply.content()
@@ -315,7 +354,9 @@ class RequestManager(QObject):
         error_string = ""
         if error_code != QNetworkReply.NetworkError.NoError:
             QgsMessageLog.logMessage(
-                self.tr("Error occurred {}").format(content), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical
+                self.tr("Error occurred {}").format(content),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Critical,
             )
             reply_error_string = reply.errorString()
             if bool(reply_error_string):
