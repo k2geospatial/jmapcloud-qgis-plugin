@@ -50,20 +50,77 @@ class PolygonStyleDTO(StyleDTO):
     borderPatternData: str
     """value in base64"""
 
+    FILL_PROPERTIES = ("fillColor", "transparency", "patternData")
+    BORDER_PROPERTIES = (
+        "borderColor",
+        "borderThickness",
+        "borderTransparency",
+        "borderDashPattern",
+        "borderPatternData",
+    )
+
     def __init__(self):
         super().__init__(self.StyleDTOType.POLYGON)
         self.borderTransparency = 0
 
     @classmethod
     def from_symbol(cls, symbol: QgsFillSymbol) -> list["PolygonStyleDTO"]:
-        dtos = super().from_symbol(symbol)
-        for dto in dtos:
-            if isinstance(dto, cls):
-                dto.borderTransparency = opacity_to_transparency(
-                    transparency_to_opacity(dto.borderTransparency) * symbol.opacity()
-                )
+        """
+        A JMap Cloud polygon style carries both the fill and the border, so the whole
+        fill symbol becomes a single style instead of one style per symbol layer.
+        Exporting one style per symbol layer would create one style rule condition per
+        symbol layer, duplicating every value of a categorized or graduated symbology.
+
+        Symbol layers are merged bottom-up, so the topmost definition of each property
+        wins, the same way QGIS draws them.
+        """
+        merged = None
+        unsupported_symbol_layers = 0
+
+        for symbol_layer in cls.rendered_symbol_layers(symbol):
+            dto = cls.from_symbol_layer(symbol_layer)
+            if dto is None:
+                unsupported_symbol_layers += 1
+                continue
+            dto.transparency = opacity_to_transparency(
+                transparency_to_opacity(dto.transparency) * symbol.opacity()
+            )
+            dto.borderTransparency = opacity_to_transparency(
+                transparency_to_opacity(dto.borderTransparency) * symbol.opacity()
+            )
+            if merged is None:
+                merged = dto
+                continue
+            merged._merge(dto, symbol_layer)
+
+        dtos = [merged] if merged is not None else []
+        # kept in the list so the caller can report the unsupported symbol layers
+        # instead of dropping them silently
+        dtos.extend([None] * unsupported_symbol_layers)
 
         return dtos
+
+    def _merge(self, other: "PolygonStyleDTO", symbol_layer: QgsSymbolLayer):
+        """Overwrite with the properties `symbol_layer` is responsible for."""
+        properties = ()
+        if isinstance(symbol_layer, (QgsSimpleLineSymbolLayer, QgsRasterLineSymbolLayer)):
+            if (
+                isinstance(symbol_layer, QgsSimpleLineSymbolLayer)
+                and symbol_layer.penStyle() == Qt.PenStyle.NoPen
+            ):
+                # draws nothing, so it must not hide the border it is merged into
+                return
+            # an outline symbol layer only describes the border
+            properties = self.BORDER_PROPERTIES
+        elif isinstance(symbol_layer, QgsSimpleFillSymbolLayer):
+            # a simple fill carries its own stroke
+            properties = self.FILL_PROPERTIES + self.BORDER_PROPERTIES
+        else:
+            properties = self.FILL_PROPERTIES
+
+        for property_name in properties:
+            if hasattr(other, property_name):
+                setattr(self, property_name, getattr(other, property_name))
 
     @classmethod
     def from_symbol_layer(cls, symbol_layer: QgsSymbolLayer) -> "PolygonStyleDTO":
@@ -142,6 +199,10 @@ class PolygonStyleDTO(StyleDTO):
                 dto.borderDashPattern = [
                     v / dto.borderThickness for v in dash_pattern
                 ]  # because Mapbox dash-array is value * lineWidth
+            else:
+                dto.borderDashPattern = convert_pen_style_to_dash_array(
+                    symbol_layer.penStyle(), dto.borderThickness
+                )
 
         elif isinstance(symbol_layer, QgsRasterLineSymbolLayer):
             width = symbol_layer.width()
