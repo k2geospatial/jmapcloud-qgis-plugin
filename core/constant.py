@@ -32,8 +32,8 @@ API_DAS_URL = "{}/api/das/rest/v1".format(_base_url)
 API_FUS_URL = "{}/api/fus/rest/v1".format(_base_url)
 
 # auth setting id
-ACCESS_TOKEN_SETTING_ID = "JMapCf1"
-REFRESH_TOKEN_SETTING_ID = "JMapCf2"
+ACCESS_SETTING_ID = "JMapCf1"
+REFRESH_SETTING_ID = "JMapCf2"
 EXPIRATION_SETTING_ID = "JMapCf3"
 ORGANIZATION_SETTING_ID = "JMapCf4"
 USERNAME_SETTING_ID = "JMapCf5"
