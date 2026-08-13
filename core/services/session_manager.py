@@ -13,11 +13,11 @@
 from qgis.core import QgsApplication, QgsAuthMethodConfig
 
 from ..constant import (
-    ACCESS_TOKEN_SETTING_ID,
+    ACCESS_SETTING_ID,
     AUTH_CONFIG_ID,
     EXPIRATION_SETTING_ID,
     ORGANIZATION_SETTING_ID,
-    REFRESH_TOKEN_SETTING_ID,
+    REFRESH_SETTING_ID,
     USERNAME_SETTING_ID,
 )
 
@@ -62,7 +62,7 @@ class SessionManager:
 
         auth_manager = QgsApplication.authManager()
         if refresh_token is not None:
-            auth_manager.storeAuthSetting(REFRESH_TOKEN_SETTING_ID, refresh_token, True)
+            auth_manager.storeAuthSetting(REFRESH_SETTING_ID, refresh_token, True)
         if expiration is not None:
             auth_manager.storeAuthSetting(EXPIRATION_SETTING_ID, expiration, True)
         if organization_id is not None:
@@ -70,7 +70,7 @@ class SessionManager:
         if username is not None:
             auth_manager.storeAuthSetting(USERNAME_SETTING_ID, username, True)
         if access_token is not None:
-            auth_manager.storeAuthSetting(ACCESS_TOKEN_SETTING_ID, access_token, True)
+            auth_manager.storeAuthSetting(ACCESS_SETTING_ID, access_token, True)
             self.store_auth_config(access_token)
 
     def store_auth_config(self, access_token: str = None) -> None:
@@ -99,12 +99,10 @@ class SessionManager:
         auth_manager = QgsApplication.authManager()
         claims = {
             "accessToken": (
-                auth_manager.authSetting(ACCESS_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
-                or None
+                auth_manager.authSetting(ACCESS_SETTING_ID, defaultValue="", decrypt=True) or None
             ),
             "refreshToken": (
-                auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
-                or None
+                auth_manager.authSetting(REFRESH_SETTING_ID, defaultValue="", decrypt=True) or None
             ),
             "expiration": (
                 auth_manager.authSetting(EXPIRATION_SETTING_ID, defaultValue="", decrypt=True)
@@ -123,8 +121,8 @@ class SessionManager:
 
     def revoke_session(self) -> None:
         auth_manager = QgsApplication.authManager()
-        auth_manager.removeAuthSetting(ACCESS_TOKEN_SETTING_ID)
-        auth_manager.removeAuthSetting(REFRESH_TOKEN_SETTING_ID)
+        auth_manager.removeAuthSetting(ACCESS_SETTING_ID)
+        auth_manager.removeAuthSetting(REFRESH_SETTING_ID)
         auth_manager.removeAuthSetting(EXPIRATION_SETTING_ID)
         auth_manager.removeAuthSetting(ORGANIZATION_SETTING_ID)
         auth_manager.removeAuthSetting(USERNAME_SETTING_ID)

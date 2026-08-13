@@ -14,7 +14,7 @@ from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from ..constant import ACCESS_TOKEN_SETTING_ID, API_AUTH_URL, REFRESH_TOKEN_SETTING_ID, AuthState
+from ..constant import ACCESS_SETTING_ID, API_AUTH_URL, REFRESH_SETTING_ID, AuthState
 from ..plugin_util import convert_jmap_datetime, time_now
 from ..qgs_message_bar_handler import Qgis, QgsMessageBarHandler
 from ..recurring_event import RecurringEvent
@@ -58,7 +58,7 @@ class JMapAuth(QObject):
             return AuthState.NOT_AUTHENTICATED
 
         if self._is_token_expired(claims["expiration"]):
-            QgsApplication.authManager().storeAuthSetting(ACCESS_TOKEN_SETTING_ID, "", True)
+            QgsApplication.authManager().storeAuthSetting(ACCESS_SETTING_ID, "", True)
             if not claims["organizationId"]:
                 self.logout()
                 return AuthState.NOT_AUTHENTICATED
@@ -190,8 +190,7 @@ class JMapAuth(QObject):
         auth_manager = QgsApplication.authManager()
         self._refresh_auth_event.stop()
         refresh_token = (
-            auth_manager.authSetting(REFRESH_TOKEN_SETTING_ID, defaultValue="", decrypt=True)
-            or None
+            auth_manager.authSetting(REFRESH_SETTING_ID, defaultValue="", decrypt=True) or None
         )
         if refresh_token:
             url = "{}/revoke-token".format(API_AUTH_URL)
