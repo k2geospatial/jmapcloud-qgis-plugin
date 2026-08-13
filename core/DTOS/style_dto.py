@@ -41,10 +41,16 @@ class StyleDTO(DTO):
         self.tags = []
         self.transparency = 0
 
+    @staticmethod
+    def rendered_symbol_layers(symbol: QgsSymbol) -> list:
+        """Symbol layers QGIS actually draws: disabled ones are unchecked in the
+        Symbol Selector and must not be exported."""
+        return [symbol_layer for symbol_layer in symbol.symbolLayers() if symbol_layer.enabled()]
+
     @classmethod
     def from_symbol(cls, symbol: QgsSymbol) -> list["StyleDTO"]:
         dtos = []
-        for symbol_layer in symbol.symbolLayers():
+        for symbol_layer in cls.rendered_symbol_layers(symbol):
             dto = cls.from_symbol_layer(symbol_layer)
             if dto is None:
                 # kept in the list so the caller can report the unsupported
