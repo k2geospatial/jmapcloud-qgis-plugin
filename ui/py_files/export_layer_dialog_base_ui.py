@@ -8,8 +8,6 @@
 
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 
-from ... import resources_rc  # noqa: F401
-
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -22,7 +20,6 @@ class Ui_Dialog(object):
         self.jmap_image_label.setMinimumSize(QtCore.QSize(121, 71))
         self.jmap_image_label.setMaximumSize(QtCore.QSize(121, 71))
         self.jmap_image_label.setText("")
-        self.jmap_image_label.setPixmap(QtGui.QPixmap(":/images/images/Logo_JMap_Cloud.svg"))
         self.jmap_image_label.setObjectName("jmap_image_label")
         self.mainLayout.addWidget(self.jmap_image_label)
         self.widget = QtWidgets.QWidget(parent=Dialog)

@@ -12,7 +12,7 @@
 
 
 from qgis.PyQt import QtCore, QtWidgets
-from ...resources_rc import qInitResources
+
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -48,16 +48,6 @@ class Ui_Dialog(object):
         self.password_input.setObjectName("password_input")
         self.password_layout.addWidget(self.password_input)
         self.show_password_checkBox = QtWidgets.QCheckBox(self.verticalLayoutWidget_3)
-        self.show_password_checkBox.setStyleSheet(
-            "QCheckBox::indicator:unchecked {\n"
-            "    image: url(:/images/images/eye-password-show.svg)\n"
-            "}\n"
-            "QCheckBox::indicator:checked {\n"
-            "    image: url(:/images/images/eye-password-hide.svg)\n"
-            "}\n"
-            "\n"
-            ""
-        )
         self.show_password_checkBox.setText("")
         self.show_password_checkBox.setObjectName("show_password_checkBox")
         self.password_layout.addWidget(self.show_password_checkBox)
@@ -98,5 +88,3 @@ class Ui_Dialog(object):
         self.connection_button.setText(_translate("Dialog", "login"))
         self.choose_organization_label.setText(_translate("Dialog", "Choose organization :"))
         self.accept_button.setText(_translate("Dialog", "OK"))
-
-qInitResources()

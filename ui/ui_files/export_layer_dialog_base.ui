@@ -34,9 +34,6 @@
      <property name="text">
       <string/>
      </property>
-     <property name="pixmap">
-      <pixmap resource="../../resources.qrc">:/images/images/Logo_JMap_Cloud.svg</pixmap>
-     </property>
     </widget>
    </item>
    <item>
@@ -315,8 +312,6 @@ QPushButton:disabled {
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../resources.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>
