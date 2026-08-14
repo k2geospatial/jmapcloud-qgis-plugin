@@ -17,7 +17,7 @@ from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
 from ...core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX
-from ...core.plugin_util import find_value_in_dict_or_first
+from ...core.plugin_util import find_value_in_dict_or_first, image_path
 from ...core.services.jmap_services_access import JMapMCS
 from ...core.services.request_manager import RequestManager
 
@@ -35,6 +35,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         """Constructor."""
         super(OpenProjectDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
+        self.jmap_image_label.setPixmap(QtGui.QPixmap(image_path("Logo_JMap_Cloud.svg")))
         self.language = QSettings().value("{}/{}".format(SETTINGS_PREFIX, LANGUAGE_SUFFIX), "en")
         self.jmap_mcs = jmap_mcs
 
@@ -76,7 +77,7 @@ class OpenProjectDialog(QtWidgets.QDialog, Ui_Dialog):
                 item = CustomListWidgetItem()
                 icon = QtGui.QIcon()
                 icon.addPixmap(
-                    QtGui.QPixmap(":/images/images/default_map.jpg"),
+                    QtGui.QPixmap(image_path("default_map.jpg")),
                     QtGui.QIcon.Mode.Normal,
                     QtGui.QIcon.State.Off,
                 )

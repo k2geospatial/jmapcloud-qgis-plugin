@@ -92,6 +92,23 @@ _REPL_MO_USERNAME = "[%@user_account_name%]"
 
 _SVG_PARAM_PATTERN = re.compile(r"param\(\s*([^)]+?)\s*\)\s*([^\"';\s>]*)")
 
+_IMAGES_DIR = pathlib.Path(__file__).resolve().parent.parent / "images"
+
+
+def image_path(file_name: str) -> str:
+    """
+    Absolute path to an image bundled with the plugin.
+
+    Qt6 removed support for compiled resources (pyrcc), so bundled images must be
+    loaded by file path rather than through a ":/images/..." resource path.
+
+    :param file_name: The file name of the image inside the plugin's images/ folder
+    :return: The absolute path to the image, with forward slashes on every platform
+    """
+    # as_posix() keeps forward slashes on Windows: Qt style sheets require them in
+    # url(), and QPixmap/QIcon accept them on all platforms.
+    return (_IMAGES_DIR / file_name).as_posix()
+
 
 def _convert_latitude_to_radians(latitude: float) -> float:
     """Convert latitude in degrees to radians."""

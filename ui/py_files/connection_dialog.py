@@ -21,6 +21,7 @@ from ...core.constant import (
     SETTINGS_PREFIX,
     AuthState,
 )
+from ...core.plugin_util import image_path
 from ...core.services.auth_manager import JMapAuth
 
 from .connection_dialog_base_ui import Ui_Dialog
@@ -39,6 +40,14 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        # set here rather than in the .ui file: Qt6 has no compiled resources,
+        # so the check box indicators must be referenced by file path
+        self.show_password_checkBox.setStyleSheet(
+            "QCheckBox::indicator:unchecked {{ image: url({}) }}\n"
+            "QCheckBox::indicator:checked {{ image: url({}) }}".format(
+                image_path("eye-password-show.svg"), image_path("eye-password-hide.svg")
+            )
+        )
         self.auth_manager = auth_manager
         auth_state = self.auth_manager.get_auth_state()
         if auth_state == AuthState.AUTHENTICATED:

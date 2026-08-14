@@ -1,12 +1,12 @@
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import QSortFilterProxyModel, Qt, pyqtSignal
-from qgis.PyQt.QtGui import QStandardItem, QStandardItemModel
+from qgis.PyQt.QtGui import QPixmap, QStandardItem, QStandardItemModel
 from qgis.PyQt.QtNetwork import QNetworkReply
 from qgis.utils import iface
 
 from ...core.constant import ElementTypeWrapper, Permission
-from ...core.plugin_util import get_user_locale
+from ...core.plugin_util import get_user_locale, image_path
 from ...core.services.auth_manager import JMapAuth
 from ...core.services.jmap_services_access import JMapMCS
 from ...core.services.request_manager import RequestManager
@@ -25,6 +25,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
     def __init__(self, jmap_mcs: JMapMCS, auth_manager: JMapAuth):
         super().__init__(iface.mainWindow())
         self.setupUi(self)
+        self.jmap_image_label.setPixmap(QPixmap(image_path("Logo_JMap_Cloud.svg")))
         self.jmap_mcs = jmap_mcs
         self.auth_manager = auth_manager
         self._selected_layer_id = None

@@ -29,8 +29,8 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, Qt, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from . import resources_rc  # noqa: F401
 from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState, OrganisationRole
+from .core.plugin_util import image_path
 from .core.services.auth_manager import JMapAuth
 from .core.services.export_layer_manager import ExportLayerManager
 from .core.services.export_project_manager import ExportProjectManager
@@ -150,7 +150,7 @@ class JMapCloud:
         This function must exist for the plugin to load.
         """
         # create plugin menu
-        icon_path = ":images/images/icon.svg"
+        icon_path = image_path("icon.svg")
         temp_action = QAction()
         # This manipulation prevent the web menu to bug
         self.iface.addPluginToWebMenu("JMap Cloud", temp_action)
@@ -253,7 +253,7 @@ class JMapCloud:
 
         export_to_jmap_action = self._create_actions(
             text=self.tr("Export to JMap Cloud"),
-            icon_path=":images/images/icon.svg",
+            icon_path=image_path("icon.svg"),
             callback=lambda checked=False, selected_layer=layer: self._open_export_layer_dialog(
                 selected_layer
             ),

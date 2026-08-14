@@ -11,8 +11,10 @@
 # -----------------------------------------------------------
 
 from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtGui import QPixmap
 from qgis.utils import iface
 
+from ...core.plugin_util import image_path
 from .warning_dialog_base_ui import Ui_Dialog
 
 
@@ -24,6 +26,7 @@ class WarningDialog(QtWidgets.QDialog, Ui_Dialog):
         super(WarningDialog, self).__init__(iface.mainWindow())
 
         self.setupUi(self)
+        self.jmap_image_label.setPixmap(QPixmap(image_path("Logo_JMap_Cloud.svg")))
         self.close_dialog_pushButton.clicked.connect(self.close)
         self.warning_textBrowser.setHtml(html)
 

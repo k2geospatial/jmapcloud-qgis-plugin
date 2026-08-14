@@ -13,8 +13,10 @@
 
 from qgis.core import QgsFeedback
 from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtGui import QPixmap
 from qgis.utils import iface
 
+from ...core.plugin_util import image_path
 from .action_dialog_base_ui import Ui_Dialog
 
 
@@ -29,6 +31,7 @@ class ActionDialog(QtWidgets.QDialog, Ui_Dialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.jmap_image_label.setPixmap(QPixmap(image_path("Logo_JMap_Cloud.svg")))
         self._feedback = QgsFeedback()
         self.exit_pushButton.clicked.connect(self.close)
 

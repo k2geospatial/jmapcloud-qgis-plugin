@@ -27,7 +27,7 @@ category=Web
 icon=images/icon.svg
 # experimental flag
 experimental=False
-qgisMinimumVersion=3.34
+qgisMinimumVersion=3.36
 qgisMaximumVersion=4.99
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False

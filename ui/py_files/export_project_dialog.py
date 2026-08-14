@@ -11,8 +11,10 @@
 # -----------------------------------------------------------
 
 from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtGui import QPixmap
 from qgis.utils import iface
 
+from ...core.plugin_util import image_path
 from .export_project_dialog_base_ui import Ui_Dialog
 
 
@@ -27,6 +29,7 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.jmap_image_label.setPixmap(QPixmap(image_path("Logo_JMap_Cloud.svg")))
         self.error_label.setText("")
         self.set_export_project_enable_action(True)
 

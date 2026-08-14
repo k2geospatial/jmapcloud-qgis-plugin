@@ -83,16 +83,6 @@
       </item>
       <item>
        <widget class="QCheckBox" name="show_password_checkBox">
-        <property name="styleSheet">
-         <string notr="true">QCheckBox::indicator:unchecked {
-    image: url(:/images/images/eye-password-show.svg)
-}
-QCheckBox::indicator:checked {
-    image: url(:/images/images/eye-password-hide.svg)
-}
-
-</string>
-        </property>
         <property name="text">
          <string notr="true"/>
         </property>
@@ -154,8 +144,6 @@ QCheckBox::indicator:checked {
    </layout>
   </widget>
  </widget>
- <resources>
-  <include location="../../resources.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>
