@@ -42,3 +42,4 @@ env/
 
 .env
 .DS_Store
+/scripts

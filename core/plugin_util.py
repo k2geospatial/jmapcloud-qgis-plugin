@@ -14,6 +14,7 @@
 # -----------------------------------------------------------
 
 import base64
+import binascii
 import math
 import pathlib
 import re
@@ -21,6 +22,7 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from typing import Union
+from xml.etree import ElementTree
 
 from qgis.core import (
     Qgis,
@@ -90,7 +92,10 @@ _REPL_MO_ELEMENTID = r"[%if(attribute('jmap_id'), attribute('jmap_id'), '')%]"
 _REPL_MO_USERNAME = "[%@user_account_name%]"
 # --- end JMap expression pattern constants ---
 
+_EMBEDDED_PATH_PREFIX = "base64:"
+
 _SVG_PARAM_PATTERN = re.compile(r"param\(\s*([^)]+?)\s*\)\s*([^\"';\s>]*)")
+_WELDED_ATTRIBUTE_RE = re.compile(r'"(?=[A-Za-z_:][-\w:.]*\s*=\s*")')
 
 _IMAGES_DIR = pathlib.Path(__file__).resolve().parent.parent / "images"
 
@@ -300,13 +305,89 @@ def convert_measurement_to_pixel(value: any, unit: Qgis.RenderUnit) -> float:
             raise ValueError("Unknown unit: {}".format(unit))
 
 
-def image_to_base64(path: str, qSize: QSize = None) -> str:
+def is_embedded_path(path) -> bool:
+    """True if `path` carries embedded image data rather than a filesystem path."""
+    return str(path).startswith(_EMBEDDED_PATH_PREFIX)
+
+
+def embedded_path_to_bytes(path) -> bytes:
+    """Decode the payload of a QGIS embedded ("base64:...") symbol path."""
+    try:
+        return base64.b64decode(str(path)[len(_EMBEDDED_PATH_PREFIX) :])
+    except (binascii.Error, ValueError) as error:
+        raise ValueError("Could not decode embedded symbol data: {}".format(error))
+
+
+def describe_symbol_path(path) -> str:
+    """A log-safe label for a symbol path; embedded payloads are huge."""
+    if is_embedded_path(path):
+        return "<embedded image, {} bytes of base64>".format(
+            len(str(path)) - len(_EMBEDDED_PATH_PREFIX)
+        )
+    return str(path)
+
+
+def load_symbol_image(path) -> QImage:
+    """Load a symbol layer image, whether it is on disk or embedded in the layer."""
+    if is_embedded_path(path):
+        img = QImage()
+        img.loadFromData(embedded_path_to_bytes(path))
+        return img
+
     if not pathlib.Path(path).is_file():
         raise ValueError("The file {} does not exist.".format(path))
-    img = QImage(str(path))
+    return QImage(str(path))
+
+
+def normalize_svg_markup(markup: str) -> str:
+    """Flatten an SVG's markup to a single line without breaking its syntax."""
+    flattened = markup.replace("\r\n", "\n").replace("\r", "\n").replace("\n", " ")
+
+    if _is_well_formed_xml(flattened):
+        return flattened
+
+    repaired = _WELDED_ATTRIBUTE_RE.sub('" ', flattened)
+    if _is_well_formed_xml(repaired):
+        QgsMessageLog.logMessage(
+            "Repaired an SVG symbol whose attributes were missing a separator.",
+            "JMap Cloud Plugin",
+            Qgis.MessageLevel.Warning,
+        )
+        return repaired
+
+    QgsMessageLog.logMessage(
+        "An SVG symbol is not well-formed XML and cannot be repaired;"
+        " JMap Cloud would reject it. Sending it unchanged.",
+        "JMap Cloud Plugin",
+        Qgis.MessageLevel.Warning,
+    )
+    return flattened
+
+
+def _is_well_formed_xml(markup: str) -> bool:
+    try:
+        ElementTree.fromstring(markup)
+    except ElementTree.ParseError:
+        return False
+    return True
+
+
+def read_symbol_svg(path):
+    """Read an SVG symbol's markup, whether it is on disk or embedded in the project."""
+    if is_embedded_path(path):
+        return normalize_svg_markup(embedded_path_to_bytes(path).decode("utf-8"))
+
+    svg_path = pathlib.Path(path)
+    if not svg_path.exists():
+        return None
+    return normalize_svg_markup(svg_path.read_text(encoding="utf-8"))
+
+
+def image_to_base64(path: str, qSize: QSize = None) -> str:
+    img = load_symbol_image(path)
 
     if img.isNull():
-        raise ValueError("Failed to load image: {}".format(path))
+        raise ValueError("Failed to load image: {}".format(describe_symbol_path(path)))
     if qSize is not None:
         img = img.scaled(
             qSize,
@@ -331,12 +412,10 @@ def resolve_polygon_svg_params(symbol_layer: QgsSVGFillSymbolLayer) -> str:
         str: The final SVG content with placeholders replaced.
     """
     properties = symbol_layer.properties()
-    svg_path = pathlib.Path(symbol_layer.svgFilePath())
 
-    if not svg_path.exists():
+    svg_content = read_symbol_svg(symbol_layer.svgFilePath())
+    if svg_content is None:
         return ""
-
-    svg_content = svg_path.read_text(encoding="utf-8").replace("\n", "")
 
     param_to_value = _build_svg_param_map(properties)
 
@@ -594,9 +673,9 @@ def resolve_point_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
         str: The final SVG content with placeholders replaced.
     """
     properties = symbol_layer.properties()
-    svg_path = pathlib.Path(symbol_layer.path())
 
-    if not svg_path.exists():
+    svg_content = read_symbol_svg(symbol_layer.path())
+    if svg_content is None:
         return ""
 
     width = math.ceil(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
@@ -605,7 +684,6 @@ def resolve_point_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
             calculate_height_symbol_layer(symbol_layer), symbol_layer.sizeUnit()
         )
     )
-    svg_content = svg_path.read_text(encoding="utf-8").replace("\n", "")
 
     param_to_value = _build_svg_param_map(properties)
 
