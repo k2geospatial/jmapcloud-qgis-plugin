@@ -14,6 +14,7 @@ import copy
 import re
 
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsCategorizedSymbolRenderer,
     QgsExpression,
@@ -21,6 +22,7 @@ from qgis.core import (
     QgsGraduatedSymbolRenderer,
     QgsLineSymbol,
     QgsMarkerSymbol,
+    QgsMessageLog,
     QgsNullSymbolRenderer,
     QgsRuleBasedRenderer,
     QgsSingleSymbolRenderer,
@@ -55,6 +57,10 @@ DEFAULT_SINGLE_STYLE_RULE_NAME = "Simple Symbol"
 DEFAULT_GRADUATED_STYLE_RULE_NAME = "Graduated Symbol"
 DEFAULT_CATEGORIZED_STYLE_RULE_NAME = "Categorized Symbol"
 MESSAGE_CATEGORY = "JMCExportLayerStyleTask"
+
+# Matches a tag-like <...> sequence, which JMap Cloud strips from a name as if
+# it were HTML. See ExportLayerStyleTask._sanitize_display_name.
+TAG_LIKE_PATTERN = re.compile(r"<([^<>]*)>")
 
 
 class ExportLayersStyleTask(CustomQgsTask):
@@ -199,13 +205,13 @@ class ExportLayerStyleTask(CustomQgsTask):
                 {self.project_data.default_language: DEFAULT_CATEGORIZED_STYLE_RULE_NAME},
                 default_rule_data["active"],
             )
-            other_value_style_rule = StyleRuleDTO(
-                {self.project_data.default_language: "other values"}, True
-            )
             attribute = self._get_standardized_attribute_name(renderer.classAttribute(), fields)
             if not bool(attribute):
                 return False
             self.set_total_steps(len(renderer.categories()) + 1)
+            classified_values = [
+                category.value() for category in renderer.categories() if bool(category.value())
+            ]
             for category in renderer.categories():
                 default_rule_data["label"] = category.label()
                 style_ids = self._export_symbol_to_style(category.symbol())
@@ -219,12 +225,19 @@ class ExportLayerStyleTask(CustomQgsTask):
                     self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
                     default_rule_data["filterExpression"] = []
                 else:
-                    self._add_condition_to_style_rule(
-                        style_ids, default_rule_data, other_value_style_rule
-                    )
+                    # JMap Cloud has no "else" condition, so express QGIS's
+                    # catch-all as "differs from every classified value".
+                    default_rule_data["filterExpression"] = [
+                        CriteriaDTO(
+                            attributeName=attribute,
+                            operator=JMCOperator.NOT_EQUALS.name,
+                            value=classified_value,
+                        )
+                        for classified_value in classified_values
+                    ]
+                    self._add_condition_to_style_rule(style_ids, default_rule_data, style_rule)
+                    default_rule_data["filterExpression"] = []
                 self.next_steps()
-            if len(other_value_style_rule.conditions) > 0:
-                self._export_style_rules(other_value_style_rule)
             self._export_style_rules(style_rule)
             self.next_steps()
         elif isinstance(renderer, QgsNullSymbolRenderer):
@@ -308,7 +321,13 @@ class ExportLayerStyleTask(CustomQgsTask):
         style_rule_dto = None
         if any([bool(child.symbol()) for child in children]):
             style_rule_dto = StyleRuleDTO(
-                {self.project_data.default_language: rule_data["label"]}, rule_data["active"], []
+                {
+                    self.project_data.default_language: self._sanitize_display_name(
+                        rule_data["label"]
+                    )
+                },
+                rule_data["active"],
+                [],
             )
         # recursive call
         for rule in children:
@@ -320,6 +339,22 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         return True
 
+    def _sanitize_display_name(self, text: str) -> str:
+        """Unwrap tag-like <...> sequences so JMap Cloud keeps the text.
+
+        The API treats a name containing <...> as HTML and strips the tag, so
+        QGIS's '<all other values>' label arrives as an empty string and fails
+        validation with
+        400 'name must include a text for the default project locale (en)'.
+        Unwrapping keeps the words and drops only the brackets.
+
+        Only matched pairs are unwrapped, so a label using a comparison sign
+        ('< 100', 'A > B') keeps its text unchanged.
+        """
+        if not text:
+            return text
+        return TAG_LIKE_PATTERN.sub(r"\1", text).strip()
+
     def _add_condition_to_style_rule(
         self, style_ids: list[str], rule_data: dict, style_rule_dto: StyleRuleDTO
     ):
@@ -327,7 +362,12 @@ class ExportLayerStyleTask(CustomQgsTask):
         for style_id in style_ids:
             condition_DTO = ConditionDTO(
                 rule_data["filterExpression"],
-                name={self.project_data.default_language: rule_data["label"] or "None"},
+                name={
+                    self.project_data.default_language: self._sanitize_display_name(
+                        rule_data["label"]
+                    )
+                    or "None"
+                },
             )
             style_map_scale = StyleMapScaleDTO(
                 rule_data["minimumZoom"], rule_data["maximumZoom"], style_id
@@ -608,14 +648,65 @@ class ExportLayerStyleTask(CustomQgsTask):
         return True
 
     def _get_standardized_attribute_name(self, original_name: str, fields: list[dict]) -> str:
+        """Map a renderer's class attribute to the name the datasource exposes.
+
+        Reserved attribute names are renamed when the datasource is created
+        (`id` becomes `id_rw`, for example), so the QGIS field name is not
+        necessarily the name JMap Cloud knows. Returning the QGIS name unmapped
+        makes the API reject the style rule with
+        400 'The layer does not contain the attribute <name>'.
+
+        Returns "" when the attribute cannot be resolved, which tells the
+        caller to abort rather than send a name the API will reject.
+        """
         # QGIS returns the class attribute as an expression, so field references may be quoted
         original_name = original_name.strip()
         if len(original_name) > 1 and original_name.startswith('"') and original_name.endswith('"'):
             original_name = original_name[1:-1]
+
+        if not original_name:
+            self.error_occur(
+                self.tr(
+                    "Error for layer {}, the symbology has no classification attribute."
+                ).format(self.layer_data.layer_name),
+                MESSAGE_CATEGORY,
+            )
+            return ""
+
         for field in fields:
             if field["originalName"] == original_name:
                 return field["standardizedName"]
-        return original_name
+
+        folded = original_name.casefold()
+        for field in fields:
+            if field["originalName"].casefold() == folded:
+                return field["standardizedName"]
+
+        if not fields:
+            # No field metadata to map against; the unmapped name is the only
+            # candidate we have, so keep the previous behaviour rather than
+            # failing an export that may well succeed.
+            QgsMessageLog.logMessage(
+                "No field metadata for layer {}; sending the attribute '{}' unmapped.".format(
+                    self.layer_data.layer_name, original_name
+                ),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Warning,
+            )
+            return original_name
+
+        self.error_occur(
+            self.tr(
+                "Error for layer {}, the symbology classifies on '{}',"
+                " which is not one of the exported attributes ({})."
+            ).format(
+                self.layer_data.layer_name,
+                original_name,
+                ", ".join(field["originalName"] for field in fields) or "none",
+            ),
+            MESSAGE_CATEGORY,
+        )
+        return ""
 
     def _resolve_layer_fields(self, layer: LayerData) -> list[dict]:
         fields_by_layer = layer.layer_file.fields if layer.layer_file else {}
