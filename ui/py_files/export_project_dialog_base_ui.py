@@ -81,6 +81,7 @@ class Ui_Dialog(object):
         self.error_label.setStyleSheet("color:rgb(255, 0, 0)")
         self.error_label.setText("")
         self.error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.error_label.setWordWrap(True)
         self.error_label.setObjectName("error_label")
         self.verticalLayout.addWidget(self.error_label)
         self.export_project_pushButton = QtWidgets.QPushButton(parent=self.verticalLayoutWidget)
