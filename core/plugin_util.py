@@ -219,6 +219,12 @@ def convert_crs_to_epsg(
     return crs
 
 
+def is_project_crs_valid(crs: Union[QgsCoordinateReferenceSystem, None]) -> bool:
+    if crs is None or not crs.isValid():
+        return False
+    return bool(crs.authid())
+
+
 def is_extent_usable(extent: Union[QgsRectangle, None]) -> bool:
     """Tell if an extent can be sent to JMap Cloud.
 
