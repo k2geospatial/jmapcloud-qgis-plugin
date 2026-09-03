@@ -11,17 +11,17 @@
 <context>
     <name>ActionDialog</name>
     <message>
-        <location filename="../ui/py_files/action_dialog.py" line="77"/>
+        <location filename="../ui/py_files/action_dialog.py" line="80"/>
         <source>Action canceled</source>
         <translation>Action Annulée</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/action_dialog.py" line="82"/>
+        <location filename="../ui/py_files/action_dialog.py" line="85"/>
         <source>Cancel</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/action_dialog.py" line="92"/>
+        <location filename="../ui/py_files/action_dialog.py" line="95"/>
         <source>Close</source>
         <translation>Fermer</translation>
     </message>
@@ -29,40 +29,40 @@
 <context>
     <name>ConnectionDialog</name>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="45"/>
-        <location filename="../ui/py_files/connection_dialog.py" line="128"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="54"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="137"/>
         <source>logout</source>
         <translation>Déconnexion</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="50"/>
-        <location filename="../ui/py_files/connection_dialog.py" line="56"/>
-        <location filename="../ui/py_files/connection_dialog.py" line="82"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="59"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="65"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="91"/>
         <source>login</source>
         <translation>Connexion</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="93"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="102"/>
         <source>Welcome {}&lt;br /&gt;</source>
         <translation>Bienvenue {}&lt;br/&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="110"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="119"/>
         <source>no organization found</source>
         <translation>Aucune organisation trouvée</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="113"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="122"/>
         <source>Authentication expired</source>
         <translation>Authentification expirée</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="133"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="142"/>
         <source>Authentication error</source>
         <translation>Erreur d&apos;authentification</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/connection_dialog.py" line="96"/>
+        <location filename="../ui/py_files/connection_dialog.py" line="105"/>
         <source>
 Connected to: {}</source>
         <translation>
@@ -107,12 +107,12 @@ Connecté à: {}</translation>
         <location filename="../core/tasks/write_layer_tasks.py" line="388"/>
         <location filename="../core/tasks/write_layer_tasks.py" line="426"/>
         <location filename="../core/tasks/write_layer_tasks.py" line="448"/>
-        <location filename="../core/tasks/write_layer_tasks.py" line="484"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="490"/>
         <source>Unsupported file type {} for layer {}</source>
         <translation>Type de fichier {} non supporté pour la couche {}</translation>
     </message>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="491"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="497"/>
         <source>Unsupported layer: {} ({}), the provider is not supported</source>
         <translation>Couche {} ({}) non supportée, le fournisseur n&apos;est pas supporté</translation>
     </message>
@@ -151,12 +151,12 @@ Connecté à: {}</translation>
 <context>
     <name>CreateJMCProjectTask</name>
     <message>
-        <location filename="../core/tasks/create_jmc_project_task.py" line="69"/>
+        <location filename="../core/tasks/create_jmc_project_task.py" line="85"/>
         <source>Error creating project : {}</source>
         <translation>Erreur lors de la création du projet: {}</translation>
     </message>
     <message>
-        <location filename="../core/tasks/create_jmc_project_task.py" line="139"/>
+        <location filename="../core/tasks/create_jmc_project_task.py" line="173"/>
         <source>Error creating labeling for layer {}, JMap Cloud only support single rule labeling</source>
         <translation>Erreur lors de la création de l&apos;étiquetage pour la couche {}: JMap Cloud ne supporte que les règles uniques d&apos;étiquetage.</translation>
     </message>
@@ -234,7 +234,7 @@ Connecté à: {}</translation>
         <translation>Modification des sources de données</translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="534"/>
+        <location filename="../core/services/files_manager.py" line="545"/>
         <source>Server is analyzing datasources</source>
         <translation>Le serveur analyse les sources de données</translation>
     </message>
@@ -243,17 +243,17 @@ Connecté à: {}</translation>
         <translation type="vanished">Une erreur inconnue s&apos;est produite: {}</translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="549"/>
+        <location filename="../core/services/files_manager.py" line="560"/>
         <source>JMap server error : {}</source>
         <translation>Erreur du serveur JMap : {}</translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="493"/>
+        <location filename="../core/services/files_manager.py" line="504"/>
         <source>Error updating datasource {}: {}</source>
         <translation>Erreur lors de la mise à jour de la source de données {} : {}</translation>
     </message>
     <message>
-        <location filename="../core/services/files_manager.py" line="543"/>
+        <location filename="../core/services/files_manager.py" line="554"/>
         <source>Unknown error : {}</source>
         <translation>Erreur inconnue : {}</translation>
     </message>
@@ -266,8 +266,8 @@ Connecté à: {}</translation>
         <translation>Action</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/action_dialog_base.ui" line="134"/>
-        <location filename="../ui/ui_files/warning_dialog_base.ui" line="92"/>
+        <location filename="../ui/ui_files/action_dialog_base.ui" line="131"/>
+        <location filename="../ui/ui_files/warning_dialog_base.ui" line="89"/>
         <source>Close</source>
         <translation>Fermer</translation>
     </message>
@@ -287,17 +287,17 @@ Connecté à: {}</translation>
         <translation>Mot de passe</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/connection_dialog_base.ui" line="106"/>
+        <location filename="../ui/ui_files/connection_dialog_base.ui" line="96"/>
         <source>login</source>
         <translation>Connexion</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/connection_dialog_base.ui" line="131"/>
+        <location filename="../ui/ui_files/connection_dialog_base.ui" line="121"/>
         <source>Choose organization :</source>
         <translation>Choisissez une organisation</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/connection_dialog_base.ui" line="150"/>
+        <location filename="../ui/ui_files/connection_dialog_base.ui" line="140"/>
         <source>OK</source>
         <translation>OK</translation>
     </message>
@@ -311,17 +311,17 @@ Connecté à: {}</translation>
         <translation>Exporter un Projet</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_project_dialog_base.ui" line="76"/>
+        <location filename="../ui/ui_files/export_project_dialog_base.ui" line="73"/>
         <source>Export a project to JMap Cloud</source>
         <translation>Exporter un projet vers JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_project_dialog_base.ui" line="95"/>
+        <location filename="../ui/ui_files/export_project_dialog_base.ui" line="92"/>
         <source>Project title :</source>
         <translation>Titre du projet</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="309"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="306"/>
         <location filename="../ui/ui_files/export_project_dialog_base.ui" line="166"/>
         <source>Export</source>
         <translation>Exporter</translation>
@@ -332,42 +332,42 @@ Connecté à: {}</translation>
         <translation>Exporter une Couche</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="67"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="64"/>
         <source>Export a layer to JMap Cloud</source>
         <translation>Exporter une couche vers JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="86"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="83"/>
         <source>Select the project :</source>
         <translation>Sélectionnez le projet :</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="150"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="147"/>
         <source>Create a new layer</source>
         <translation>Créer une nouvelle couche</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="169"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="166"/>
         <source>Replace an existing layer</source>
         <translation>Remplacer une couche existante</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="205"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="202"/>
         <source>Layer to replace :</source>
         <translation>Couche à remplacer :</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="227"/>
+        <location filename="../ui/ui_files/export_layer_dialog_base.ui" line="224"/>
         <source>Filter layers…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="176"/>
+        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="173"/>
         <source>Open project</source>
         <translation>Ouvrir un projet</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="115"/>
+        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="112"/>
         <source> Vector layer type :</source>
         <translation>Type de couche vectorielle</translation>
     </message>
@@ -377,17 +377,17 @@ Connecté à: {}</translation>
         <translation>Ouvrir un Projet</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="138"/>
+        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="135"/>
         <source>Default</source>
         <translation>Par défaut</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="143"/>
+        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="140"/>
         <source>All in GeoJSON</source>
         <translation>En GeoJSON</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="148"/>
+        <location filename="../ui/ui_files/open_project_dialog_base.ui" line="145"/>
         <source>All in Vector Tiles</source>
         <translation>En tuiles vectorielles</translation>
     </message>
@@ -397,7 +397,7 @@ Connecté à: {}</translation>
         <translation>Avertissement</translation>
     </message>
     <message>
-        <location filename="../ui/ui_files/warning_dialog_base.ui" line="71"/>
+        <location filename="../ui/ui_files/warning_dialog_base.ui" line="68"/>
         <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;meta charset=&quot;utf-8&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
@@ -412,33 +412,33 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>ExportLayerDialog</name>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="145"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="146"/>
         <source>Error loading project layers</source>
         <translation>Erreur lors du chargement des couches du projet</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="153"/>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="175"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="154"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="176"/>
         <source>No layers found in the selected project</source>
         <translation>Aucune couche trouvée dans le projet sélectionné</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="289"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="290"/>
         <source>Unsupported layer type</source>
         <translation>Type de couche non pris en charge</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="299"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="300"/>
         <source>Loading...</source>
         <translation>Chargement...</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="328"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="329"/>
         <source>Error loading projects</source>
         <translation>Erreur lors du chargement des projets</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/export_layer_dialog.py" line="341"/>
+        <location filename="../ui/py_files/export_layer_dialog.py" line="342"/>
         <source>No projects found</source>
         <translation>Aucun projet trouvé</translation>
     </message>
@@ -521,63 +521,63 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>ExportLayerStyleTask</name>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="233"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="246"/>
         <source>Error for layer {}, the symbology is not supported.</source>
         <translation>Erreur pour la couche {} : la symbologie n&apos;est pas prise en charge.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="297"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="310"/>
         <source>Unexpected rule &apos;{}&apos; have symbol but no parent rule were found</source>
         <translation>La règle&apos;{}&apos; est invalide, car elle possède un symbole, mais pas de règle parent.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="381"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="421"/>
         <source>invalid expression &apos;{}&apos;, too many or no valid operators</source>
         <translation>Expression &apos;{}&apos; invalide: L&apos;expression a trop ou pas assez d&apos;opérateurs.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="394"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="434"/>
         <source>error in expression &apos;{}&apos;. &apos;OR&apos; operator not supported in JMap Cloud</source>
         <translation>Erreur dans l&apos;expression &apos;{}&apos;: L&apos;opérateur &apos;OR&apos; n&apos;est pas supporté dans JMap Cloud.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="404"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="444"/>
         <source>invalid expression &apos;{}&apos;</source>
         <translation>L&apos;expression &apos;{}&apos; est invalide.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="410"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="450"/>
         <source>invalid operator {} in expression &apos;{}&apos;</source>
         <translation>L&apos;opérateur &apos;{}&apos; est invalide dans l&apos;expression &apos;{}&apos;.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="421"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="461"/>
         <source>invalid attribute in expression &apos;{}&apos;. Attributes: not in fileds : {}</source>
         <translation>Attribut invalide dans l&apos;expression &apos;{}&apos;: L&apos;attribut n&apos;existe pas dans: {}.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="433"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="473"/>
         <source>invalid value {} in expression &apos;{}&apos; </source>
         <translation>Valeur &apos;{}&apos; invalide dans l&apos;expression &apos;{}&apos;.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="453"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="493"/>
         <source>Unsupported symbol type &apos;{}&apos; for layer &apos;{}&apos;.</source>
         <translation>Type de symbole &apos;{}&apos; non pris en charge pour la couche &apos;{}&apos;.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="479"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="521"/>
         <source>Export style error for layer &apos;{}&apos;. Unsupported symbol layer</source>
         <translation>Erreur lors de l&apos;exportation de style pour la couche &apos;{}&apos;: Une couche de symbole est invalide.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="489"/>
-        <location filename="../core/tasks/export_layer_style_task.py" line="500"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="531"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="542"/>
         <source>Export style error: {}</source>
         <translation>Erreur lors de l&apos;exportation de style: &apos;{}&apos;.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../core/tasks/export_layer_style_task.py" line="508"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="550"/>
         <source>Error exporting style rule for layer &apos;{}&apos;: </source>
         <comment>no condition in style rule to export with</comment>
         <translation type="unfinished">
@@ -586,22 +586,32 @@ li.checked::marker { content: &quot;\2612&quot;; }
         </translation>
     </message>
     <message>
+        <location filename="../core/tasks/export_layer_style_task.py" line="670"/>
+        <source>Error for layer {}, the symbology has no classification attribute.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../core/tasks/export_layer_style_task.py" line="700"/>
+        <source>Error for layer {}, the symbology classifies on &apos;{}&apos;, which is not one of the exported attributes ({}).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Error exporting style rule for layer &apos;{}&apos;: no condition in style rule to export with</source>
         <translation type="vanished">Une erreur est survenue lors de l&apos;exportation des règles de style pour la couche &apos;{}&apos;: Aucune condition dans la règle à exporter.</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="525"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="567"/>
         <source>Error exporting style rule for layer &apos;{}&apos;: {}</source>
         <translation>Erreur lors de l&apos;exportation des règles de style pour la couche &apos;{}&apos;: {}</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="579"/>
-        <location filename="../core/tasks/export_layer_style_task.py" line="588"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="621"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="630"/>
         <source>Error getting style for layer &apos;{}&apos;: {}</source>
         <translation>Erreur lors de la récupération des styles pour la couche &apos;{}&apos;: {}</translation>
     </message>
     <message>
-        <location filename="../core/tasks/export_layer_style_task.py" line="601"/>
+        <location filename="../core/tasks/export_layer_style_task.py" line="643"/>
         <source>Error patching style for layer &apos;{}&apos;: {}</source>
         <translation>Erreur lors de la modification des styles pour la couche &apos;{}&apos;: {}.</translation>
     </message>
@@ -609,86 +619,106 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>ExportProjectDialog</name>
     <message>
-        <location filename="../ui/py_files/export_project_dialog.py" line="42"/>
+        <location filename="../ui/py_files/export_project_dialog.py" line="46"/>
         <source>Project title needed</source>
         <translation>Titre du projet obligatoire</translation>
+    </message>
+    <message>
+        <location filename="../ui/py_files/export_project_dialog.py" line="52"/>
+        <source>The project cannot be created because its coordinate reference system is missing. Set a CRS in Project Properties &gt; CRS, then export again.</source>
+        <translation>Le projet ne peut pas être créé, car son système de coordonnées de référence est manquant. Définissez un SCR dans Propriétés du projet &gt; SCR, puis exportez de nouveau.</translation>
     </message>
 </context>
 <context>
     <name>ExportProjectManager</name>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="53"/>
+        <location filename="../core/services/export_project_manager.py" line="54"/>
         <source>Initializing loading</source>
         <translation>Initialisation du chargement</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="54"/>
+        <location filename="../core/services/export_project_manager.py" line="55"/>
         <source>&lt;h3&gt;Project exportation canceled&lt;/h3&gt;</source>
         <translation>&lt;h3&gt;Exportation du projet annulée&lt;/h3&gt;</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="66"/>
+        <location filename="../core/services/export_project_manager.py" line="60"/>
+        <source>The project cannot be created because its coordinate reference system is missing. Set a CRS in Project Properties &gt; CRS, then export again.</source>
+        <translation>Le projet ne peut pas être créé, car son système de coordonnées de référence est manquant. Définissez un SCR dans Propriétés du projet &gt; SCR, puis exportez de nouveau.</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_project_manager.py" line="76"/>
         <source>Converting layers to zip</source>
         <translation>Compression des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="75"/>
+        <location filename="../core/services/export_project_manager.py" line="85"/>
         <source>convert layer to zip</source>
         <translation>Compression des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="92"/>
+        <location filename="../core/services/export_project_manager.py" line="102"/>
         <source>Uploading layers files</source>
         <translation>Exportation des fichiers de couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="98"/>
+        <location filename="../core/services/export_project_manager.py" line="108"/>
         <source>Upload layer files</source>
         <translation>Exportation des fichiers de couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="118"/>
+        <location filename="../core/services/export_project_manager.py" line="128"/>
         <source>Creating datasources</source>
         <translation>Création des sources de données</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="125"/>
+        <location filename="../core/services/export_project_manager.py" line="135"/>
         <source>Create datasource</source>
         <translation>Création des sources de données</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="145"/>
+        <location filename="../core/services/export_project_manager.py" line="155"/>
         <source>Creating JMap Cloud project</source>
         <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="153"/>
+        <location filename="../core/services/export_project_manager.py" line="163"/>
         <source>Create JMap Cloud project</source>
         <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="172"/>
+        <location filename="../core/services/export_project_manager.py" line="186"/>
         <source>Exporting layer styles</source>
         <translation>Exportation des styles des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="192"/>
+        <location filename="../core/services/export_project_manager.py" line="202"/>
+        <source>The JMap Cloud project could not be created.</source>
+        <translation>Le projet JMap Cloud n&apos;a pas pu être créé.</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_project_manager.py" line="217"/>
         <source>{} in task {} for layer {}</source>
         <translation>{} dans la tâche {} pour la couche {}</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="202"/>
+        <location filename="../core/services/export_project_manager.py" line="227"/>
         <source>{} in task {} for layer {} with file {}
 </source>
         <translation>{} dans la tâche {} pour la couche {} pour le fichier {}</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="222"/>
+        <location filename="../core/services/export_project_manager.py" line="249"/>
+        <source>&lt;h3&gt;Project exportation failed&lt;/h3&gt;</source>
+        <translation>&lt;h3&gt;Échec de l&apos;exportation du projet&lt;/h3&gt;</translation>
+    </message>
+    <message>
+        <location filename="../core/services/export_project_manager.py" line="251"/>
         <source>&lt;h3&gt;Project exportation finished&lt;3&gt;</source>
         <translation>&lt;h3&gt;Exportation du projet complétée&lt;/h3&gt;</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="224"/>
+        <location filename="../core/services/export_project_manager.py" line="253"/>
         <source>&lt;h4&gt;Some errors occurred during the process:&lt;/h4&gt;</source>
         <translation>&lt;h4&gt;Des erreurs se sont produites pendant le processus:&lt;/h4&gt;</translation>
     </message>
@@ -876,7 +906,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>JMapAuth</name>
     <message>
-        <location filename="../core/services/auth_manager.py" line="199"/>
+        <location filename="../core/services/auth_manager.py" line="198"/>
         <source>Logout Error</source>
         <translation>Erreur de déconnexion</translation>
     </message>
@@ -977,17 +1007,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>OpenProjectDialog</name>
     <message>
-        <location filename="../ui/py_files/open_project_dialog.py" line="48"/>
+        <location filename="../ui/py_files/open_project_dialog.py" line="49"/>
         <source>loading...</source>
         <translation>Chargement...</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/open_project_dialog.py" line="58"/>
+        <location filename="../ui/py_files/open_project_dialog.py" line="59"/>
         <source>Error loading projects, please try again</source>
         <translation>Erreur lors du chargement des projets. Veuillez réessayer</translation>
     </message>
     <message>
-        <location filename="../ui/py_files/open_project_dialog.py" line="109"/>
+        <location filename="../ui/py_files/open_project_dialog.py" line="110"/>
         <source>No project found</source>
         <translation>Aucun projet trouvé</translation>
     </message>
@@ -1029,7 +1059,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>RequestManager</name>
     <message>
-        <location filename="../core/services/request_manager.py" line="318"/>
+        <location filename="../core/services/request_manager.py" line="260"/>
+        <source>Failed to disconnect finished signal for request {}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../core/services/request_manager.py" line="357"/>
         <source>Error occurred {}</source>
         <translation>Une erreur est survenue {}</translation>
     </message>
@@ -1037,12 +1072,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>compressFilesToZipTask</name>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="568"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="591"/>
         <source>Converting layers to zip</source>
         <translation>Compression des couches</translation>
     </message>
     <message>
-        <location filename="../core/tasks/write_layer_tasks.py" line="589"/>
+        <location filename="../core/tasks/write_layer_tasks.py" line="612"/>
         <source>Error: {} is not a valid file or folder.</source>
         <translation>Erreur: {} n&apos;est pas un fichier ou un dossier valide</translation>
     </message>
