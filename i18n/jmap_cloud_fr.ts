@@ -632,93 +632,92 @@ li.checked::marker { content: &quot;\2612&quot;; }
 <context>
     <name>ExportProjectManager</name>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="54"/>
+        <location filename="../core/services/export_project_manager.py" line="53"/>
         <source>Initializing loading</source>
         <translation>Initialisation du chargement</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="55"/>
+        <location filename="../core/services/export_project_manager.py" line="54"/>
         <source>&lt;h3&gt;Project exportation canceled&lt;/h3&gt;</source>
         <translation>&lt;h3&gt;Exportation du projet annulée&lt;/h3&gt;</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="60"/>
         <source>The project cannot be created because its coordinate reference system is missing. Set a CRS in Project Properties &gt; CRS, then export again.</source>
-        <translation>Le projet ne peut pas être créé, car son système de coordonnées de référence est manquant. Définissez un SCR dans Propriétés du projet &gt; SCR, puis exportez de nouveau.</translation>
+        <translation type="vanished">Le projet ne peut pas être créé, car son système de coordonnées de référence est manquant. Définissez un SCR dans Propriétés du projet &gt; SCR, puis exportez de nouveau.</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="76"/>
+        <location filename="../core/services/export_project_manager.py" line="66"/>
         <source>Converting layers to zip</source>
         <translation>Compression des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="85"/>
+        <location filename="../core/services/export_project_manager.py" line="75"/>
         <source>convert layer to zip</source>
         <translation>Compression des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="102"/>
+        <location filename="../core/services/export_project_manager.py" line="92"/>
         <source>Uploading layers files</source>
         <translation>Exportation des fichiers de couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="108"/>
+        <location filename="../core/services/export_project_manager.py" line="98"/>
         <source>Upload layer files</source>
         <translation>Exportation des fichiers de couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="128"/>
+        <location filename="../core/services/export_project_manager.py" line="118"/>
         <source>Creating datasources</source>
         <translation>Création des sources de données</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="135"/>
+        <location filename="../core/services/export_project_manager.py" line="125"/>
         <source>Create datasource</source>
         <translation>Création des sources de données</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="155"/>
+        <location filename="../core/services/export_project_manager.py" line="145"/>
         <source>Creating JMap Cloud project</source>
         <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="163"/>
+        <location filename="../core/services/export_project_manager.py" line="153"/>
         <source>Create JMap Cloud project</source>
         <translation>Création du projet JMap Cloud</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="186"/>
+        <location filename="../core/services/export_project_manager.py" line="176"/>
         <source>Exporting layer styles</source>
         <translation>Exportation des styles des couches</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="202"/>
+        <location filename="../core/services/export_project_manager.py" line="192"/>
         <source>The JMap Cloud project could not be created.</source>
         <translation>Le projet JMap Cloud n&apos;a pas pu être créé.</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="217"/>
+        <location filename="../core/services/export_project_manager.py" line="207"/>
         <source>{} in task {} for layer {}</source>
         <translation>{} dans la tâche {} pour la couche {}</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="227"/>
+        <location filename="../core/services/export_project_manager.py" line="217"/>
         <source>{} in task {} for layer {} with file {}
 </source>
         <translation>{} dans la tâche {} pour la couche {} pour le fichier {}</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="249"/>
+        <location filename="../core/services/export_project_manager.py" line="239"/>
         <source>&lt;h3&gt;Project exportation failed&lt;/h3&gt;</source>
         <translation>&lt;h3&gt;Échec de l&apos;exportation du projet&lt;/h3&gt;</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="251"/>
+        <location filename="../core/services/export_project_manager.py" line="241"/>
         <source>&lt;h3&gt;Project exportation finished&lt;3&gt;</source>
         <translation>&lt;h3&gt;Exportation du projet complétée&lt;/h3&gt;</translation>
     </message>
     <message>
-        <location filename="../core/services/export_project_manager.py" line="253"/>
+        <location filename="../core/services/export_project_manager.py" line="243"/>
         <source>&lt;h4&gt;Some errors occurred during the process:&lt;/h4&gt;</source>
         <translation>&lt;h4&gt;Des erreurs se sont produites pendant le processus:&lt;/h4&gt;</translation>
     </message>
