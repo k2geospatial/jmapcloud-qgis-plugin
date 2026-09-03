@@ -155,6 +155,7 @@ class ExportProjectManager(QObject):
 
         create_project_task.project_creation_finished.connect(next_step)
         create_project_task.error_occurred.connect(self.errors.append)
+        create_project_task.taskTerminated.connect(self._project_creation_failed)
         create_project_task.progressChanged.connect(
             lambda value, current_step=self.current_step: self._set_progress(value, current_step)
         )
@@ -181,6 +182,17 @@ class ExportProjectManager(QObject):
         )
         self.feedback.canceled.connect(export_layer_styles_task.cancel)
         self.task_manager.addTask(export_layer_styles_task)
+
+    def _project_creation_failed(self):
+        if self._cancel or not self.exporting_project:
+            return
+        self._abort(self.tr("The JMap Cloud project could not be created."))
+
+    def _abort(self, message: str):
+        """Stop the export and report `message` to the user in the action dialog."""
+        QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.MessageLevel.Critical)
+        self.errors.append(message)
+        self._finish(False)
 
     def _error_handler(self, layers_data: list[LayerData], step_string: str) -> list[LayerData]:
         success: list[LayerData] = []
@@ -219,12 +231,16 @@ class ExportProjectManager(QObject):
         self.action_dialog.set_progress(total_progress)
 
     def _finish(self, success: bool = True):
-        message = self.tr("<h3>Project exportation finished<3>")
+        failed = not success and len(self.errors) > 0
+        if failed:
+            message = self.tr("<h3>Project exportation failed</h3>")
+        else:
+            message = self.tr("<h3>Project exportation finished<3>")
         if len(self.errors) > 0:
             message += self.tr("<h4>Some errors occurred during the process:</h4>")
             for error in self.errors:
                 message += "<p>{}</p>".format(error.replace("\n", "<br>"))
-        self.action_dialog.action_finished(message)
+        self.action_dialog.action_finished(message, error=failed)
         self.project_exportation_finished.emit(success)
         self.exporting_project = False
         self.action_dialog = ActionDialog()
