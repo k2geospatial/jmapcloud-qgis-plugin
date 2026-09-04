@@ -19,7 +19,12 @@ from qgis.core import (
     QgsReferencedRectangle,
 )
 
-from .plugin_util import convert_crs_to_epsg, is_extent_usable
+from .plugin_util import (
+    convert_crs_to_epsg,
+    is_extent_usable,
+    reproject_extent,
+    resolve_project_crs,
+)
 
 
 class SupportedFileType(Enum):
@@ -179,9 +184,13 @@ class ProjectData:
         self.legendRoot = legendRoot
 
     def setup_with_QGIS_project(self, project: QgsProject):
-        self.crs = convert_crs_to_epsg(project.crs())
+        self.crs = resolve_project_crs(convert_crs_to_epsg(project.crs()))
         full_extent = project.viewSettings().fullExtent()
-        self.initial_extent = full_extent if is_extent_usable(full_extent) else None
+        self.initial_extent = (
+            reproject_extent(full_extent, self.crs, project)
+            if is_extent_usable(full_extent)
+            else None
+        )
         self.layers = project.layerTreeRoot().customLayerOrder()
         self.legendRoot = project.layerTreeRoot()
 
