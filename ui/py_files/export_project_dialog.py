@@ -10,12 +10,11 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from qgis.core import QgsProject
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtGui import QPixmap
 from qgis.utils import iface
 
-from ...core.plugin_util import image_path, is_project_crs_valid
+from ...core.plugin_util import image_path
 from .export_project_dialog_base_ui import Ui_Dialog
 
 
@@ -52,16 +51,6 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
     def validate_input(self) -> bool:
         if not self.project_title_lineEdit.text():
             self.error_label.setText(self.tr("Project title needed"))
-            return False
-
-        if not is_project_crs_valid(QgsProject.instance().crs()):
-            self.error_label.setText(
-                self.tr(
-                    "The project cannot be created because its coordinate reference "
-                    "system is missing. Set a CRS in Project Properties > CRS, "
-                    "then export again."
-                )
-            )
             return False
 
         self.error_label.clear()
