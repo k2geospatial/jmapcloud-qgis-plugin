@@ -255,12 +255,7 @@ def reproject_extent(
     target_crs: QgsCoordinateReferenceSystem,
     project: QgsProject,
 ) -> Union[QgsReferencedRectangle, None]:
-    """The extent expressed in `target_crs`, or None if it cannot be.
-
-    JMap Cloud reads a project's initialExtent in its mapCrs. An extent carries the
-    CRS of the project it came from, which is empty when that project is set to
-    "No CRS": its coordinates cannot be placed, so there is no extent to export.
-    """
+    """The extent expressed in `target_crs`, or None if it cannot be."""
 
     source_crs = extent.crs()
     if not source_crs.isValid():
