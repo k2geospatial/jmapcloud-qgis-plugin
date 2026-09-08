@@ -45,6 +45,7 @@ changelog=
     1.0.8
     - Fixed an issue when exporting a QGIS layer whose symbol image is embedded in the layer
     - Fixed an issue when exporting a categorized or graduated symbology whose classification attribute differs in letter case from the layer attribute name
+    - Fixed an issue when exporting a QGIS project with a missing or invalid CRS to JMap Cloud
     1.0.7
     - Added a browsable, searchable layer tree to easily find the layer to replace when exporting to an existing JMap Cloud layer
     - Fixed an issue when exporting a WMTS layer to JMap Cloud

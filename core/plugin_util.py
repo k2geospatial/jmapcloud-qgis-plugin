@@ -37,6 +37,7 @@ from qgis.core import (
     QgsProject,
     QgsRasterMarkerSymbolLayer,
     QgsRectangle,
+    QgsReferencedRectangle,
     QgsRenderContext,
     QgsSimpleLineSymbolLayer,
     QgsSVGFillSymbolLayer,
@@ -48,6 +49,7 @@ from qgis.PyQt.QtGui import QColor, QFont, QImage, QPainter, QPainterPath
 from qgis.PyQt.QtSvg import QSvgGenerator
 
 MAX_SCALE_LIMIT = 295828763
+DEFAULT_PROJECT_CRS = "EPSG:3857"
 TILE_SIZE_IN_PIXELS = 512
 """JMap Cloud rejects a patternData wider or taller than this."""
 MAX_PATTERN_SIZE_IN_PIXELS = 100
@@ -217,6 +219,55 @@ def convert_crs_to_epsg(
     crs: QgsCoordinateReferenceSystem,
 ) -> QgsCoordinateReferenceSystem:  # TODO: convert to epsg
     return crs
+
+
+def is_project_crs_valid(crs: Union[QgsCoordinateReferenceSystem, None]) -> bool:
+    if crs is None or not crs.isValid():
+        return False
+    return bool(crs.authid())
+
+
+def resolve_project_crs(
+    crs: Union[QgsCoordinateReferenceSystem, None],
+) -> QgsCoordinateReferenceSystem:
+    """The CRS to export as a JMap Cloud project's mapCrs, defaulted if unset.
+
+    A QGIS project set to "No CRS" (Project Properties > CRS) has an invalid CRS
+    whose authid is empty, and JMap Cloud rejects that with "mapCrs can't be null
+    or empty". Fall back to DEFAULT_PROJECT_CRS so the export can proceed.
+    """
+
+    if is_project_crs_valid(crs):
+        return crs
+
+    QgsMessageLog.logMessage(
+        "The QGIS project has no CRS. Exporting with {} as the project CRS.".format(
+            DEFAULT_PROJECT_CRS
+        ),
+        "JMap Cloud Plugin",
+        Qgis.MessageLevel.Warning,
+    )
+    return QgsCoordinateReferenceSystem(DEFAULT_PROJECT_CRS)
+
+
+def reproject_extent(
+    extent: QgsReferencedRectangle,
+    target_crs: QgsCoordinateReferenceSystem,
+    project: QgsProject,
+) -> Union[QgsReferencedRectangle, None]:
+    """The extent expressed in `target_crs`, or None if it cannot be."""
+
+    source_crs = extent.crs()
+    if not source_crs.isValid():
+        return None
+    if source_crs == target_crs:
+        return extent
+
+    transform = QgsCoordinateTransform(source_crs, target_crs, project.transformContext())
+    reprojected = transform.transformBoundingBox(QgsRectangle(extent))
+    if not is_extent_usable(reprojected):
+        return None
+    return QgsReferencedRectangle(reprojected, target_crs)
 
 
 def is_extent_usable(extent: Union[QgsRectangle, None]) -> bool:

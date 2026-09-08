@@ -30,8 +30,16 @@ class ExportProjectDialog(QtWidgets.QDialog, Ui_Dialog):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.jmap_image_label.setPixmap(QPixmap(image_path("Logo_JMap_Cloud.svg")))
-        self.error_label.setText("")
+        self.reset_dialog_state()
+
+    def reset_dialog_state(self):
+        self.error_label.clear()
         self.set_export_project_enable_action(True)
+
+    def showEvent(self, event):
+        """Drop the error of a previous attempt, so reopening starts clean."""
+        self.reset_dialog_state()
+        super().showEvent(event)
 
     def get_input_data(self) -> dict:
         return {"projectTitle": self.project_title_lineEdit.text()}
