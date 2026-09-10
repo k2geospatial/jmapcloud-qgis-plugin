@@ -133,10 +133,8 @@ class CreateLayerTask(CustomQgsTask):
                 )
                 if labeling_dto is None:
                     message = self.tr(
-                        (
-                            "Error creating labeling for layer {},",
-                            " JMap Cloud only support single rule labeling",
-                        )
+                        "Error creating labeling for layer {}: "
+                        "JMap Cloud only supports single rule labeling"
                     ).format(layer_data.layer_name)
                     self.error_occur(message, MESSAGE_CATEGORY)
                 else:

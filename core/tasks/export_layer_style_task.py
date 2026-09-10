@@ -65,6 +65,8 @@ TAG_LIKE_PATTERN = re.compile(r"<([^<>]*)>")
 
 class ExportLayersStyleTask(CustomQgsTask):
     layer_styles_exportation_finished = pyqtSignal()
+    layer_style_issue = pyqtSignal(str, str)
+    """layer name, reason"""
 
     def __init__(
         self,
@@ -85,7 +87,10 @@ class ExportLayersStyleTask(CustomQgsTask):
             subtask.export_layer_style_completed.connect(
                 lambda _style_rule_id=None: self._is_all_layers_style_exported()
             )
-            subtask.error_occurred.connect(self.error_occurred)
+            subtask.taskTerminated.connect(
+                lambda layer_data=layer_data: self._layer_style_failed(layer_data)
+            )
+            subtask.layer_style_issue.connect(self.layer_style_issue)
             self.addSubTask(
                 subtask, subTaskDependency=self.SubTaskDependency.ParentDependsOnSubTask
             )
@@ -97,19 +102,34 @@ class ExportLayersStyleTask(CustomQgsTask):
             self.layer_styles_exportation_finished.emit()
         return True
 
+    def _layer_style_failed(self, layer_data: LayerData):
+        reason = self.tr("its style could not be exported")
+        self.layer_style_issue.emit(layer_data.layer_name, reason)
+        QgsMessageLog.logMessage(
+            self.tr("Layer '{}': {}").format(layer_data.layer_name, reason),
+            MESSAGE_CATEGORY,
+            Qgis.MessageLevel.Critical,
+        )
+        self._is_all_layers_style_exported()
+
     def _is_all_layers_style_exported(self):
         self.no_layer_style_exported += 1
-        if self.no_layer_style_exported == len(self.layers_data):
+        if self.no_layer_style_exported >= len(self.layers_data):
             self.layer_styles_exportation_finished.emit()
 
 
 class ExportLayerStyleTask(CustomQgsTask):
     export_layer_style_completed = pyqtSignal(object)
+    layer_style_issue = pyqtSignal(str, str)
+    """layer name, reason"""
 
     def __init__(
         self, request_manager: RequestManager, layer_data: LayerData, project_data: ProjectData
     ):
-        super().__init__("Exporting layer style", CustomQgsTask.CanCancel)
+        super().__init__(
+            "Exporting the style of layer '{}'".format(layer_data.layer_name),
+            CustomQgsTask.CanCancel,
+        )
         self.layer_data = layer_data
         self.project_data = project_data
         self._request_manager = request_manager
@@ -119,6 +139,25 @@ class ExportLayerStyleTask(CustomQgsTask):
     def run(self):
         if self.isCanceled():
             return False
+        try:
+            self._export_style()
+        except Exception as exception:
+            # Reported, not raised: a layer whose style cannot be read must not
+            # terminate this task, which would cancel every other layer's style.
+            self.handle_unexpected_exception(exception, MESSAGE_CATEGORY)
+        self.export_layer_style_completed.emit(self._new_style_rule_id)
+        return True
+
+    def error_occur(self, message: str, category: str = MESSAGE_CATEGORY):
+        """Every error of this task is an issue with its own layer."""
+        QgsMessageLog.logMessage(
+            "Layer '{}': {}".format(self.layer_data.layer_name, message),
+            category,
+            Qgis.MessageLevel.Critical,
+        )
+        self.layer_style_issue.emit(self.layer_data.layer_name, message)
+
+    def _export_style(self):
         if self.layer_data.layer_type in [
             LayerData.LayerType.file_vector,
             LayerData.LayerType.API_FEATURES,
@@ -127,8 +166,6 @@ class ExportLayerStyleTask(CustomQgsTask):
             self._delete_default_style_rules()
         else:
             self._patch_raster_style()
-        self.export_layer_style_completed.emit(self._new_style_rule_id)
-        return True
 
     def _handle_renderer(self, layer: LayerData):
         renderer = layer.layer.renderer()
@@ -511,15 +548,16 @@ class ExportLayerStyleTask(CustomQgsTask):
                 )
 
         style_ids = []
+        symbol_layers = StyleDTO.rendered_symbol_layers(symbol)
 
         url = "{}/organizations/{}/styles".format(API_MCS_URL, self.project_data.organization_id)
 
         # create every style (post Style)
-        for style in styles:
+        for index, style in enumerate(styles):
             if style is None:
                 message = self.tr(
-                    "Export style error for layer '{}'. Unsupported symbol layer"
-                ).format(self.layer_data.layer_name)
+                    "the symbol layer {} is not supported by JMap Cloud and was not exported"
+                ).format(self._symbol_layer_type_name(symbol_layers, index))
                 self.error_occur(message, MESSAGE_CATEGORY)
                 continue
             body = style.to_json()
@@ -544,13 +582,22 @@ class ExportLayerStyleTask(CustomQgsTask):
 
         return style_ids
 
+    @staticmethod
+    def _symbol_layer_type_name(symbol_layers: list, index: int) -> str:
+        """The type QGIS shows in the Symbol Selector, e.g. 'GeometryGenerator'."""
+        if index >= len(symbol_layers):
+            return "?"
+        symbol_layer = symbol_layers[index]
+        return symbol_layer.layerType() or type(symbol_layer).__name__
+
     def _export_style_rules(self, style_rule_dto: StyleRuleDTO):
         if len(style_rule_dto.conditions) == 0:
-            message = self.tr(
-                "Error exporting style rule for layer '{}': ",
-                "no condition in style rule to export with",
-            ).format(self.layer_data.layer_name)
-            self.error_occur(message, MESSAGE_CATEGORY)
+            QgsMessageLog.logMessage(
+                "Layer '{}': no style rule to export, none of its symbol layers "
+                "could be converted".format(self.layer_data.layer_name),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Warning,
+            )
             return False
         url = "{}/organizations/{}/projects/{}/layers/{}/style-rules".format(
             API_MCS_URL,
