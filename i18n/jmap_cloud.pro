@@ -34,7 +34,9 @@ SOURCES = ../jmap_cloud.py \
           ../core/DTOS/style_map_scale_dto.py \
           ../core/DTOS/style_rule_dto.py \
           ../core/services/auth_manager.py \
+          ../core/services/export_layer_manager.py \
           ../core/services/export_project_manager.py \
+          ../core/services/export_report.py \
           ../core/services/files_manager.py \
           ../core/services/import_project_manager.py \
           ../core/services/jmap_services_access.py \
@@ -42,10 +44,15 @@ SOURCES = ../jmap_cloud.py \
           ../core/services/session_manager.py \
           ../core/services/style_manager.py \
           ../core/tasks/create_jmc_project_task.py \
+          ../core/tasks/create_layer_task.py \
           ../core/tasks/custom_qgs_task.py \
           ../core/tasks/export_layer_style_task.py \
+          ../core/tasks/load_jmc_datasource_references_task.py \
           ../core/tasks/load_style_task.py \
-          ../core/tasks/write_layer_tasks.py 
+          ../core/tasks/remove_layer_style_task.py \
+          ../core/tasks/replace_layer_task.py \
+          ../core/tasks/step_guard.py \
+          ../core/tasks/write_layer_tasks.py \
           ../core/qgs_message_bar_handler.py \
           ../core/recurring_event.py \
           ../core/signal_object.py \
