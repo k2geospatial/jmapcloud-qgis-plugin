@@ -9,12 +9,15 @@
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 # -----------------------------------------------------------
+import traceback
 from enum import Enum, auto
 
-from qgis.core import QgsSymbol
+from qgis.core import Qgis, QgsMessageLog, QgsSymbol
 
 from ..plugin_util import opacity_to_transparency, transparency_to_opacity
 from .dto import DTO
+
+MESSAGE_CATEGORY = "StyleDTO"
 
 
 class StyleDTO(DTO):
@@ -51,7 +54,7 @@ class StyleDTO(DTO):
     def from_symbol(cls, symbol: QgsSymbol) -> list["StyleDTO"]:
         dtos = []
         for symbol_layer in cls.rendered_symbol_layers(symbol):
-            dto = cls.from_symbol_layer(symbol_layer)
+            dto = cls._convert_symbol_layer(symbol_layer)
             if dto is None:
                 # kept in the list so the caller can report the unsupported
                 # symbol layer instead of dropping it silently
@@ -62,6 +65,21 @@ class StyleDTO(DTO):
             )
             dtos.append(dto)
         return dtos
+
+    @classmethod
+    def _convert_symbol_layer(cls, symbol_layer) -> "StyleDTO":
+        """
+        A symbol layer this DTO cannot read is unsupported, not a failure: returning
+        None lets the caller report it and keep exporting the other symbol layers.
+        """
+
+        try:
+            return cls.from_symbol_layer(symbol_layer)
+        except Exception:
+            QgsMessageLog.logMessage(
+                traceback.format_exc(), MESSAGE_CATEGORY, Qgis.MessageLevel.Warning
+            )
+            return None
 
     @classmethod
     def from_symbol_layer(cls, symbol_layer) -> "StyleDTO":
