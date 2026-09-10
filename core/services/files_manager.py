@@ -15,6 +15,7 @@ import math
 from pathlib import Path
 from typing import Union
 
+from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
 
@@ -28,6 +29,19 @@ from .request_manager import RequestManager
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 MESSAGE_CATEGORY = "FilesUploadManager"
+SERVER_REASON_KEYS = ("statusMessage", "message", "error", "errorMessage", "reason", "detail")
+
+
+def server_reason(content) -> str:
+    """
+    The reason a JMap Cloud analyzer rejected the data. It travels in the payload of
+    an otherwise successful response, so ResponseData.error_message is empty here.
+    """
+    if isinstance(content, dict):
+        for key in SERVER_REASON_KEYS:
+            if bool(content.get(key)):
+                return str(content[key])
+    return ""
 
 
 class FilesUploadManager(CustomTaskManager):
@@ -49,6 +63,8 @@ class FilesUploadManager(CustomTaskManager):
         self.total_steps = len(self.layer_files)
         self._request_manager = request_manager
         self._cancel = False
+        self._completed = False
+        self.recurring_event: RecurringEvent = None
 
     def run(self):
         if self._cancel:
@@ -57,7 +73,7 @@ class FilesUploadManager(CustomTaskManager):
         self.set_total_steps(len(self.layer_files))
         if len(self.layer_files) == 0:
             self.progress_changed.emit(100.0)
-            self.tasks_completed.emit(self.layers_data)
+            self._complete()
             return True
         self.step_title_changed.emit(self.tr("Uploading layers files"))
         for i, layer_file in enumerate(self.layer_files):
@@ -93,15 +109,22 @@ class FilesUploadManager(CustomTaskManager):
         for file_uploader in self.file_uploaders:
             file_uploader.cancel()
 
+    def _complete(self):
+        """Hand the layers back to the caller, once."""
+        if self._completed:
+            return
+        self._completed = True
+        self.tasks_completed.emit(self.layers_data)
+
     def is_all_files_uploaded(self, jmc_file_id: str):
         self._num_file_uploaded += 1
         if jmc_file_id:
             self.files_to_analyze.append(jmc_file_id)
-        if self._num_file_uploaded == len(self.layer_files) and not self._cancel:
+        if self._num_file_uploaded >= len(self.layer_files) and not self._cancel:
             self._num_file_uploaded = 0
             self.file_uploaders = []
             if len(self.files_to_analyze) == 0:
-                self.tasks_completed.emit(self.layers_data)
+                self._complete()
             else:
                 self.start_poking_jmc_file_analyzers()
 
@@ -109,28 +132,16 @@ class FilesUploadManager(CustomTaskManager):
         self.step_title_changed.emit(self.tr("Server is analyzing files"))
 
         def is_file_analyzed(response: RequestManager.ResponseData, jmc_file_id: str):
-            if (
-                not bool(response.content)
-                or "status" not in response.content
-                or response.content["status"] in ["UPLOADING", "ERROR"]
-            ):
-                for layer_file in self.layer_files:
-                    if layer_file.jmc_file_id == jmc_file_id:
-                        layer_file.upload_status = LayerFile.Status.uploading_error
-                        break
-                self.files_to_analyze.remove(jmc_file_id)
-            elif response.content["status"] == "ANALYZED":
-                for layer_file in self.layer_files:
-                    if layer_file.jmc_file_id == jmc_file_id:
-                        if layer_file.file_type != SupportedFileType.raster:
-                            for layer in response.content["metadata"]["layers"]:
-                                layer_file.fields[layer["name"]] = layer["fileAttributes"]
-                        break
-                self.files_to_analyze.remove(jmc_file_id)
+            try:
+                self._read_file_analysis(response, jmc_file_id)
+            except Exception as exception:
+                self.handle_unexpected_exception(exception, MESSAGE_CATEGORY)
+                self._mark_file_as_failed(jmc_file_id)
+                self._stop_analyzing(jmc_file_id)
             if len(self.files_to_analyze) == 0 and not self._cancel:
                 self.recurring_event.stop()
                 self._num_file_uploaded = 0
-                self.tasks_completed.emit(self.layers_data)
+                self._complete()
 
         def poke_all_not_analyzed_files():
             if self._cancel:
@@ -151,8 +162,63 @@ class FilesUploadManager(CustomTaskManager):
         self.recurring_event.call_count_exceeded.connect(self.timeout)
         self.recurring_event.start()
 
+    def _read_file_analysis(self, response: RequestManager.ResponseData, jmc_file_id: str):
+        if (
+            not bool(response.content)
+            or "status" not in response.content
+            or response.content["status"] in ["UPLOADING", "ERROR"]
+        ):
+            self._fail_file(
+                jmc_file_id,
+                self.tr("JMap Cloud could not analyze its file: {}").format(
+                    server_reason(response.content) or self.tr("no reason given")
+                ),
+            )
+        elif response.content["status"] == "ANALYZED":
+            for layer_file in self.layer_files:
+                if layer_file.jmc_file_id == jmc_file_id:
+                    if layer_file.file_type != SupportedFileType.raster:
+                        for layer in response.content["metadata"]["layers"]:
+                            layer_file.fields[layer["name"]] = layer["fileAttributes"]
+                    break
+            self._stop_analyzing(jmc_file_id)
+
+    def _fail_file(self, jmc_file_id: str, reason: str):
+        """The reason travels on the layer, so the report attributes it to that layer."""
+        for layer_data in self.layers_data:
+            if layer_data.layer_file and layer_data.layer_file.jmc_file_id == jmc_file_id:
+                layer_data.status_reason = reason
+                QgsMessageLog.logMessage(
+                    "Layer '{}': {}".format(layer_data.layer_name, reason),
+                    MESSAGE_CATEGORY,
+                    Qgis.MessageLevel.Critical,
+                )
+                break
+        self._mark_file_as_failed(jmc_file_id)
+        self._stop_analyzing(jmc_file_id)
+
+    def _mark_file_as_failed(self, jmc_file_id: str):
+        for layer_file in self.layer_files:
+            if layer_file.jmc_file_id == jmc_file_id:
+                layer_file.upload_status = LayerFile.Status.uploading_error
+                break
+
+    def _stop_analyzing(self, jmc_file_id: str):
+        """A file can be polled several times before its first answer comes back."""
+        if jmc_file_id in self.files_to_analyze:
+            self.files_to_analyze.remove(jmc_file_id)
+
     def timeout(self):
-        pass
+        if self._cancel:
+            return
+        if self.recurring_event is not None:
+            self.recurring_event.stop()
+        for jmc_file_id in list(self.files_to_analyze):
+            self._fail_file(
+                jmc_file_id, self.tr("JMap Cloud did not finish analyzing its file in time")
+            )
+        self._num_file_uploaded = 0
+        self._complete()
 
 
 class FileUploader(CustomTaskManager):
@@ -330,12 +396,15 @@ class DatasourceManager(CustomTaskManager):
         self.datasource_to_analyze: list[LayerData] = []
         self._request_manager = request_manager
         self._cancel = False
+        self._completed = False
+        self.recurring_event: RecurringEvent = None
 
     def run(self):
         if self._export_mode == ExportSelectedLayerData.ExportMode.create:
             self.create_datasources()
         else:
             self.update_datasources()
+        return True
 
     def cancel(self):
         self._cancel = True
@@ -525,17 +594,24 @@ class DatasourceManager(CustomTaskManager):
         # Creation flow still waits for analyzer polling.
         self._on_datasource_processed(layer_data, analyze=True)
 
+    def _complete(self):
+        """Hand the layers back to the caller, once."""
+        if self._completed:
+            return
+        self._completed = True
+        self.tasks_completed.emit(self._layers_data)
+
     def _on_datasource_processed(self, layer_data: LayerData, analyze: bool):
         self._num_datasource_created += 1
         self.progress_changed.emit(self._num_datasource_created / len(self._layers_data) * 100)
         if analyze and layer_data.status == LayerData.Status.no_error:
             self.datasource_to_analyze.append(layer_data)
-        if self._num_datasource_created == len(self._layers_data):
+        if self._num_datasource_created >= len(self._layers_data):
             self._num_datasource_created = 0
-            if analyze:
+            if analyze and len(self.datasource_to_analyze) > 0:
                 self.start_poking_jmc_datasource_analyzers()
             else:
-                self.tasks_completed.emit(self._layers_data)
+                self._complete()
 
     def is_all_datasources_created(self, layer_data: LayerData):
         # Backward-compat: treat as creation flow.
@@ -547,28 +623,18 @@ class DatasourceManager(CustomTaskManager):
         def is_datasource_analyzed(
             response: RequestManager.ResponseData, layer_data: LayerData = None
         ):
-            if response.status != QNetworkReply.NetworkError.NoError:
-                self.datasource_to_analyze.remove(layer_data)
-                layer_data.status = LayerData.Status.unknown_error
-                self.error_occur(
-                    self.tr("Unknown error : {}").format(response.error_message), MESSAGE_CATEGORY
-                )
-            elif "status" not in response.content or response.content["status"] == "ERROR":
-                self.datasource_to_analyze.remove(layer_data)
+            try:
+                self._read_datasource_analysis(response, layer_data)
+            except Exception as exception:
+                self.handle_unexpected_exception(exception, MESSAGE_CATEGORY)
                 layer_data.status = LayerData.Status.datasource_analyzing_error
-                self.error_occur(
-                    self.tr("JMap server error : {}").format(response.error_message),
-                    MESSAGE_CATEGORY,
-                )
-            elif response.content["status"] in ["READY"]:
-                self.datasource_to_analyze.remove(layer_data)
-                layer_data.datasource_id = response.content["id"]
+                self._stop_analyzing(layer_data)
             if len(self.datasource_to_analyze) == 0:
-                recurring_event.stop()
-                self.tasks_completed.emit(self._layers_data)
+                self.recurring_event.stop()
+                self._complete()
 
         def poke_all_not_analyzed_datasources():
-            for layer_data in self.datasource_to_analyze:
+            for layer_data in list(self.datasource_to_analyze):
                 url = "{}/organizations/{}/datasources/{}".format(
                     API_MCS_URL, self.organization_id, layer_data.datasource_id
                 )
@@ -579,12 +645,76 @@ class DatasourceManager(CustomTaskManager):
 
                 self._request_manager.add_requests(request).connect(next_func)
             if len(self.datasource_to_analyze) == 0:
-                recurring_event.stop()
-                self.tasks_completed.emit(self._layers_data)
+                self.recurring_event.stop()
+                self._complete()
 
-        recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_datasources, False, 200)
-        recurring_event.call_count_exceeded.connect(self.timeout)
-        recurring_event.start()
+        self.recurring_event = RecurringEvent(2.5, poke_all_not_analyzed_datasources, False, 200)
+        self.recurring_event.call_count_exceeded.connect(self.timeout)
+        self.recurring_event.start()
+
+    def _read_datasource_analysis(
+        self, response: RequestManager.ResponseData, layer_data: LayerData
+    ):
+        if response.status != QNetworkReply.NetworkError.NoError:
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.unknown_error,
+                self.tr("its datasource status could not be read: {}").format(
+                    response.error_message
+                ),
+            )
+        elif "status" not in response.content:
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.datasource_analyzing_error,
+                self.tr("JMap Cloud returned an unexpected answer for its datasource: {}").format(
+                    response.content
+                ),
+            )
+        elif response.content["status"] == "ERROR":
+            QgsMessageLog.logMessage(
+                "Rejected datasource payload for layer '{}': {}".format(
+                    layer_data.layer_name, response.content
+                ),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Critical,
+            )
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.datasource_analyzing_error,
+                self.tr("JMap Cloud could not analyze its datasource: {}").format(
+                    server_reason(response.content) or self.tr("no reason given")
+                ),
+            )
+        elif response.content["status"] in ["READY"]:
+            self._stop_analyzing(layer_data)
+            layer_data.datasource_id = response.content["id"]
+
+    def _fail_datasource(self, layer_data: LayerData, status: LayerData.Status, reason: str):
+        """The reason travels on the layer, so the report attributes it to that layer."""
+        self._stop_analyzing(layer_data)
+        layer_data.status = status
+        layer_data.status_reason = reason
+        QgsMessageLog.logMessage(
+            "Layer '{}': {}".format(layer_data.layer_name, reason),
+            MESSAGE_CATEGORY,
+            Qgis.MessageLevel.Critical,
+        )
+
+    def _stop_analyzing(self, layer_data: LayerData):
+        """A datasource can be polled several times before its first answer comes back."""
+        if layer_data in self.datasource_to_analyze:
+            self.datasource_to_analyze.remove(layer_data)
 
     def timeout(self):
-        pass
+        if self._cancel:
+            return
+        if self.recurring_event is not None:
+            self.recurring_event.stop()
+        for layer_data in list(self.datasource_to_analyze):
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.timeout,
+                self.tr("JMap Cloud did not finish analyzing its datasource in time"),
+            )
+        self._complete()
