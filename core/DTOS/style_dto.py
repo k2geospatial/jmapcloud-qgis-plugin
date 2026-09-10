@@ -72,6 +72,7 @@ class StyleDTO(DTO):
         A symbol layer this DTO cannot read is unsupported, not a failure: returning
         None lets the caller report it and keep exporting the other symbol layers.
         """
+
         try:
             return cls.from_symbol_layer(symbol_layer)
         except Exception:
