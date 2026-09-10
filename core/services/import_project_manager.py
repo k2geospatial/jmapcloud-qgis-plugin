@@ -42,8 +42,10 @@ from ..constant import (
 from ..plugin_util import find_value_in_dict_or_first
 from .jmap_services_access import JMapDAS, JMapMCS, JMapMIS
 from .request_manager import RequestManager
+from .export_report import ExportReport
 from .style_manager import StyleManager
 from ..tasks.custom_qgs_task import CustomTaskManager
+from ..tasks.step_guard import STEP_INACTIVITY_TIMEOUT_MS, StepGuard
 from ..tasks.load_style_task import (
     LoadVectorStyleTask,
     LoadVectorTilesStyleTask,
@@ -84,12 +86,13 @@ class ImportProjectManager(CustomTaskManager):
         self._jmap_mis = jmap_mis
         self.action_dialog = ActionDialog()
         self.feedback = self.action_dialog.feedback()
-        self.errors: list[str] = []
+        self.report = ExportReport(ExportReport.Scope.imported)
         self.current_step: int = 0
         self.importing_project: bool = False
         self._cancel: bool = False
         self._initialized: bool = True
         self.tasks: list = []
+        self._step_guard: StepGuard = None
 
     def init_import(self, project_data: ProjectData, project_vector_type: str):
         self._cancel = False
@@ -106,9 +109,13 @@ class ImportProjectManager(CustomTaskManager):
 
         def next_function(replies):
             self.project_layers_data = self._check_project_layers_data(replies)
+            if self.project_layers_data is None:
+                self._abort(self.tr("The project data could not be read from JMap Cloud."))
+                return
             self._load_project()
 
-        self._get_project_layers_data().connect(next_function)
+        guard = self._guard_step(self.tr("Getting project data"), next_function)
+        self._get_project_layers_data().connect(guard.success)
 
     def _get_project_layers_data(self) -> pyqtSignal:
         self.action_dialog.set_text(self.tr("Getting project data"))
@@ -165,14 +172,29 @@ class ImportProjectManager(CustomTaskManager):
         return self._request_manager.multi_request_async(requests)
 
     def _check_project_layers_data(self, replies: dict[str, RequestManager.ResponseData]) -> ProjectLayersData:
+        for id, reply in replies.items():
+            if reply.status != QNetworkReply.NetworkError.NoError:
+                self._error_occur(
+                    self.tr("Could not read the project {} from JMap Cloud: {}").format(
+                        id, reply.error_message
+                    ),
+                    MESSAGE_CATEGORY,
+                )
+                return None
+
         layers_data = replies["layers-data"].content
+        if not isinstance(layers_data, list):
+            self._error_occur(
+                self.tr("JMap Cloud returned an unexpected answer for the project layers: {}").format(
+                    layers_data
+                ),
+                MESSAGE_CATEGORY,
+            )
+            return None
+
         self.total_steps = len(layers_data) + NUM_STEPS
         self._next_step(self.tr("Checking project data"))
         self.project_layers_data = ProjectLayersData()
-
-        for reply in replies.values():
-            if reply.status != QNetworkReply.NetworkError.NoError:
-                return None
 
         self.project_layers_data.layer_groups = replies["layer-groups"].content
         self.project_layers_data.layer_order = replies["layer-order"].content
@@ -206,6 +228,11 @@ class ImportProjectManager(CustomTaskManager):
 
         # load all project's layers in the correct format
         self.layer_to_load = len(layers_data)
+        self.report.register_layers([self._layer_name(data) for data in layers_data])
+        if self.layer_to_load == 0:
+            self.finalization()
+            return
+        self._guard_step(self.tr("Loading project layers"), self.finalization)
         for layer_data in layers_data:
             if self._cancel:
                 return
@@ -213,15 +240,18 @@ class ImportProjectManager(CustomTaskManager):
             if layer_data["type"].upper() == "WMS":
                 layer_properties = layers_properties[layer_data["id"]]
                 self._load_wms_layer(layer_data, layer_properties["sources"])
+                self.report.exported(self._layer_name(layer_data))
                 self._is_all_layer_loaded()
             elif layer_data["type"].upper() == "WMTS":
                 layer_properties = layers_properties[layer_data["id"]]
                 self._load_wmts_layer(layer_data, layer_properties["sources"])
+                self.report.exported(self._layer_name(layer_data))
                 self._is_all_layer_loaded()
             # load raster layer
             elif layer_data["type"].upper() == "RASTER":
                 layer_properties = layers_properties[layer_data["id"]]
                 self._load_raster_layer(layer_data, layer_properties)
+                self.report.exported(self._layer_name(layer_data))
                 self._is_all_layer_loaded()
             elif layer_data["type"].upper() == "VECTOR":
                 layer_properties = layers_properties[layer_data["id"]]
@@ -233,12 +263,19 @@ class ImportProjectManager(CustomTaskManager):
 
                     def on_finish(renderers, labeling, layer_data=layer_data, mouse_over=layer_properties["mouseOver"]):
                         self._load_geojson_layer(layer_data, renderers, labeling, mouse_over)
+                        self.report.exported(self._layer_name(layer_data))
                         self._is_all_layer_loaded()
 
                     task = LoadVectorStyleTask(self.style_manager, layer_properties)
                     task.import_style_completed.connect(on_finish)
-                    task.error_occurred.connect(self._error_occur)
-                    task.taskTerminated.connect(self._is_all_layer_loaded)
+                    task.error_occurred.connect(
+                        lambda reason, layer_data=layer_data: self._layer_style_issue(
+                            layer_data, reason
+                        )
+                    )
+                    task.taskTerminated.connect(
+                        lambda layer_data=layer_data: self._layer_style_failed(layer_data)
+                    )
                     QgsApplication.taskManager().addTask(task)
                 # load MVT layer
                 elif self.project_vector_type == ProjectVectorType.VectorTiles or (
@@ -247,24 +284,30 @@ class ImportProjectManager(CustomTaskManager):
 
                     def on_finish(renderers, labeling, layer_data=layer_data):
                         self._load_mvt_layer(layer_data, renderers, labeling)
+                        self.report.exported(self._layer_name(layer_data))
                         self._is_all_layer_loaded()
 
                     task = LoadVectorTilesStyleTask(self.style_manager, layer_properties)
                     task.import_style_completed.connect(on_finish)
-                    task.taskTerminated.connect(self._is_all_layer_loaded)
-                    task.error_occurred.connect(self._error_occur)
+                    task.taskTerminated.connect(
+                        lambda layer_data=layer_data: self._layer_style_failed(layer_data)
+                    )
+                    task.error_occurred.connect(
+                        lambda reason, layer_data=layer_data: self._layer_style_issue(
+                            layer_data, reason
+                        )
+                    )
                     QgsApplication.taskManager().addTask(task)
                 else:
-                    message = self.tr("Unknown error when loading vector layer : {}").format(
-                        layer_data["name"][self.project_data.default_language]
+                    self._layer_skipped(
+                        layer_data, self.tr("the vector layer could not be loaded")
                     )
-                    self._error_occur(message, MESSAGE_CATEGORY)
                     self._is_all_layer_loaded()
             else:
-                message = self.tr("Unsupported layer {} of type {}").format(
-                    layer_data["name"][self.project_data.default_language], layer_data["type"]
+                self._layer_skipped(
+                    layer_data,
+                    self.tr("layers of type {} are not supported").format(layer_data["type"]),
                 )
-                self._error_occur(message, MESSAGE_CATEGORY)
                 self._is_all_layer_loaded()
 
     def _load_wms_layer(self, layer_data: dict, sources) -> bool:
@@ -419,8 +462,13 @@ class ImportProjectManager(CustomTaskManager):
     def _is_all_layer_loaded(self):
         self.layer_to_load -= 1
         self._next_step()
-        if self.layer_to_load == 0:
-            self.finalization()
+        if self._step_guard is not None:
+            self._step_guard.touch()
+        if self.layer_to_load <= 0:
+            if self._step_guard is not None:
+                self._step_guard.success()
+            else:
+                self.finalization()
 
     def finalization(self):
         if self._cancel:
@@ -543,12 +591,58 @@ class ImportProjectManager(CustomTaskManager):
                     node.setItemVisibilityChecked(index_data["visible"])
                     root.insertChildNode(-1, node)
 
+    def _layer_name(self, layer_data: dict) -> str:
+        return find_value_in_dict_or_first(
+            layer_data.get("name", {}),
+            [self.project_data.default_language],
+            layer_data.get("id", ""),
+        )
+
+    def _layer_skipped(self, layer_data: dict, reason: str):
+        layer_name = self._layer_name(layer_data)
+        self.report.skipped(layer_name, reason)
+        QgsMessageLog.logMessage(
+            "Layer '{}': {}".format(layer_name, reason), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical
+        )
+
+    def _layer_style_issue(self, layer_data: dict, reason: str):
+        layer_name = self._layer_name(layer_data)
+        self.report.partially_exported(layer_name, reason)
+        QgsMessageLog.logMessage(
+            "Layer '{}': {}".format(layer_name, reason), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical
+        )
+
+    def _layer_style_failed(self, layer_data: dict):
+        self._layer_skipped(layer_data, self.tr("its style could not be read"))
+        self._is_all_layer_loaded()
+
+    def _guard_step(
+        self,
+        step_name: str,
+        on_success: callable,
+        inactivity_timeout_ms: int = STEP_INACTIVITY_TIMEOUT_MS,
+    ) -> StepGuard:
+        self._step_guard = StepGuard(step_name, on_success, self._abort, inactivity_timeout_ms)
+        return self._step_guard
+
+    def _release_step_guard(self):
+        if self._step_guard is not None:
+            self._step_guard.abandon()
+            self._step_guard = None
+
+    def _abort(self, message: str) -> None:
+        """Stop the import and report `message`, leaving the plugin ready to try again."""
+        if self._cancel or not self.importing_project:
+            return
+        self._error_occur(message, MESSAGE_CATEGORY)
+        self.report.aborted = True
+        self.finish(False)
+
     def _unmanageable_error_occur(self, message: str, category: str = None) -> None:
-        self._error_occur(message, category)
-        self.action_dialog.action_finished(message, True)
+        self._abort(message)
 
     def _error_occur(self, message: str, category: str = None):
-        self.errors.append(message)
+        self.report.note(message)
         QgsMessageLog.logMessage(message, category, Qgis.MessageLevel.Critical)
         self.error_occurred.emit(message)
     
@@ -563,39 +657,45 @@ class ImportProjectManager(CustomTaskManager):
         self.current_step += 1
         self._set_progress(self.current_step, message)
 
-    def finish(self):
-        message = self.tr("<h3>Project loaded successfully</h3>")
+    def finish(self, success: bool = True):
+        if not self.importing_project:
+            return
+        self.importing_project = False
+        self._release_step_guard()
 
-        if self.project_data.crs.authid() != self.project.crs().authid():
+        message = self.report.to_html()
+        if success and self._has_different_crs():
             message += (
                 self.tr("<h4>Warning</h4>")
                 + self.tr("<p>The JMap Cloud project crs is different from the actual crs of the project</p>")
                 + self.tr("<p>The crs set in JMap Cloud project is : {}</p>").format(self.project_data.crs.authid())
             )
 
-        if len(self.errors) > 0:
-            message += self.tr("<h4>Some errors occurred during the import:</h4>")
-            for error in self.errors:
-                message += "<p>{}</p>".format(error)
+        self.action_dialog.action_finished(message, not success)
 
-        self.action_dialog.action_finished(message, False)
-
-        self.importing_project = False
-        self.tasks_completed.emit(True)
+        self.tasks_completed.emit(success)
         self.action_dialog = ActionDialog()
         self.feedback = self.action_dialog.feedback()
         self.current_step = 0
-        self.errors = []
-        # Defer canvas zoom to keep the dialog responsive and avoid blocking on network.
-        QTimer.singleShot(0, self._zoom_to_extent)
+        self.report = ExportReport(ExportReport.Scope.imported)
+        if success:
+            # Defer canvas zoom to keep the dialog responsive and avoid blocking on network.
+            QTimer.singleShot(0, self._zoom_to_extent)
+
+    def _has_different_crs(self) -> bool:
+        project = getattr(self, "project", None)
+        if project is None or self.project_data.crs is None:
+            return False
+        return self.project_data.crs.authid() != project.crs().authid()
 
     def cancel(self):
         self._cancel = True
         self.importing_project = False
+        self._release_step_guard()
         self.action_dialog = ActionDialog()
         self.feedback = self.action_dialog.feedback()
         self.current_step = 0
-        self.errors = []
+        self.report = ExportReport(ExportReport.Scope.imported)
 
     def is_importing_project(self):
         return self.importing_project
