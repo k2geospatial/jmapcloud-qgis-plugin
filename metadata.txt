@@ -43,6 +43,7 @@ server=False
 
 changelog=
     1.0.8
+    - Added a feedback at the end of an exportation or an importation, listing the layers that were exported, partially exported or skipped, with the reason for each
     - Fixed an issue when exporting a QGIS layer whose symbol image is embedded in the layer
     - Fixed an issue when exporting a categorized or graduated symbology whose classification attribute differs in letter case from the layer attribute name
     - Fixed an issue when exporting a QGIS project with a missing or invalid CRS to JMap Cloud

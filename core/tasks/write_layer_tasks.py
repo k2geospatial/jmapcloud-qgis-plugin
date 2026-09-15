@@ -46,6 +46,7 @@ class ConvertLayersToZipTask(CustomTaskManager):
         self.layers_data: list[LayerData] = []
         self.layer_files: list[LayerFile] = []
         self._layer_tasks: list["ConvertLayerToZipTask"] = []
+        self._completed_tasks: list["ConvertLayerToZipTask"] = []
         self._completed_count = 0
         self._progress_by_layer: list[float] = [0.0] * len(layers)
 
@@ -67,20 +68,29 @@ class ConvertLayersToZipTask(CustomTaskManager):
                 total_progress = sum(self._progress_by_layer) / len(self._progress_by_layer)
                 self.progress_changed.emit(total_progress)
 
-            def on_completed(layer_data: LayerData, layer_file: Union[LayerFile, None]):
+            def on_completed(
+                layer_data: LayerData,
+                layer_file: Union[LayerFile, None],
+                layer_task=layer_task,
+            ):
+                if layer_task in self._completed_tasks:
+                    return
+                self._completed_tasks.append(layer_task)
                 if layer_data is not None:
                     self.layers_data.append(layer_data)
                     if layer_file is not None:
                         self._register_layer_file(layer_file, layer_data)
                 self._completed_count += 1
-                if self._completed_count == len(self.layers):
+                if self._completed_count >= len(self.layers):
                     self.progress_changed.emit(100.0)
                     self.tasks_completed.emit(self.layers_data, self.layer_files)
 
             layer_task.progress_changed.connect(on_progress)
             layer_task.error_occurred.connect(self.error_occurred.emit)
             layer_task.tasks_completed.connect(on_completed)
-            layer_task.run()
+            # A layer that cannot even be started must not hold back the others.
+            if layer_task.run() is False:
+                on_completed(None, None)
         return True
 
     def cancel(self):

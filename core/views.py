@@ -126,6 +126,7 @@ class LayerData:
         self.layer_name = layer_name
         self.layer_type = layer_type
         self.status = self.Status.no_error
+        self.status_reason: str = None
         self.element_type = element_type
         self.datasource_layer = datasource_layer
         self.format = format

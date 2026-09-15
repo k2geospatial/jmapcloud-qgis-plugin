@@ -10,13 +10,55 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+import functools
+import traceback
+
 from qgis.core import Qgis, QgsFeedback, QgsMessageLog, QgsTask
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 
 MESSAGE_CATEGORY = "Custom JMap Cloud Task"
 
 
-class CustomQgsTask(QgsTask):
+def _guarded_run(run: callable) -> callable:
+    """
+    Wrap a task's run() so no exception escapes it. An escaping exception would
+    leave the task without emitting its completion signal, stalling the caller.
+    """
+
+    @functools.wraps(run)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return run(self, *args, **kwargs)
+        except Exception as exception:
+            self.handle_unexpected_exception(exception)
+            return False
+
+    wrapper._jmc_guarded = True
+    return wrapper
+
+
+class UnexpectedExceptionMixin:
+    """Records an exception that escaped a guarded run()."""
+
+    def __init_subclass__(cls, **kwargs):
+        """Guard every run() declared by a subclass."""
+        super().__init_subclass__(**kwargs)
+        run = cls.__dict__.get("run")
+        if run is not None and not getattr(run, "_jmc_guarded", False):
+            cls.run = _guarded_run(run)
+
+    def handle_unexpected_exception(self, exception: Exception, category: str = MESSAGE_CATEGORY):
+        QgsMessageLog.logMessage(traceback.format_exc(), category, Qgis.MessageLevel.Critical)
+        self.add_exception(exception)
+        self.error_occur(
+            self.tr("Unexpected error in {}: {}").format(
+                getattr(self, "name", type(self).__name__), exception
+            ),
+            category,
+        )
+
+
+class CustomQgsTask(UnexpectedExceptionMixin, QgsTask):
     error_occurred = pyqtSignal(str)
     step_title_changed = pyqtSignal(str)
 
@@ -65,13 +107,17 @@ class CustomQgsTask(QgsTask):
                     Qgis.MessageLevel.Warning,
                 )
             else:
-                message = "{} Exception:".format(self.name)
-                for exception in self.exceptions:
-                    message += "\n{}".format(exception)
-                QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.MessageLevel.Critical)
-                raise Exception(message)
+                QgsMessageLog.logMessage(
+                    self._exceptions_message(), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical
+                )
 
         super().finished(result)
+
+    def _exceptions_message(self) -> str:
+        message = "{} Exception:".format(self.name)
+        for exception in self.exceptions:
+            message += "\n{}".format(exception)
+        return message
 
     def debug(self, message: str):
         QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.MessageLevel.Info)
@@ -117,8 +163,9 @@ class CustomQgsTask(QgsTask):
         return instance
 
 
-class CustomTaskManager(QObject):
+class CustomTaskManager(UnexpectedExceptionMixin, QObject):
     error_occurred = pyqtSignal(str)
+    run_failed = pyqtSignal(str)
     step_title_changed = pyqtSignal(str)
     canceled = pyqtSignal()
     progress_changed = pyqtSignal(float)
@@ -181,11 +228,16 @@ class CustomTaskManager(QObject):
                     Qgis.MessageLevel.Warning,
                 )
             else:
-                message = "{} Exception:".format(self.name)
-                for exception in self.exceptions:
-                    message += "\n{}".format(exception)
-                QgsMessageLog.logMessage(message, MESSAGE_CATEGORY, Qgis.MessageLevel.Critical)
-                raise Exception(message)
+                QgsMessageLog.logMessage(
+                    self._exceptions_message(), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical
+                )
+                self.run_failed.emit(self.tr("{} did not complete").format(self.name))
+
+    def _exceptions_message(self) -> str:
+        message = "{} Exception:".format(self.name)
+        for exception in self.exceptions:
+            message += "\n{}".format(exception)
+        return message
 
     def set_total_steps(self, total_steps: int):
         self.total_steps = total_steps
