@@ -474,7 +474,7 @@ class ExportLayerManager(QObject):
         if self._dir is None:
             return
         try:
-            self._cleanup_temp_dir()
+            self._dir.cleanup()
         except Exception as exception:
             QgsMessageLog.logMessage(
                 self.tr("Could not remove the temporary directory: {}").format(exception),
