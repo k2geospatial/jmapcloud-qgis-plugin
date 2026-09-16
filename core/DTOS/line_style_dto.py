@@ -12,21 +12,22 @@
 
 from qgis.core import (
     QgsArrowSymbolLayer,
-    QgsLineSymbol,
     QgsLineSymbolLayer,
     QgsRasterLineSymbolLayer,
     QgsSimpleLineSymbolLayer,
 )
 from qgis.PyQt.QtCore import Qt
 
-from .polygon_style_dto import PolygonStyleDTO
-from .style_dto import StyleDTO
 from ..plugin_util import (
+    SVG_to_base64,
     convert_measurement_to_pixel,
     convert_pen_style_to_dash_array,
     image_to_base64,
     opacity_to_transparency,
+    resolve_line_symbol_strip_svg,
 )
+from .polygon_style_dto import PolygonStyleDTO
+from .style_dto import StyleDTO
 
 
 class LineStyleDTO(StyleDTO):
@@ -41,8 +42,8 @@ class LineStyleDTO(StyleDTO):
     """value between: 'bevel', 'miter', 'round'"""
     dashPattern: list[int]
     """value in pair of int ex: [1, 1], [1,3,5,4]"""
-    patternData: str
-    """value in base64"""
+    linePatternData: str
+    """value in base64; a LINE style names its pattern differently from a POLYGON one"""
 
     def __init__(self):
         super().__init__(self.StyleDTOType.LINE)
@@ -54,7 +55,9 @@ class LineStyleDTO(StyleDTO):
         if width == 0:
             dto.lineThickness = 0
         else:
-            dto.lineThickness = max(1, round(convert_measurement_to_pixel(width, symbol_layer.widthUnit())))
+            dto.lineThickness = max(
+                1, round(convert_measurement_to_pixel(width, symbol_layer.widthUnit()))
+            )
         if isinstance(symbol_layer, QgsSimpleLineSymbolLayer):
             dto.lineColor = symbol_layer.color().name()
             line_cap = symbol_layer.penCapStyle()
@@ -87,7 +90,7 @@ class LineStyleDTO(StyleDTO):
 
             dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
         elif isinstance(symbol_layer, QgsRasterLineSymbolLayer):
-            dto.patternData = image_to_base64(symbol_layer.path())
+            dto.linePatternData = image_to_base64(symbol_layer.path())
             dto.transparency = opacity_to_transparency(symbol_layer.opacity())
         elif isinstance(symbol_layer, QgsArrowSymbolLayer):
             sub_symbol = symbol_layer.subSymbol()
@@ -102,6 +105,27 @@ class LineStyleDTO(StyleDTO):
             dto.arrowPosition = 1.0
             dto.transparency = opacity_to_transparency(sub_symbol.color().alphaF())
         else:
+            return cls._from_rendered_line(symbol_layer)
+
+        return dto
+
+    @classmethod
+    def _from_rendered_line(cls, symbol_layer: QgsLineSymbolLayer) -> "LineStyleDTO":
+        """
+        Lines with no converter of their own, exported as the strip they repeat.
+
+        The strip is drawn at the line's own thickness so it can be sent at a
+        thickness of 1: JMap scales a pattern by the thickness rather than reading
+        it as a width, so any other value multiplies the size QGIS drew.
+        """
+        strip = resolve_line_symbol_strip_svg([symbol_layer])
+        if strip is None:
             return None
 
+        svg, _ = strip
+        dto = cls()
+        dto.linePatternData = SVG_to_base64(svg)
+        dto.lineThickness = 1
+        dto.lineColor = symbol_layer.color().name()
+        dto.transparency = opacity_to_transparency(symbol_layer.color().alphaF())
         return dto
