@@ -77,6 +77,8 @@ TILE_SIZE_IN_PIXELS = 512
 """JMap Cloud rejects a patternData wider or taller than this."""
 MAX_PATTERN_SIZE_IN_PIXELS = 100
 MIN_PATTERN_SIZE_IN_PIXELS = 32
+"""JMap Cloud rejects a symbolData wider or taller than this."""
+MAX_SYMBOL_SIZE_IN_PIXELS = 256
 """Grow a pattern tile by whole periods up to at least this, to limit rounding."""
 MAX_HATCH_ANGLE_SNAP_IN_DEGREES = 5.0
 PATTERN_PATCH_SIZE_IN_PIXELS = 400

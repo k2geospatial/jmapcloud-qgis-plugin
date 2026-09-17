@@ -13,25 +13,27 @@ import math
 
 import numpy
 from qgis.core import (
+    QgsFontMarkerSymbolLayer,
     QgsMarkerSymbol,
     QgsMarkerSymbolLayer,
     QgsRasterMarkerSymbolLayer,
     QgsSvgMarkerSymbolLayer,
-    QgsFontMarkerSymbolLayer
 )
-from qgis.PyQt.QtCore import QPointF, QSize
+from qgis.PyQt.QtCore import QPointF
 
-from .style_dto import StyleDTO
 from ..plugin_util import (
     SVG_to_base64,
     calculate_height_symbol_layer,
+    clamp_symbol_size,
+    clamp_symbol_svg,
     convert_measurement_to_pixel,
     font_marker_to_svg,
-    opacity_to_transparency,
     image_to_base64,
+    opacity_to_transparency,
     resolve_point_svg_params,
     symbol_to_SVG_base64,
 )
+from .style_dto import StyleDTO
 
 
 class PointStyleDTO(StyleDTO):
@@ -50,8 +52,7 @@ class PointStyleDTO(StyleDTO):
         self.rotationLocked = False
         self.proportional = False
         self.size = 1
-    
-        
+
     @classmethod
     def from_symbol_layer(cls, symbol_layer: QgsMarkerSymbolLayer) -> "PointStyleDTO":
         dto = cls()
@@ -69,21 +70,26 @@ class PointStyleDTO(StyleDTO):
         symbol_layer.setOffset(QPointF(0, 0))
 
         if isinstance(symbol_layer, QgsRasterMarkerSymbolLayer):
-            width =  int(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
-            height =  int(convert_measurement_to_pixel(calculate_height_symbol_layer(symbol_layer), symbol_layer.sizeUnit()))
-            dto.symbolData = image_to_base64(symbol_layer.path(), QSize(width, height))
+            width = int(convert_measurement_to_pixel(symbol_layer.size(), symbol_layer.sizeUnit()))
+            height = int(
+                convert_measurement_to_pixel(
+                    calculate_height_symbol_layer(symbol_layer), symbol_layer.sizeUnit()
+                )
+            )
+            size = clamp_symbol_size(width, height)
+            dto.symbolData = image_to_base64(symbol_layer.path(), size)
             dto.transparency = opacity_to_transparency(symbol_layer.opacity())
-           
+
         elif isinstance(symbol_layer, QgsSvgMarkerSymbolLayer):
             svg_parsed = resolve_point_svg_params(symbol_layer)
 
             if len(svg_parsed) == 0:
                 return None
-            
-            dto.symbolData = SVG_to_base64(svg_parsed)
+
+            dto.symbolData = SVG_to_base64(clamp_symbol_svg(svg_parsed))
         elif isinstance(symbol_layer, QgsFontMarkerSymbolLayer):
             svg_parsed = font_marker_to_svg(symbol_layer)
-            dto.symbolData = SVG_to_base64(svg_parsed)
+            dto.symbolData = SVG_to_base64(clamp_symbol_svg(svg_parsed))
         else:
             symbol = QgsMarkerSymbol.createSimple(symbol_layer.properties())
             base64_symbol = symbol_to_SVG_base64(symbol)
@@ -96,7 +102,9 @@ class PointStyleDTO(StyleDTO):
     @staticmethod
     def apply_JMap_rotation_to_point(angle: float, point: QPointF) -> QPointF:
         angle = numpy.radians(angle)
-        rotation_matrix = numpy.array([[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]])
+        rotation_matrix = numpy.array(
+            [[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]]
+        )
         vector_matrix = numpy.array([[point.x()], [point.y()]])
         result = numpy.matmul(rotation_matrix, vector_matrix)
         return QPointF(float(result[0, 0]), float(result[1, 0]))
