@@ -24,10 +24,14 @@ from datetime import datetime, timezone
 from typing import Union
 from xml.etree import ElementTree
 
+import numpy
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsFeature,
+    QgsFillSymbol,
+    QgsFillSymbolLayer,
     QgsFontMarkerSymbolLayer,
     QgsLinePatternFillSymbolLayer,
     QgsLineSymbol,
@@ -35,6 +39,7 @@ from qgis.core import (
     QgsMapSettings,
     QgsMessageLog,
     QgsProject,
+    QgsRasterFillSymbolLayer,
     QgsRasterMarkerSymbolLayer,
     QgsRectangle,
     QgsReferencedRectangle,
@@ -43,9 +48,27 @@ from qgis.core import (
     QgsSVGFillSymbolLayer,
     QgsSvgMarkerSymbolLayer,
     QgsSymbol,
+    QgsTemplatedLineSymbolLayerBase,
 )
-from qgis.PyQt.QtCore import QBuffer, QLocale, QMetaType, QRect, QSettings, QSize, Qt
-from qgis.PyQt.QtGui import QColor, QFont, QImage, QPainter, QPainterPath
+from qgis.PyQt.QtCore import (
+    QBuffer,
+    QLocale,
+    QMetaType,
+    QPointF,
+    QRect,
+    QRectF,
+    QSettings,
+    QSize,
+    Qt,
+)
+from qgis.PyQt.QtGui import (
+    QColor,
+    QFont,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPolygonF,
+)
 from qgis.PyQt.QtSvg import QSvgGenerator
 
 MAX_SCALE_LIMIT = 295828763
@@ -54,8 +77,22 @@ TILE_SIZE_IN_PIXELS = 512
 """JMap Cloud rejects a patternData wider or taller than this."""
 MAX_PATTERN_SIZE_IN_PIXELS = 100
 MIN_PATTERN_SIZE_IN_PIXELS = 32
+"""JMap Cloud rejects a symbolData wider or taller than this."""
+MAX_SYMBOL_SIZE_IN_PIXELS = 256
 """Grow a pattern tile by whole periods up to at least this, to limit rounding."""
 MAX_HATCH_ANGLE_SNAP_IN_DEGREES = 5.0
+PATTERN_PATCH_SIZE_IN_PIXELS = 400
+PATTERN_PATCH_MARGIN_IN_PIXELS = 60
+"""Dropped from each side of a rendered patch, where the fill is clipped."""
+PATTERN_MATCH_TOLERANCE = 1.0
+PATTERN_MIN_CONTRAST = 1.0
+PATTERN_MIN_TILE_CONTRAST_RATIO = 0.5
+PATTERN_MAX_RELATIVE_ERROR = 0.02
+BORDER_MAX_RELATIVE_ERROR = 0.05
+"""Looser than a fill's: a border repeats by construction, only how exactly is in doubt."""
+BORDER_VERIFY_PERIODS = 8
+BORDER_PATCH_LENGTH_IN_PIXELS = 400
+BORDER_PATCH_HEIGHT_IN_PIXELS = 160
 EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR = 40075016.686
 METERS_PER_PX_AT_EQUATOR = EARTH_CIRCUMFERENCE_IN_METERS_AT_EQUATOR / TILE_SIZE_IN_PIXELS
 METERS_PER_INCH = 0.0254
@@ -454,9 +491,51 @@ def image_to_base64(path: str, qSize: QSize = None) -> str:
     return base64_str
 
 
+def resolve_raster_fill_size(symbol_layer: QgsRasterFillSymbolLayer) -> Union[QSize, None]:
+    """
+    Pixel size of the tile a QgsRasterFillSymbolLayer repeats.
+
+    QGIS reads a width or height of zero as "keep the image's own size", and scales
+    the side that is left to zero so the image keeps its proportions. A tile larger
+    than JMap accepts is scaled down whole rather than cropped.
+    """
+    image = load_symbol_image(symbol_layer.imageFilePath())
+    if image.isNull() or image.width() <= 0 or image.height() <= 0:
+        return None
+
+    width = convert_measurement_to_pixel(symbol_layer.width(), symbol_layer.sizeUnit())
+    height = convert_measurement_to_pixel(symbol_layer.height(), symbol_layer.sizeUnit())
+    aspect = image.width() / image.height()
+
+    if width <= 0 and height <= 0:
+        width, height = image.width(), image.height()
+    elif height <= 0:
+        height = width / aspect
+    elif width <= 0:
+        width = height * aspect
+
+    largest = max(width, height)
+    if largest > MAX_PATTERN_SIZE_IN_PIXELS:
+        scale = MAX_PATTERN_SIZE_IN_PIXELS / largest
+        width, height = width * scale, height * scale
+
+    return QSize(max(1, round(width)), max(1, round(height)))
+
+
+def qimage_to_base64(image: QImage) -> str:
+    buffer = QBuffer()
+    buffer.open(QBuffer.OpenModeFlag.ReadWrite)
+    image.save(buffer, "PNG")
+    base64_str = base64.b64encode(buffer.data()).decode("utf-8")
+    buffer.close()
+    return base64_str
+
+
 def resolve_polygon_svg_params(symbol_layer: QgsSVGFillSymbolLayer) -> str:
     """
     Resolves `param(...)` placeholders in an SVG used by a QgsSVGFillSymbolLayer.
+
+    The root is sized to the pattern width, which is the tile JMap repeats.
     Args:
         symbol_layer: The QgsSVGFillSymbolLayer object.
     Returns:
@@ -470,9 +549,19 @@ def resolve_polygon_svg_params(symbol_layer: QgsSVGFillSymbolLayer) -> str:
 
     param_to_value = _build_svg_param_map(properties)
 
+    svg_root_size = max(
+        1,
+        int(
+            convert_measurement_to_pixel(
+                symbol_layer.patternWidth(), symbol_layer.patternWidthUnit()
+            )
+        ),
+    )
+
     # Step 4: Replace param(...) with actual values
     # Replace existing width/height or add them if missing
-    final_svg = _replace_svg_params_in_text(svg_content, param_to_value)
+    final_svg = _set_svg_root_dimensions(svg_content, svg_root_size, svg_root_size)
+    final_svg = _replace_svg_params_in_text(final_svg, param_to_value)
     final_svg = _ensure_xml_declaration(final_svg)
 
     # Step 5: Print or save final SVG
@@ -614,11 +703,9 @@ def resolve_line_pattern_fill_svg(
     meet, and the only cost is that the lines sit a hair closer together than in
     QGIS (0.17% in that example, far too little to see).
 
-    The size is returned along with the SVG text because the caller has to turn
-    that text into a PNG at exactly this size. JMap cannot read SVG, only images
-    such as PNG. Another size would still repeat correctly, but the lines would
-    come out thicker or thinner, and further apart or closer together, than the
-    ones QGIS draws.
+    The size is returned along with the SVG text so a caller that rasterises it
+    can do so at the size the geometry was built for; sending the SVG itself
+    needs only the text.
 
     Args:
         symbol_layer: The QgsLinePatternFillSymbolLayer object.
@@ -713,6 +800,332 @@ def resolve_line_pattern_fill_svg(
     )
 
     return svg_content, pixel_side
+
+
+def _render_fill_patch(symbol_layer: QgsFillSymbolLayer) -> Union[numpy.ndarray, None]:
+    """The fill `symbol_layer` alone, drawn on a transparent square, as RGBA values."""
+    symbol = QgsFillSymbol()
+    clone = symbol_layer.clone()
+    if not symbol.changeSymbolLayer(0, clone):
+        return None
+
+    image = QImage(
+        PATTERN_PATCH_SIZE_IN_PIXELS,
+        PATTERN_PATCH_SIZE_IN_PIXELS,
+        QImage.Format.Format_ARGB32_Premultiplied,
+    )
+    image.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    context = QgsRenderContext.fromQPainter(painter)
+    context.setScaleFactor(QgsRenderContext.fromMapSettings(QgsMapSettings()).scaleFactor())
+    side = float(PATTERN_PATCH_SIZE_IN_PIXELS)
+    polygon = QPolygonF(
+        [QPointF(0, 0), QPointF(side, 0), QPointF(side, side), QPointF(0, side), QPointF(0, 0)]
+    )
+
+    try:
+        symbol.startRender(context)
+        symbol.renderPolygon(polygon, None, QgsFeature(), context)
+        symbol.stopRender(context)
+    finally:
+        painter.end()
+
+    image = image.convertToFormat(QImage.Format.Format_RGBA8888)
+
+    # read the image's own bytes as an array of pixels, without copying them:
+    # constBits() is a pointer, which numpy needs the length of to wrap.
+    bits = image.constBits()
+    bits.setsize(image.sizeInBytes())
+
+    # Qt pads every row out to a multiple of 4 bytes, so a row can be wider than
+    # the image; shape by the padded width, then drop the padding.
+    patch = numpy.frombuffer(bits, numpy.uint8).reshape(
+        image.height(), image.bytesPerLine() // 4, 4
+    )[:, : image.width(), :]
+
+    # int16 both copies out of the image, which numpy holds read-only, and leaves
+    # room for the subtractions below to go negative instead of wrapping around
+    margin = PATTERN_PATCH_MARGIN_IN_PIXELS
+    return patch[margin:-margin, margin:-margin, :].astype(numpy.int16)
+
+
+def _pattern_contrast(pixels: numpy.ndarray) -> float:
+    """
+    How much the pixels vary across the image, ignoring how much the channels of
+    any one pixel differ from each other. A flat area of any colour scores zero.
+    """
+    return float(pixels.reshape(-1, pixels.shape[2]).std(axis=0).mean())
+
+
+def _find_pattern_period(
+    patch: numpy.ndarray,
+    axis: int,
+    contrast: float,
+    max_relative_error: float = PATTERN_MAX_RELATIVE_ERROR,
+    verify_periods: int = 0,
+) -> Union[int, None]:
+    """
+    Smallest shift along `axis` at which the patch repeats, within the size JMap accepts.
+
+    Each shift is tested twice. First the patch is slid over itself by that shift and
+    compared; second, the slice that shift cuts off is repeated across the whole patch
+    and compared again. The first test alone is not enough, because a pattern with a
+    lot of empty space around its symbols also matches at a fraction of its real
+    period: mostly blank overlaps mostly blank. Rebuilding the patch from the slice
+    catches that, because only the real period rebuilds it.
+
+    `verify_periods` limits the rebuild to that many repeats, 0 meaning the whole
+    patch. Symbols spaced a fractional number of pixels apart slowly fall out of step
+    over a long run, so checking too far rejects a period that is in fact correct.
+    """
+    limit = min(patch.shape[axis] // 2, MAX_PATTERN_SIZE_IN_PIXELS)
+
+    for shift in range(1, limit + 1):
+        if axis == 0:
+            shifted, original = patch[shift:, :, :], patch[:-shift, :, :]
+            slice_ = patch[:shift, :, :]
+            repeats = (-(-patch.shape[0] // shift), 1, 1)
+        else:
+            shifted, original = patch[:, shift:, :], patch[:, :-shift, :]
+            slice_ = patch[:, :shift, :]
+            repeats = (1, -(-patch.shape[1] // shift), 1)
+
+        if float(numpy.abs(shifted - original).mean()) >= PATTERN_MATCH_TOLERANCE:
+            continue
+
+        span = shift * verify_periods if verify_periods else patch.shape[axis]
+        span = min(span, patch.shape[axis])
+
+        window = patch[:span] if axis == 0 else patch[:, :span]
+        rebuilt = numpy.tile(slice_, repeats)[: window.shape[0], : window.shape[1], :]
+
+        if float(numpy.abs(rebuilt - window).mean()) / contrast <= max_relative_error:
+            return shift
+
+    return None
+
+
+def _render_line_patch(symbol: QgsLineSymbol, length: int, height: int) -> numpy.ndarray:
+    """A straight run of `symbol`, drawn centred on a transparent strip, as RGBA values."""
+    image = QImage(length, height, QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+    context = QgsRenderContext.fromQPainter(painter)
+    context.setScaleFactor(QgsRenderContext.fromMapSettings(QgsMapSettings()).scaleFactor())
+
+    line = QPolygonF([QPointF(-length, height / 2.0), QPointF(2 * length, height / 2.0)])
+
+    try:
+        symbol.startRender(context)
+        symbol.renderPolyline(line, QgsFeature(), context)
+        symbol.stopRender(context)
+    finally:
+        painter.end()
+
+    image = image.convertToFormat(QImage.Format.Format_RGBA8888)
+    bits = image.constBits()
+    bits.setsize(image.sizeInBytes())
+
+    return (
+        numpy.frombuffer(bits, numpy.uint8)
+        .reshape(image.height(), image.bytesPerLine() // 4, 4)[:, : image.width(), :]
+        .astype(numpy.int16)
+    )
+
+
+def _ink_rows(patch: numpy.ndarray) -> Union[tuple[int, int], None]:
+    """First and last row the symbol actually draws on, or None when it draws nothing."""
+    drawn = numpy.nonzero(patch[:, :, 3].max(axis=1) > 0)[0]
+
+    if drawn.size == 0:
+        return None
+    return int(drawn[0]), int(drawn[-1])
+
+
+def _clip_svg_to_tile(svg: str, width: int, height: int, tile_id: str) -> str:
+    """
+    Confine an SVG produced by QSvgGenerator to its own tile.
+
+    QSvgGenerator writes every shape the symbol drew, including the runs that fall
+    outside the viewBox, and marks strokes non-scaling so they keep their width when
+    the tile is stretched. Neither survives being repeated by JMap.
+    """
+    svg = svg.replace(' vector-effect="non-scaling-stroke"', "")
+
+    open_tag = re.search(r"<svg[^>]*>", svg)
+    if open_tag is None:
+        return svg
+    body = svg[open_tag.end() : svg.rindex("</svg>")]
+
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+        'width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+        '<defs><clipPath id="{tile_id}">'
+        '<rect x="0" y="0" width="{width}" height="{height}"/>'
+        "</clipPath></defs>"
+        '<g clip-path="url(#{tile_id})">{body}</g></svg>'
+    ).format(width=width, height=height, tile_id=tile_id, body=body)
+
+
+def _declared_line_period(symbol_layers: list) -> Union[int, None]:
+    """
+    The repeat length the symbol layers state themselves, in pixels.
+
+    A symbol repeated along a line at a spacing that is not a whole number of pixels
+    never lines up with itself exactly, so measuring the drawn pixels finds the period
+    only sometimes, and which times depends on the rendering DPI. The layer knows the
+    spacing it was given, which is the answer measurement is trying to recover.
+
+    Only an interval placement has a period at all: markers on vertices fall wherever
+    the geometry puts them.
+    """
+    intervals = [
+        symbol_layer
+        for symbol_layer in symbol_layers
+        if isinstance(symbol_layer, QgsTemplatedLineSymbolLayerBase)
+    ]
+    if len(intervals) != 1:
+        # nothing repeating, or several spacings whose combined period is not a spacing
+        return None
+
+    symbol_layer = intervals[0]
+    if symbol_layer.placements() != Qgis.MarkerLinePlacement.Interval:
+        return None
+
+    period = convert_measurement_to_pixel(symbol_layer.interval(), symbol_layer.intervalUnit())
+    if period <= 0 or round(period) > MAX_PATTERN_SIZE_IN_PIXELS:
+        return None
+
+    return max(1, round(period))
+
+
+def resolve_line_symbol_strip_svg(
+    symbol_layers: list,
+) -> Union[tuple[str, int], None]:
+    """
+    One repeat of what `symbol_layers` draw along a line, as an SVG strip JMap tiles.
+
+    JMap describes a line with a colour, a thickness and a dash pattern. A QGIS line
+    that needs more than that — several stacked symbol layers, or one that draws
+    symbols along the line instead of a plain stroke — can only be sent as a picture
+    of itself, which JMap then repeats end to end. Used for both a polygon's border
+    and a line style's own pattern.
+
+    The picture is taken rather than rebuilt from the symbol layers' properties, so
+    any line QGIS can draw works without needing a converter written for it.
+
+    It is drawn at the line's true thickness, so it can be sent with a thickness of 1:
+    JMap multiplies the strip by the thickness, and any other value would need the
+    fractional number it cannot express.
+
+    Returns:
+        tuple: (SVG content, strip thickness in pixels), or None when the line draws
+               nothing, or never repeats within the size JMap accepts.
+    """
+    symbol = QgsLineSymbol([symbol_layer.clone() for symbol_layer in symbol_layers])
+
+    patch = _render_line_patch(symbol, BORDER_PATCH_LENGTH_IN_PIXELS, BORDER_PATCH_HEIGHT_IN_PIXELS)
+    rows = _ink_rows(patch)
+
+    if rows is None:
+        return None
+
+    top, bottom = rows
+    thickness = min(bottom - top + 1, MAX_PATTERN_SIZE_IN_PIXELS)
+    inked = patch[top : top + thickness, :, :]
+    contrast = _pattern_contrast(inked)
+
+    if contrast < PATTERN_MIN_CONTRAST:
+        # uniform along and across: a plain line, which the border properties describe
+        return None
+    period = _declared_line_period(symbol_layers) or _find_pattern_period(
+        inked, 1, contrast, BORDER_MAX_RELATIVE_ERROR, BORDER_VERIFY_PERIODS
+    )
+
+    if period is None:
+        return None
+
+    generator = QSvgGenerator()
+    temp_dir = tempfile.TemporaryDirectory()
+    temp_file = temp_dir.name + "/border.svg"
+    generator.setFileName(temp_file)
+    generator.setSize(QSize(period, thickness))
+    generator.setViewBox(QRectF(0, 0, period, thickness))
+    painter = QPainter(generator)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.translate(0, -top)
+    context = QgsRenderContext.fromQPainter(painter)
+    context.setScaleFactor(QgsRenderContext.fromMapSettings(QgsMapSettings()).scaleFactor())
+    centre = BORDER_PATCH_HEIGHT_IN_PIXELS / 2.0
+    # only far enough either side to fill the tile: any whole period tiles seamlessly,
+    # whatever phase it starts at, and a longer run just bloats the SVG
+    line = QPolygonF(
+        [QPointF(-2 * period, centre), QPointF(3 * period, centre)],
+    )
+
+    try:
+        symbol.startRender(context)
+        symbol.renderPolyline(line, QgsFeature(), context)
+        symbol.stopRender(context)
+    finally:
+        painter.end()
+
+    with open(temp_file, encoding="utf-8") as svg_file:
+        svg = svg_file.read()
+    temp_dir.cleanup()
+
+    return _clip_svg_to_tile(svg, period, thickness, "bordertile"), thickness
+
+
+def resolve_fill_pattern_tile(symbol_layer: QgsFillSymbolLayer) -> Union[QImage, None]:
+    """
+    Smallest tile that repeats into the fill QGIS draws for `symbol_layer`.
+
+    Measuring the rendered fill instead of reading the symbol layer's own properties
+    lets any repeating fill export without a converter written for its class.
+    Returns None when no tile JMap can repeat describes the fill, which is the case
+    for a gradient, a randomised fill, or a pattern spaced wider than JMap allows.
+    """
+    patch = _render_fill_patch(symbol_layer)
+    if patch is None:
+        return None
+
+    contrast = _pattern_contrast(patch)
+    if contrast < PATTERN_MIN_CONTRAST:
+        return None
+
+    height = _find_pattern_period(patch, 0, contrast)
+    width = _find_pattern_period(patch, 1, contrast)
+    if height is None or width is None:
+        return None
+
+    tile = patch[:height, :width, :]
+    # a tile carrying none of the variation describes a fill that only looks
+    # repetitive because most of it is empty, such as a single centroid marker
+    if _pattern_contrast(tile) < contrast * PATTERN_MIN_TILE_CONTRAST_RATIO:
+        return None
+
+    rebuilt = numpy.tile(
+        tile,
+        (
+            -(-patch.shape[0] // height),
+            -(-patch.shape[1] // width),
+            1,
+        ),
+    )[: patch.shape[0], : patch.shape[1], :]
+    # relative to the contrast, so a mostly empty patch cannot pass on a flat tile
+    if float(numpy.abs(rebuilt - patch).mean()) / contrast > PATTERN_MAX_RELATIVE_ERROR:
+        return None
+
+    tile_bytes = numpy.ascontiguousarray(tile, dtype=numpy.uint8).tobytes()
+    # copied because the QImage would otherwise alias tile_bytes
+    return QImage(tile_bytes, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
 
 
 def resolve_point_svg_params(symbol_layer: QgsSvgMarkerSymbolLayer) -> str:
