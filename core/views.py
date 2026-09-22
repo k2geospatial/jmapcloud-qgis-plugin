@@ -79,6 +79,8 @@ class LayerData:
         creating_datasource_error = "CREATING_DATASOURCE_ERROR"
         updating_datasource_error = "UPDATING_DATASOURCE_ERROR"
         datasource_analyzing_error = "DATASOURCE_ANALYZING_ERROR"
+        unsupported_source = "UNSUPPORTED_SOURCE"
+        no_data_in_datasource = "NO_DATA_IN_DATASOURCE"
         layer_creation_error = "LAYER_CREATING_ERROR"
         updating_layer_error = "UPDATING_LAYER_ERROR"
         unknown_error = "UNKNOWN_ERROR"
@@ -115,6 +117,7 @@ class LayerData:
         format: str = None,
         jmc_layer_id: str = None,
         uri_components: dict = None,
+        is_database_source: bool = False,
     ):
         self.datasource = datasource
         self.datasource_creation_status = datasource_creation_status
@@ -132,6 +135,7 @@ class LayerData:
         self.format = format
         self.jmc_layer_id = jmc_layer_id
         self.uri_components = uri_components
+        self.is_database_source = is_database_source
 
 
 class ExportSelectedLayerData:

@@ -22,7 +22,8 @@ class LayerOutcome:
         partially_exported = "PARTIALLY_EXPORTED"
         skipped = "SKIPPED"
 
-    def __init__(self, layer_name: str):
+    def __init__(self, layer_id: str, layer_name: str):
+        self.layer_id = layer_id
         self.layer_name = layer_name
         self.status = LayerOutcome.Status.skipped
         self.reasons: list[str] = []
@@ -47,27 +48,30 @@ class ExportReport(QObject):
         self.project_id: str = None
         self.aborted = False
 
-    def register_layers(self, layer_names: list[str]):
-        for layer_name in layer_names:
-            self.outcome(layer_name)
+    def register_layers(self, layers: list):
+        """`layers` are QGIS layers, or (id, name) pairs when no layer is at hand."""
+        for layer in layers:
+            layer_id, layer_name = layer if isinstance(layer, tuple) else (layer.id(), layer.name())
+            self.outcome(layer_id, layer_name)
 
-    def outcome(self, layer_name: str) -> LayerOutcome:
-        if layer_name not in self._outcomes:
-            self._outcomes[layer_name] = LayerOutcome(layer_name)
-        return self._outcomes[layer_name]
+    def outcome(self, layer_id: str, layer_name: str) -> LayerOutcome:
+        """Layers are kept apart by id, because a project may hold the same name twice."""
+        if layer_id not in self._outcomes:
+            self._outcomes[layer_id] = LayerOutcome(layer_id, layer_name)
+        return self._outcomes[layer_id]
 
-    def exported(self, layer_name: str):
-        outcome = self.outcome(layer_name)
+    def exported(self, layer_id: str, layer_name: str):
+        outcome = self.outcome(layer_id, layer_name)
         if outcome.status == LayerOutcome.Status.skipped:
             outcome.status = LayerOutcome.Status.exported
 
-    def partially_exported(self, layer_name: str, reason: str):
-        outcome = self.outcome(layer_name)
+    def partially_exported(self, layer_id: str, layer_name: str, reason: str):
+        outcome = self.outcome(layer_id, layer_name)
         outcome.status = LayerOutcome.Status.partially_exported
         outcome.add_reason(reason)
 
-    def skipped(self, layer_name: str, reason: str):
-        outcome = self.outcome(layer_name)
+    def skipped(self, layer_id: str, layer_name: str, reason: str):
+        outcome = self.outcome(layer_id, layer_name)
         outcome.status = LayerOutcome.Status.skipped
         outcome.add_reason(reason)
 

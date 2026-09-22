@@ -16,8 +16,10 @@ from pathlib import Path
 from typing import Union
 
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsMapLayer,
+    QgsMessageLog,
     QgsProviderRegistry,
     QgsRasterFileWriter,
     QgsRasterFileWriterTask,
@@ -136,7 +138,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
         if isinstance(self.layer, QgsVectorLayer):
             self.layer_data.element_type = self.layer.geometryType().name.upper()
 
-        sources = self.get_layer_source(self.layer_data)
+        sources = self._get_layer_source(self.layer_data)
 
         def on_convert_error(message: str = None):
             if self.layer_data:
@@ -147,6 +149,10 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 message or "",
             )
             self.error_occur(error_message, MESSAGE_CATEGORY)
+
+        if self.layer_data.status != LayerData.Status.no_error:
+            self.tasks_completed.emit(self.layer_data, None)
+            return False
 
         if not sources:
             if self.layer_data.layer_type == LayerData.LayerType.file_vector:
@@ -275,7 +281,22 @@ class ConvertLayerToZipTask(CustomTaskManager):
         for task in self._tasks:
             task.cancel()
 
-    def get_layer_source(self, layer_data: LayerData) -> Union[list, dict, None]:
+    def _unsupported_source(self, layer_data: LayerData, reason: str) -> None:
+        """
+        The file behind the layer cannot be read or uploaded, so the layer is left out
+        of the export. The reason travels on the layer, so the report attributes it to
+        that layer rather than listing it apart.
+        """
+        layer_data.status = LayerData.Status.unsupported_source
+        layer_data.status_reason = reason
+        QgsMessageLog.logMessage(
+            "Layer '{}': {}".format(layer_data.layer_name, reason),
+            MESSAGE_CATEGORY,
+            Qgis.MessageLevel.Critical,
+        )
+        return None
+
+    def _get_layer_source(self, layer_data: LayerData) -> Union[list, dict, None]:
         """
         Retrieve all files or sources associated with a QGIS layer,
         ensuring required files exist.
@@ -317,6 +338,7 @@ class ConvertLayerToZipTask(CustomTaskManager):
             layer_data.layer_type = LayerData.LayerType.file_vector
             layer_data.file_type = SupportedFileType.GeoJSON
             layer_data.uri_components["layerName"] = "defaultLayer"
+            layer_data.is_database_source = True
             return None
 
         # ---- File-based vector layers ----
@@ -347,11 +369,12 @@ class ConvertLayerToZipTask(CustomTaskManager):
 
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = self.tr("Missing required files for {}: {}").format(
-                        base_path.name, missing_files
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("files are missing for {}: {}").format(
+                            base_path.name, missing_files
+                        ),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
                 layer_data.file_type = SupportedFileType.SHP
                 return [
                     Path(base_path.with_suffix(e))
@@ -363,20 +386,20 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.uri_components["layerName"] = base_path.stem
 
                 if base_path.with_suffix(".mid").exists() or base_path.with_suffix(".mif").exists():
-                    message = self.tr("Unsupported file type .mid/.mif for layer {}").format(
-                        layer_data.layer_name
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("{} files are not supported in JMap Cloud").format(".mid/.mif"),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
 
                 required_files = [".tab", ".dat", ".map", ".id"]
                 missing_files = [e for e in required_files if not base_path.with_suffix(e).exists()]
                 if missing_files:
-                    message = self.tr("Missing required files for {}: {}").format(
-                        base_path.name, missing_files
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("files are missing for {}: {}").format(
+                            base_path.name, missing_files
+                        ),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
                 layer_data.file_type = SupportedFileType.MapInfo
                 return [Path(base_path.with_suffix(e)) for e in required_files]
             # --- Single-file formats ---
@@ -384,22 +407,24 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.uri_components["layerName"] = "defaultLayer"
 
                 if base_path.suffix.lower() not in [".geojson", ".json"]:
-                    message = self.tr("Unsupported file type {} for layer {}").format(
-                        base_path.suffix.lower(), layer_data.layer_name
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("{} files are not supported in JMap Cloud").format(
+                            base_path.suffix.lower()
+                        ),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
                 layer_data.file_type = SupportedFileType.GeoJSON
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "Delimited text file":
                 supported_file_extensions = [".csv", ".txt"]
 
                 if base_path.suffix.lower() not in supported_file_extensions:
-                    message = self.tr("Unsupported file type {} for layer {}").format(
-                        base_path.suffix.lower(), layer_data.layer_name
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("{} files are not supported in JMap Cloud").format(
+                            base_path.suffix.lower()
+                        ),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
 
                 open_options: Union[list, None] = (
                     uri_components["openOptions"] if "openOptions" in uri_components else None
@@ -433,11 +458,12 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 return [Path(base_path)] if base_path.exists() else None
             elif storage_type == "GML":
                 if base_path.suffix.lower() != ".gml":
-                    message = self.tr("Unsupported file type {} for layer {}").format(
-                        base_path.suffix.lower(), layer_data.layer_name
+                    return self._unsupported_source(
+                        layer_data,
+                        self.tr("{} files are not supported in JMap Cloud").format(
+                            base_path.suffix.lower()
+                        ),
                     )
-                    self.error_occur(message, MESSAGE_CATEGORY)
-                    return None
 
                 layer_data.file_type = SupportedFileType.GML
                 return [Path(base_path)] if base_path.exists() else None
@@ -455,11 +481,10 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.CAD
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = self.tr("Unsupported file type {} for layer {}").format(
-                    ext, layer_data.layer_name
+                return self._unsupported_source(
+                    layer_data,
+                    self.tr("{} files are not supported in JMap Cloud").format(ext),
                 )
-                self.error_occur(message, MESSAGE_CATEGORY)
-                return None
 
         # ---- WMS / WMTS ----
         # Note: WMS and WMTS both come through the "wms" provider, so the service has to be
@@ -497,11 +522,10 @@ class ConvertLayerToZipTask(CustomTaskManager):
                 layer_data.file_type = SupportedFileType.zip
                 return [Path(base_path)] if base_path.exists() else None
             else:
-                message = self.tr("Unsupported file type {} for layer {}").format(
-                    ext, layer_data.layer_name
+                return self._unsupported_source(
+                    layer_data,
+                    self.tr("{} files are not supported in JMap Cloud").format(ext),
                 )
-                self.error_occur(message, MESSAGE_CATEGORY)
-                return None
 
         # ---- Unsupported layers ----
         message = self.tr("Unsupported layer: {} ({}), the provider is not supported").format(
@@ -616,7 +640,7 @@ class compressFilesToZipTask(CustomQgsTask):
                     elif input_path.is_dir():
                         for file_path in input_path.rglob("*"):  # Replaces os.walk()
                             if file_path.is_file():  # Ensure only files are added
-                                arcname = file_path.relative_to(input_path)  # Preserve structure
+                                arcname = input_path.name / file_path.relative_to(input_path)
                                 zip_file.write(file_path, arcname=arcname)
                     else:
                         message = self.tr("Error: {} is not a valid file or folder.").format(

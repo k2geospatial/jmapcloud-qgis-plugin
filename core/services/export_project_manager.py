@@ -55,7 +55,7 @@ class ExportProjectManager(QObject):
             self._cancel = False
             self.exporting_project = True
             self.project_data = project_data
-            self.report.register_layers([layer.name() for layer in project_data.layers])
+            self.report.register_layers(project_data.layers)
             self.action_dialog.show_dialog()
             self.action_dialog.progressBar.setFormat("%p%")
             self.action_dialog.progress_info_label.setText(self.tr("Initializing loading"))
@@ -201,7 +201,7 @@ class ExportProjectManager(QObject):
             self._request_manager, layers_data, self.project_data
         )
         for layer_data in layers_data:
-            self.report.exported(layer_data.layer_name)
+            self.report.exported(layer_data.layer_id, layer_data.layer_name)
 
         guard = self._guard_step(self.tr("Exporting layer styles"), self._finish)
         export_layer_styles_task.layer_styles_exportation_finished.connect(guard.success)
@@ -243,7 +243,7 @@ class ExportProjectManager(QObject):
         for layer_data in layers_data:
             if layer_data.status != LayerData.Status.no_error:
                 reason = layer_data.status_reason or layer_data.status.value
-                self.report.skipped(layer_data.layer_name, reason)
+                self.report.skipped(layer_data.layer_id, layer_data.layer_name, reason)
                 new_message = self.tr("Layer '{}' was skipped during '{}': {}").format(
                     layer_data.layer_name, step_string, reason
                 )
@@ -259,7 +259,7 @@ class ExportProjectManager(QObject):
                     layer_data.layer_file.file_name,
                     layer_data.layer_file.upload_status.value,
                 )
-                self.report.skipped(layer_data.layer_name, reason)
+                self.report.skipped(layer_data.layer_id, layer_data.layer_name, reason)
                 new_message = self.tr("Layer '{}' was skipped during '{}': {}\n").format(
                     layer_data.layer_name, step_string, reason
                 )

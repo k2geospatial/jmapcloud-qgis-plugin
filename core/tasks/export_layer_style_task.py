@@ -65,7 +65,7 @@ TAG_LIKE_PATTERN = re.compile(r"<([^<>]*)>")
 
 class ExportLayersStyleTask(CustomQgsTask):
     layer_styles_exportation_finished = pyqtSignal()
-    layer_style_issue = pyqtSignal(str, str)
+    layer_style_issue = pyqtSignal(str, str, str)
     """layer name, reason"""
 
     def __init__(
@@ -104,7 +104,7 @@ class ExportLayersStyleTask(CustomQgsTask):
 
     def _layer_style_failed(self, layer_data: LayerData):
         reason = self.tr("its style could not be exported")
-        self.layer_style_issue.emit(layer_data.layer_name, reason)
+        self.layer_style_issue.emit(layer_data.layer_id, layer_data.layer_name, reason)
         QgsMessageLog.logMessage(
             self.tr("Layer '{}': {}").format(layer_data.layer_name, reason),
             MESSAGE_CATEGORY,
@@ -120,7 +120,7 @@ class ExportLayersStyleTask(CustomQgsTask):
 
 class ExportLayerStyleTask(CustomQgsTask):
     export_layer_style_completed = pyqtSignal(object)
-    layer_style_issue = pyqtSignal(str, str)
+    layer_style_issue = pyqtSignal(str, str, str)
     """layer name, reason"""
 
     def __init__(
@@ -155,7 +155,7 @@ class ExportLayerStyleTask(CustomQgsTask):
             category,
             Qgis.MessageLevel.Critical,
         )
-        self.layer_style_issue.emit(self.layer_data.layer_name, message)
+        self.layer_style_issue.emit(self.layer_data.layer_id, self.layer_data.layer_name, message)
 
     def _export_style(self):
         if self.layer_data.layer_type in [
