@@ -88,7 +88,7 @@ class ExportLayerManager(QObject):
         self.report = ExportReport(ExportReport.Scope.layer)
         layer = QgsProject.instance().mapLayer(export_selected_layer_data.source_layer_id)
         if layer:
-            self.report.register_layers([layer.name()])
+            self.report.register_layers([layer])
 
         self._convert_layer_to_zip(organisation_id, export_selected_layer_data)
 
@@ -352,7 +352,7 @@ class ExportLayerManager(QObject):
 
         self._current_step += 1
         self._action_dialog.set_text(self.tr("Exporting layer style"))
-        self.report.exported(layer_data.layer_name)
+        self.report.exported(layer_data.layer_id, layer_data.layer_name)
         export_layer_style_task = ExportLayerStyleTask(
             self._request_manager,
             layer_data,
@@ -412,7 +412,7 @@ class ExportLayerManager(QObject):
 
         if layer_data.status != LayerData.Status.no_error:
             reason = layer_data.status_reason or layer_data.status.value
-            self.report.skipped(layer_data.layer_name, reason)
+            self.report.skipped(layer_data.layer_id, layer_data.layer_name, reason)
             QgsMessageLog.logMessage(
                 "Layer '{}' was skipped during '{}': {}".format(
                     layer_data.layer_name, step_string, reason
@@ -432,7 +432,7 @@ class ExportLayerManager(QObject):
                 layer_data.layer_file.file_name,
                 layer_data.layer_file.upload_status.value,
             )
-            self.report.skipped(layer_data.layer_name, reason)
+            self.report.skipped(layer_data.layer_id, layer_data.layer_name, reason)
             QgsMessageLog.logMessage(
                 "Layer '{}' was skipped during '{}': {}".format(
                     layer_data.layer_name, step_string, reason
