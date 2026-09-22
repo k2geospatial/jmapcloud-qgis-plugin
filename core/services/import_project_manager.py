@@ -463,9 +463,8 @@ class ImportProjectManager(CustomTaskManager):
             layer_data["spatialDataSourceId"], self.project_data.organization_id
         )
 
-        # We need to create a new layer 
-        # for each style because rule based styles are not supported by MVT
-        # create a layer group
+        # We need to create a new layer
+        # for each style because rule based styles are not supported by MVT create a layer group
         base_name = find_value_in_dict_or_first(
             layer_data["name"], [self.project_data.default_language], layer_data["id"]
         )
