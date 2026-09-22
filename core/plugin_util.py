@@ -522,6 +522,43 @@ def resolve_raster_fill_size(symbol_layer: QgsRasterFillSymbolLayer) -> Union[QS
     return QSize(max(1, round(width)), max(1, round(height)))
 
 
+def clamp_symbol_size(width: float, height: float) -> QSize:
+    """
+    Pixel size of a point symbol, scaled down whole when JMap Cloud would reject it.
+    """
+    largest = max(width, height)
+    if largest > MAX_SYMBOL_SIZE_IN_PIXELS:
+        scale = MAX_SYMBOL_SIZE_IN_PIXELS / largest
+        width, height = width * scale, height * scale
+
+    return QSize(max(1, round(width)), max(1, round(height)))
+
+
+def clamp_symbol_svg(svg_content: str) -> str:
+    """
+    The same clamp applied to an SVG symbol, through its root width and height.
+    An SVG sized in units other than pixels is left untouched.
+    """
+    svg_tag_match = re.search(r"<svg\b[^>]*>", svg_content or "")
+    if not svg_tag_match:
+        return svg_content
+
+    width = _read_svg_length(svg_tag_match.group(0), "width")
+    height = _read_svg_length(svg_tag_match.group(0), "height")
+    if width is None or height is None:
+        return svg_content
+
+    size = clamp_symbol_size(width, height)
+    if size.width() == width and size.height() == height:
+        return svg_content
+    return _set_svg_root_dimensions(svg_content, size.width(), size.height())
+
+
+def _read_svg_length(svg_tag: str, attribute: str) -> Union[float, None]:
+    match = re.search(r'\b{}="([0-9.]+)(px)?"'.format(attribute), svg_tag)
+    return float(match.group(1)) if match else None
+
+
 def qimage_to_base64(image: QImage) -> str:
     buffer = QBuffer()
     buffer.open(QBuffer.OpenModeFlag.ReadWrite)
