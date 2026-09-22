@@ -15,7 +15,7 @@ import math
 from pathlib import Path
 from typing import Union
 
-from qgis.core import Qgis, QgsMessageLog
+from qgis.core import Qgis, QgsFeatureRequest, QgsMessageLog
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkReply
 
@@ -392,6 +392,7 @@ class DatasourceManager(CustomTaskManager):
         self._layers_data = layers_data
         self._export_mode = export_mode
         self.organization_id = organization_id
+        self._layers_by_datasource: dict = {}
         self._num_datasource_created = 0
         self.datasource_to_analyze: list[LayerData] = []
         self._request_manager = request_manager
@@ -412,19 +413,23 @@ class DatasourceManager(CustomTaskManager):
     def create_datasources(self):
         self.step_title_changed.emit(self.tr("Creating datasources"))
         for layer_data in self._layers_data:
-            self.create_datasource(layer_data)
+            key = self._datasource_key(layer_data)
+            self._layers_by_datasource.setdefault(key, []).append(layer_data)
+        for layers in self._layers_by_datasource.values():
+            self.create_datasource(layers[0], self._datasource_name(layers))
 
     def update_datasources(self):
         self.step_title_changed.emit(self.tr("Updating datasources"))
+        self._layers_by_datasource = {layer.layer_id: [layer] for layer in self._layers_data}
         for layer_data in self._layers_data:
             self.update_datasource(layer_data)
 
-    def create_datasource(self, layer_data: LayerData) -> bool:
+    def create_datasource(self, layer_data: LayerData, name: str = None) -> bool:
         # prepare request data
         request_DTO = CreateDatasourceDTO()
         request_DTO.description = ""  # TODO
         request_DTO.tags = []  # TODO
-        request_DTO.name = layer_data.layer_name
+        request_DTO.name = name or layer_data.layer_name
         request_DTO.type = layer_data.layer_type.value
 
         if layer_data.layer_type in (LayerData.LayerType.WMS, LayerData.LayerType.WMTS):
@@ -439,15 +444,9 @@ class DatasourceManager(CustomTaskManager):
 
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
             request_DTO.indexedAttributes = []
-            # GeoJSON uploads are reported as "defaultLayer" by the server analyzer.
             fields_by_layer = layer_data.layer_file.fields if layer_data.layer_file else {}
-            if not uri_layer_name:
-                uri_layer_name = "defaultLayer"
-            if uri_layer_name not in fields_by_layer:
-                if "defaultLayer" in fields_by_layer:
-                    uri_layer_name = "defaultLayer"
-                elif len(fields_by_layer) > 0:
-                    uri_layer_name = next(iter(fields_by_layer))
+            file_layers = self._resolve_file_layers(uri_layer_name, fields_by_layer)
+            uri_layer_name = file_layers[0]
             request_DTO.params = {}
 
             fields = fields_by_layer.get(uri_layer_name, [])
@@ -468,7 +467,9 @@ class DatasourceManager(CustomTaskManager):
                 request_DTO.params["columnY"] = layer_data.latitude
             else:
                 request_DTO.layer = uri_layer_name
-                request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
+                request_DTO.layers = [
+                    {"id": index, "name": name} for index, name in enumerate(file_layers)
+                ]
                 if layer_data.file_type in [
                     SupportedFileType.GML,
                     SupportedFileType.FileGeoDatabase,
@@ -479,7 +480,7 @@ class DatasourceManager(CustomTaskManager):
                     SupportedFileType.MapInfo,
                     SupportedFileType.zip,
                 ]:
-                    request_DTO.params["layers"] = [uri_layer_name]
+                    request_DTO.params["layers"] = file_layers
 
         elif layer_data.layer_type == LayerData.LayerType.file_raster:
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
@@ -517,13 +518,8 @@ class DatasourceManager(CustomTaskManager):
 
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
             fields_by_layer = layer_data.layer_file.fields if layer_data.layer_file else {}
-            if not uri_layer_name:
-                uri_layer_name = "defaultLayer"
-            if uri_layer_name not in fields_by_layer:
-                if "defaultLayer" in fields_by_layer:
-                    uri_layer_name = "defaultLayer"
-                elif len(fields_by_layer) > 0:
-                    uri_layer_name = next(iter(fields_by_layer))
+            file_layers = self._resolve_file_layers(uri_layer_name, fields_by_layer)
+            uri_layer_name = file_layers[0]
             request_DTO.params = {}
 
             fields = fields_by_layer.get(uri_layer_name, [])
@@ -534,7 +530,9 @@ class DatasourceManager(CustomTaskManager):
                 request_DTO.params["columnY"] = layer_data.latitude
             else:
                 request_DTO.layer = uri_layer_name
-                request_DTO.layers = [{"id": 0, "name": uri_layer_name}]
+                request_DTO.layers = [
+                    {"id": index, "name": name} for index, name in enumerate(file_layers)
+                ]
                 if layer_data.file_type in [
                     SupportedFileType.GML,
                     SupportedFileType.FileGeoDatabase,
@@ -545,7 +543,7 @@ class DatasourceManager(CustomTaskManager):
                     SupportedFileType.MapInfo,
                     SupportedFileType.zip,
                 ]:
-                    request_DTO.params["layers"] = [uri_layer_name]
+                    request_DTO.params["layers"] = file_layers
         elif layer_data.layer_type == LayerData.LayerType.file_raster:
             request_DTO.fileId = layer_data.layer_file.jmc_file_id
         elif layer_data.layer_type == LayerData.LayerType.API_FEATURES:
@@ -582,6 +580,116 @@ class DatasourceManager(CustomTaskManager):
         self._on_datasource_processed(layer_data, analyze=False)
         return True
 
+    def _resolve_file_layers(self, uri_layer_name: str, fields_by_layer: dict) -> list[str]:
+        """The layers of the uploaded file the datasource covers, as the server named them."""
+        if not uri_layer_name:
+            uri_layer_name = "defaultLayer"
+        if uri_layer_name in fields_by_layer:
+            return [uri_layer_name]
+        if "defaultLayer" in fields_by_layer:
+            return ["defaultLayer"]
+        if len(fields_by_layer) > 0:
+            # a CAD file: QGIS reads one "entities" layer, the server one per CAD layer
+            return list(fields_by_layer)
+        return [uri_layer_name]
+
+    def _datasource_key(self, layer_data: LayerData):
+        """
+        Two layers with the same key share one datasource, instead of creating one each.
+
+        A service layer (OGC API, WMS, WMTS) is keyed on its url, because the url is all
+        its datasource holds. The rest, which layer of the service to show and in what
+        style, belongs to the project layer.
+
+        A database layer never shares. It is written out again for each layer, so what it
+        holds depends on that layer's own filter and fields.
+
+        A file layer is keyed on the uploaded file and the layer inside it. A GeoPackage
+        or a KML holds several layers, so the name tells them apart. A GeoJSON or a raster
+        holds only one. The x/y columns are there for a CSV, where two layers on the same
+        file can use different ones.
+
+        Geometry is left out on purpose. QGIS splits a DXF into one layer per geometry
+        type, and JMap Cloud expects those to share one datasource, each project layer
+        carrying its own element type.
+        """
+        if layer_data.layer_type == LayerData.LayerType.API_FEATURES:
+            return (
+                layer_data.datasource["landingPageUrl"],
+                layer_data.datasource["collectionId"],
+            )
+        if layer_data.layer_type in (LayerData.LayerType.WMS, LayerData.LayerType.WMTS):
+            return (layer_data.layer_type, layer_data.datasource["capabilitiesUrl"])
+        if layer_data.is_database_source or layer_data.layer_file is None:
+            return layer_data.layer_id
+        return (
+            layer_data.layer_file.jmc_file_id,
+            layer_data.uri_components.get("layerName"),
+            layer_data.longitude,
+            layer_data.latitude,
+        )
+
+    def _datasource_name(self, layers: list[LayerData]) -> str:
+        """A shared datasource is named after the data it holds, not after one layer."""
+        if len(layers) == 1 or layers[0].layer_file is None:
+            return layers[0].layer_name
+        uri_layer_name = layers[0].uri_components.get("layerName")
+        fields_by_layer = layers[0].layer_file.fields
+        if uri_layer_name in fields_by_layer and uri_layer_name != "defaultLayer":
+            return uri_layer_name
+        return layers[0].layer_file.file_name
+
+    def _apply_shared_datasources(self):
+        """Point every layer sharing a datasource to the one created for the group."""
+        for layers in self._layers_by_datasource.values():
+            created = layers[0]
+            for layer_data in layers[1:]:
+                layer_data.datasource_id = created.datasource_id
+                layer_data.status = created.status
+                layer_data.status_reason = created.status_reason
+
+    def _skip_cad_layers_without_data(self):
+        """
+        A CAD file is split by geometry in QGIS and by CAD layer on the server, and the
+        JMC drops what it cannot read, e.g: hatches. A QGIS layer whose CAD
+        layers are all missing from the datasource would be exported empty, so it is
+        left out and reported instead.
+        """
+        for layer_data in self._layers_data:
+            if layer_data.status != LayerData.Status.no_error:
+                continue
+            if layer_data.file_type not in (SupportedFileType.CAD, SupportedFileType.DXF):
+                continue
+            if self._cad_layer_has_data(layer_data):
+                continue
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.no_data_in_datasource,
+                self.tr(
+                    "JMap Cloud could not create a datasource: "
+                    "it did not find this layer in the file"
+                ),
+            )
+
+    def _cad_layer_has_data(self, layer_data: LayerData) -> bool:
+        """
+        Whether the datasource holds any of the CAD layers this QGIS layer reads. The
+        search stops at the first feature that matches, so only a layer with no data at
+        all is read to the end.
+        """
+        fields = layer_data.layer.fields()
+        if fields.indexOf("Layer") < 0:
+            return True
+
+        file_layers = layer_data.layer_file.fields if layer_data.layer_file else {}
+        request = QgsFeatureRequest()
+        request.setFlags(QgsFeatureRequest.Flag.NoGeometry)
+        request.setSubsetOfAttributes(["Layer"], fields)
+        for feature in layer_data.layer.getFeatures(request):
+            if feature["Layer"] in file_layers:
+                return True
+        return False
+
     def read_datasource_creation_response(
         self, response: RequestManager.ResponseData, layer_data: LayerData
     ):
@@ -589,7 +697,15 @@ class DatasourceManager(CustomTaskManager):
             datasource_id = response.content["id"]
             layer_data.datasource_id = datasource_id
         else:
-            layer_data.status = LayerData.Status.creating_datasource_error
+            self._fail_datasource(
+                layer_data,
+                LayerData.Status.creating_datasource_error,
+                self.tr("its datasource could not be created in JMap Cloud: {}").format(
+                    response.error_message
+                    or server_reason(response.content)
+                    or self.tr("no reason given")
+                ),
+            )
             self.error_occur(response.error_message, MESSAGE_CATEGORY)
         # Creation flow still waits for analyzer polling.
         self._on_datasource_processed(layer_data, analyze=True)
@@ -599,14 +715,17 @@ class DatasourceManager(CustomTaskManager):
         if self._completed:
             return
         self._completed = True
+        self._apply_shared_datasources()
+        self._skip_cad_layers_without_data()
         self.tasks_completed.emit(self._layers_data)
 
     def _on_datasource_processed(self, layer_data: LayerData, analyze: bool):
+        total = len(self._layers_by_datasource)
         self._num_datasource_created += 1
-        self.progress_changed.emit(self._num_datasource_created / len(self._layers_data) * 100)
+        self.progress_changed.emit(self._num_datasource_created / total * 100)
         if analyze and layer_data.status == LayerData.Status.no_error:
             self.datasource_to_analyze.append(layer_data)
-        if self._num_datasource_created >= len(self._layers_data):
+        if self._num_datasource_created >= total:
             self._num_datasource_created = 0
             if analyze and len(self.datasource_to_analyze) > 0:
                 self.start_poking_jmc_datasource_analyzers()
