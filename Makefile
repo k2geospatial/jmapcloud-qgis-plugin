@@ -21,8 +21,9 @@ PLUGIN_NAME := JMapCloud
 DIST_DIR := dist
 PACKAGE_DIR := $(DIST_DIR)/$(PLUGIN_NAME)
 ZIP_PATH := $(DIST_DIR)/$(PLUGIN_NAME).zip
+FAIL_ON_SECRETS = $(PYTHON) -c "import json, sys; r = json.load(sys.stdin)['results']; print(json.dumps(r, indent=2)) if r else None; sys.exit(1 if r else 0)"
 
-.PHONY: help install-dev format lint scan check clean-dist package designer ui-compile translations-update translations-compile
+.PHONY: help install-dev format lint scan scan-package check clean-dist package designer ui-compile translations-update translations-compile
 
 help:
 	@echo "Available targets:"
@@ -31,11 +32,12 @@ help:
 	@echo "  make lint         Run Flake8 checks"
 	@echo "  make scan         Run Bandit and detect-secrets"
 	@echo "  make check        Run format, lint, and scan steps"
+	@echo "  make scan-package Run the QGIS plugin repository security checks on dist/"
 	@echo "  make designer     Open Qt Designer"
 	@echo "  make ui-compile UI=path/to/file.ui [UI_PY_DIR=ui/py_files]"
 	@echo "  make translations-update [PRO_FILE=i18n/jmap_cloud.pro]"
 	@echo "  make translations-compile [TS=i18n/jmap_cloud_fr.ts]"
-	@echo "  make package      Build a QGIS plugin zip in dist/"
+	@echo "  make package      Build a QGIS plugin zip in dist/ (runs scan-package first)"
 	@echo "  make clean-dist   Remove built package artifacts"
 
 install-dev:
@@ -50,7 +52,12 @@ lint:
 
 scan:
 	$(BANDIT) -r . -x ./.venv,./.venv-*,./dist,./build,./.git,./.vscode
-	$(DETECT_SECRETS) scan --exclude-files '(^\.venv/|^dist/|^build/|^\.git/|^\.vscode/|\.DS_Store$$)'
+	$(DETECT_SECRETS) scan --exclude-files '(^\.venv/|^dist/|^build/|^\.git/|^\.vscode/|\.DS_Store$$)' | $(FAIL_ON_SECRETS)
+
+scan-package:
+	$(BANDIT) -r $(PACKAGE_DIR)
+	$(DETECT_SECRETS) scan --all-files $(PACKAGE_DIR) | $(FAIL_ON_SECRETS)
+	$(FLAKE8) --config .flake8 --exit-zero --statistics -qq $(PACKAGE_DIR)
 
 check: format lint scan
 
@@ -116,7 +123,9 @@ package: clean-dist
 		--exclude "dist/" \
 		--exclude "build/" \
 		--exclude "tests/" \
+		--exclude "scripts/" \
 		--exclude "*.zip"
+	$(MAKE) scan-package
 	cd $(DIST_DIR) && zip -r $(PLUGIN_NAME).zip $(PLUGIN_NAME) \
 		-x "*.DS_Store" \
 		-x "*__pycache__*" \
@@ -138,5 +147,6 @@ package: clean-dist
 		-x "*.ts" \
 		-x "*.pro" \
 		-x "*tests*" \
+		-x "$(PLUGIN_NAME)/scripts/*" \
 		-x "*.zip"
 	@echo "Created $(ZIP_PATH)"
