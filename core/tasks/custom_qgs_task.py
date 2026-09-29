@@ -69,7 +69,12 @@ class CustomQgsTask(UnexpectedExceptionMixin, QgsTask):
     feedback: QgsFeedback
 
     def __init__(
-        self, name: str, flag: QgsTask.Flag = None, total_steps: int = 0, feedback: QgsFeedback = None, **kwargs
+        self,
+        name: str,
+        flag: QgsTask.Flag = None,
+        total_steps: int = 0,
+        feedback: QgsFeedback = None,
+        **kwargs,
     ) -> None:
         if flag is None:
             super().__init__(name, **kwargs)
@@ -85,24 +90,28 @@ class CustomQgsTask(UnexpectedExceptionMixin, QgsTask):
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.description()), MESSAGE_CATEGORY, Qgis.MessageLevel.Info)
+        QgsMessageLog.logMessage(
+            self.tr("{} was canceled").format(self.description()),
+            MESSAGE_CATEGORY,
+            Qgis.MessageLevel.Info,
+        )
         super().cancel()
 
     def finished(self, result):
         if result:
             QgsMessageLog.logMessage(
-                self.tr("{} completed successfully").format(self.description()), MESSAGE_CATEGORY, Qgis.MessageLevel.Success
+                self.tr("{} completed successfully").format(self.description()),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Success,
             )
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    self.tr(
-                        """
+                    self.tr("""
                         {} not successful but without 
                         exception (probably the task was manually 
                         canceled by the user)
-                        """
-                    ).format(self.name),
+                        """).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.MessageLevel.Warning,
                 )
@@ -150,7 +159,9 @@ class CustomQgsTask(UnexpectedExceptionMixin, QgsTask):
         **kwargs,
     ) -> "CustomQgsTask":
 
-        instance = super().fromFunction(name, function, *args, on_finished=on_finished, flags=flags, **kwargs)
+        instance = super().fromFunction(
+            name, function, *args, on_finished=on_finished, flags=flags, **kwargs
+        )
         instance.__class__ = cls
         instance.name = name
         instance.exceptions = []
@@ -192,7 +203,9 @@ class CustomTaskManager(UnexpectedExceptionMixin, QObject):
             self.feedback.canceled.connect(self.cancel)
 
     def cancel(self):
-        QgsMessageLog.logMessage(self.tr("{} was canceled").format(self.name), MESSAGE_CATEGORY, Qgis.MessageLevel.Info)
+        QgsMessageLog.logMessage(
+            self.tr("{} was canceled").format(self.name), MESSAGE_CATEGORY, Qgis.MessageLevel.Info
+        )
         self.is_cancel = True
         self.canceled.emit()
 
@@ -213,17 +226,19 @@ class CustomTaskManager(UnexpectedExceptionMixin, QObject):
 
     def finished(self, result):
         if result:
-            QgsMessageLog.logMessage("{} completed successfully".format(self.name), MESSAGE_CATEGORY, Qgis.MessageLevel.Success)
+            QgsMessageLog.logMessage(
+                "{} completed successfully".format(self.name),
+                MESSAGE_CATEGORY,
+                Qgis.MessageLevel.Success,
+            )
         else:
             if len(self.exceptions) == 0:
                 QgsMessageLog.logMessage(
-                    self.tr(
-                        """
+                    self.tr("""
                         {} not successful but without 
                         exception (probably the task was manually 
                         canceled by the user)
-                        """
-                    ).format(self.name),
+                        """).format(self.name),
                     MESSAGE_CATEGORY,
                     Qgis.MessageLevel.Warning,
                 )

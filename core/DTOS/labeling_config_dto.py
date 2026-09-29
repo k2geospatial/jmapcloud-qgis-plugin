@@ -27,7 +27,6 @@ from ..plugin_util import (
     convert_scale_to_zoom,
     symbol_to_SVG_base64,
 )
-
 from .dto import DTO
 
 
@@ -92,18 +91,28 @@ class LabelingConfigDTO(DTO):
 
     @staticmethod
     def from_qgs_pal_layer_settings(
-        labeling_setting: QgsPalLayerSettings, language: str = "en", rule: QgsRuleBasedLabeling.Rule = None
+        labeling_setting: QgsPalLayerSettings,
+        language: str = "en",
+        rule: QgsRuleBasedLabeling.Rule = None,
     ):
         dto = LabelingConfigDTO()
         if rule is None:
             dto.active = True
-            dto.maximumZoom = convert_scale_to_zoom(labeling_setting.maximumScale) if labeling_setting.scaleVisibility else None
-            dto.minimumZoom = convert_scale_to_zoom(labeling_setting.minimumScale) if labeling_setting.scaleVisibility else None
+            dto.maximumZoom = (
+                convert_scale_to_zoom(labeling_setting.maximumScale)
+                if labeling_setting.scaleVisibility
+                else None
+            )
+            dto.minimumZoom = (
+                convert_scale_to_zoom(labeling_setting.minimumScale)
+                if labeling_setting.scaleVisibility
+                else None
+            )
         else:
             dto.active = rule.active()
             dto.maximumZoom = convert_scale_to_zoom(rule.maximumScale())
             dto.minimumZoom = convert_scale_to_zoom(rule.minimumScale())
-        
+
         overlap_policy = labeling_setting.placementSettings().overlapHandling()
         if overlap_policy == Qgis.LabelOverlapHandling.PreventOverlap:
             dto.allowOverlapping = False
@@ -157,7 +166,10 @@ class LabelingConfigDTO(DTO):
         else:
             dto.followMapRotation = False
 
-        dto.offset = {"x": labeling_setting.xOffset, "y": -labeling_setting.yOffset}  # y is inverted in MapBox style
+        dto.offset = {
+            "x": labeling_setting.xOffset,
+            "y": -labeling_setting.yOffset,
+        }  # y is inverted in MapBox style
 
         buffer = format.buffer()
         buffer_enabled = buffer.enabled()
@@ -184,7 +196,9 @@ class LabelingConfigDTO(DTO):
             if len(rules) != 1:
                 return None
             else:
-                return LabelingConfigDTO.from_qgs_pal_layer_settings(rules[0].settings(), language, rules[0])
+                return LabelingConfigDTO.from_qgs_pal_layer_settings(
+                    rules[0].settings(), language, rules[0]
+                )
         elif isinstance(labeling, QgsVectorLayerSimpleLabeling):
             return LabelingConfigDTO.from_qgs_pal_layer_settings(labeling.settings(), language)
         else:

@@ -22,7 +22,6 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from typing import Union
-from xml.etree import ElementTree
 
 import numpy
 from qgis.core import (
@@ -60,6 +59,7 @@ from qgis.PyQt.QtCore import (
     QSettings,
     QSize,
     Qt,
+    QXmlStreamReader,
 )
 from qgis.PyQt.QtGui import (
     QColor,
@@ -453,11 +453,10 @@ def normalize_svg_markup(markup: str) -> str:
 
 
 def _is_well_formed_xml(markup: str) -> bool:
-    try:
-        ElementTree.fromstring(markup)
-    except ElementTree.ParseError:
-        return False
-    return True
+    reader = QXmlStreamReader(markup)
+    while not reader.atEnd():
+        reader.readNext()
+    return not reader.hasError()
 
 
 def read_symbol_svg(path):
