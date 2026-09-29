@@ -124,6 +124,7 @@ package: clean-dist
 		--exclude "build/" \
 		--exclude "tests/" \
 		--exclude "scripts/" \
+		--exclude ".claude/" \
 		--exclude "*.zip"
 	$(MAKE) scan-package
 	cd $(DIST_DIR) && zip -r $(PLUGIN_NAME).zip $(PLUGIN_NAME) \
@@ -148,5 +149,6 @@ package: clean-dist
 		-x "*.pro" \
 		-x "*tests*" \
 		-x "$(PLUGIN_NAME)/scripts/*" \
+		-x "$(PLUGIN_NAME)/.claude/*" \
 		-x "*.zip"
 	@echo "Created $(ZIP_PATH)"
