@@ -24,26 +24,41 @@ from ..config import CONFIG
 _base_url = CONFIG["API_URL"]
 
 # api URLs
-API_AUTH_URL = "{}/api/ss/rest/v1".format(_base_url)
-API_MCS_URL = "{}/api/mcs/rest/v1".format(_base_url)
-API_VTCS_URL = "{}/api/vtcs/rest/v1".format(_base_url)
-API_MIS_URL = "{}/api/mis/wms".format(_base_url)
-API_DAS_URL = "{}/api/das/rest/v1".format(_base_url)
-API_FUS_URL = "{}/api/fus/rest/v1".format(_base_url)
+API_AUTH_URL = f"{_base_url}/api/ss/rest/v1"
+API_MCS_URL = f"{_base_url}/api/mcs/rest/v1"
+API_VTCS_URL = f"{_base_url}/api/vtcs/rest/v1"
+API_MIS_URL = f"{_base_url}/api/mis/wms"
+API_DAS_URL = f"{_base_url}/api/das/rest/v1"
+API_FUS_URL = f"{_base_url}/api/fus/rest/v1"
 
-# auth setting id
-ACCESS_SETTING_ID = "JMapCf1"
-REFRESH_SETTING_ID = "JMapCf2"
-EXPIRATION_SETTING_ID = "JMapCf3"
-ORGANIZATION_SETTING_ID = "JMapCf4"
-USERNAME_SETTING_ID = "JMapCf5"
-AUTH_CONFIG_ID = "JMapACF"
+# auth
+AUTH_CONFIG_ID = CONFIG["AUTH_CONFIG_ID"]
+LEGACY_AUTH_CONFIG_ID = "JMapACF"
+LEGACY_AUTH_SETTING_IDS = ["JMapCf1", "JMapCf2", "JMapCf3", "JMapCf4", "JMapCf5"]
+AUTH0_DOMAIN = CONFIG["AUTH0_DOMAIN"]
+AUTH0_CLIENT_ID = CONFIG["AUTH0_CLIENT_ID"]
+AUTH0_AUDIENCE = CONFIG["AUTH0_AUDIENCE"]
+AUTH0_AUTHORIZE_URL = f"https://{AUTH0_DOMAIN}/authorize"
+AUTH0_TOKEN_URL = f"https://{AUTH0_DOMAIN}/oauth/token"
+AUTH0_LOGOUT_URL = f"https://{AUTH0_DOMAIN}/v2/logout"
+AUTH0_SCOPE = "openid profile email offline_access"
+AUTH0_REDIRECT_PORT = 7070
+# QgsAuthOAuth2Config enum values (not exposed in PyQGIS)
+# ConfigType: 0 = Predefined, 1 = Custom
+OAUTH2_CONFIG_TYPE_CUSTOM = 1
+# GrantFlow: 0 = AuthCode, 1 = Implicit, 2 = ResourceOwner, 3 = Pkce, 4 = ClientCredentials
+OAUTH2_GRANT_FLOW_PKCE = 3
+# AccessMethod: 0 = Header, 1 = Form, 2 = Query
+OAUTH2_ACCESS_METHOD_HEADER = 0
+ORGANIZATION_CLAIM = f"{CONFIG['JMAP_CLAIM_NAMESPACE']}/organizationId"
+ROLES_CLAIM = f"{CONFIG['JMAP_CLAIM_NAMESPACE']}/roles"
+NAME_CLAIM = f"{CONFIG['JMAP_CLAIM_NAMESPACE']}/name"
+EMAIL_CLAIM = f"{CONFIG['JMAP_CLAIM_NAMESPACE']}/email"
 
 # QgsSetting path
 SETTINGS_PREFIX = "JMap"
 ORG_NAME_SUFFIX = "Organization"
 LANGUAGE_SUFFIX = "Language"
-EMAIL_SUFFIX = "login_email"
 
 
 # layer permission
@@ -54,12 +69,6 @@ VECTOR_LAYER_EDIT_PERMISSIONS = [
     "EDIT_FEATURE_ATTRIBUTES",
     "EDIT_FEATURE_GEOMETRY",
 ]
-
-
-class AuthState(Enum):
-    AUTHENTICATED = auto()
-    NOT_AUTHENTICATED = auto()
-    NO_ORGANIZATION = auto()
 
 
 class Permission(Enum):
