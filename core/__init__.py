@@ -10,7 +10,6 @@
 # (at your option) any later version.
 # -----------------------------------------------------------s
 
-from .constant import AuthState
 from .plugin_util import (
     convert_crs_to_epsg,
     convert_jmap_datetime,
@@ -29,7 +28,6 @@ from .signal_object import TemporarySignalObject
 from .views import LayerData, LayerFile, ProjectData, SupportedFileType
 
 __all__ = [
-    "AuthState",
     "qgis_layer_type_to_jmc",
     "qgis_data_type_name_to_mysql",
     "convert_crs_to_epsg",
