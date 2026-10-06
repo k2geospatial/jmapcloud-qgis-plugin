@@ -10,16 +10,25 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from qgis.core import QgsApplication
-from qgis.PyQt.QtCore import QObject, pyqtSignal
+from urllib.parse import urlencode
+
+from qgis.core import QgsMessageLog, QgsNetworkAccessManager, QgsSettings
+from qgis.PyQt.QtCore import QObject, QUrl, pyqtSignal
+from qgis.PyQt.QtGui import QDesktopServices
 from qgis.PyQt.QtNetwork import QNetworkReply
 
-from ..constant import ACCESS_SETTING_ID, API_AUTH_URL, REFRESH_SETTING_ID, AuthState
-from ..plugin_util import convert_jmap_datetime, time_now
+from ..constant import (
+    API_AUTH_URL,
+    AUTH0_CLIENT_ID,
+    AUTH0_LOGOUT_URL,
+    ORG_NAME_SUFFIX,
+    SETTINGS_PREFIX,
+)
 from ..qgs_message_bar_handler import Qgis, QgsMessageBarHandler
-from ..recurring_event import RecurringEvent
 from .request_manager import RequestManager
 from .session_manager import SessionManager
+
+MESSAGE_CATEGORY = "JMapAuth"
 
 
 class JMapAuth(QObject):
@@ -27,204 +36,94 @@ class JMapAuth(QObject):
 
     def __init__(self, session_manager: SessionManager, request_manager: RequestManager):
         super().__init__()
-        self._refresh_auth_event = RecurringEvent(
-            interval=240, callback=self.refresh_auth_settings, call_on_first_run=True
-        )
         self._session_manager = session_manager
         self._request_manager = request_manager
+        self._login_in_progress = False
 
-    def _is_token_expired(self, token_expiration: str) -> bool:
+    def is_logged_in(self) -> bool:
+        return self._session_manager.has_session() and not self._login_in_progress
+
+    def is_login_in_progress(self) -> bool:
+        return self._login_in_progress
+
+    def login(self) -> bool:
         """
-        Check if the given token has expired.
-        :param token_expiration:
-            The expiration of the token
-        :return:
-            True if the token has expired, False otherwise
+        Open the Auth0 login page in the browser to authenticate the user in a JMap organization.
+
+        :return: True if the user is authenticated in an organization, False otherwise
         """
-        return convert_jmap_datetime(token_expiration) < time_now()
+        self._login_in_progress = True
+        try:
+            self._session_manager.create_session()
+            organization_id = self._session_manager.get_organization_id()
+        except Exception as e:
+            QgsMessageLog.logMessage(str(e), MESSAGE_CATEGORY, Qgis.MessageLevel.Critical)
+            organization_id = None
+        finally:
+            self._login_in_progress = False
+        if organization_id is None:
+            self._session_manager.revoke_session()
+            return False
 
-    def get_auth_state(self) -> AuthState:
-        """
-        Get the current authentication state of the JMap user and refresh the token if needed.
+        user = self.get_user_self()
+        organizations = user["organizations"] if user else []
+        organization_name = next(
+            (org["name"] for org in organizations if org["id"] == organization_id), ""
+        )
+        QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", organization_name)
+        return True
 
-        :return: One of the following enum values:
-            NOT_AUTHENTICATED: The user is not authenticated.
-            NO_ORGANIZATION: The user is authenticated but has no organization.
-            AUTHENTICATED: The user is authenticated and has an organization.
-        """
-        claims = self._session_manager.get_auth_settings()
-        if not claims["accessToken"] or not claims["refreshToken"] or not claims["expiration"]:
-            self.logout()
-            return AuthState.NOT_AUTHENTICATED
-
-        if self._is_token_expired(claims["expiration"]):
-            QgsApplication.authManager().storeAuthSetting(ACCESS_SETTING_ID, "", True)
-            if not claims["organizationId"]:
-                self.logout()
-                return AuthState.NOT_AUTHENTICATED
-
-            claims = self.refresh_auth_settings(claims=claims)
-            if not claims:
-                self.logout()
-                return AuthState.NOT_AUTHENTICATED
-
-        if not claims["username"]:
-            # update claims reference
-            claims["username"] = self.get_user_self()["name"]
-
-        if not claims["organizationId"]:
-            return AuthState.NO_ORGANIZATION
-
-        return AuthState.AUTHENTICATED
-
-    def refresh_auth_settings(self, org_id: str = None, claims: dict = None) -> dict:
-        """
-        Refresh the JMap authentication settings using the provided organization ID and claims.
-
-        :param org_id:
-            An optional organization ID to be used for refreshing authentication settings.
-        :param claims:
-            An optional dictionary containing current authentication claims.
-        :return:
-            A dictionary with updated authentication claims if the refresh is successful,
-            otherwise None.
-        """
-        if claims is None:
-            claims = self._session_manager.get_auth_settings()
-        if org_id:
-            claims["organizationId"] = org_id
-        elif "organizationId" not in claims:
-            return None
-
-        url = "{}/refresh-token".format(API_AUTH_URL)
-        body = {
-            "refreshToken": "{}".format(claims["refreshToken"]),
-            "organizationId": claims["organizationId"],
-        }
-        prefix = "Authentication Error"
-        response = self._request_manager.post_request(url, body, error_prefix=prefix, no_auth=True)
-        if response.status == QNetworkReply.NetworkError.NoError:
-            content = response.content
-            claims = {
-                "accessToken": content["accessToken"],
-                "refreshToken": content["refreshToken"],
-                "expiration": content["accessTokenExpireAt"],
-                "organizationId": claims["organizationId"],
-                "username": claims["username"],
-            }
-            # ----- setup Authentication_config ------
-            self._session_manager.store_auth_settings(
-                access_token=content["accessToken"],
-                refresh_token=content["refreshToken"],
-                expiration=content["accessTokenExpireAt"],
-                organization_id=claims["organizationId"],
-            )
-            self._session_manager.set_claims(claims)
-            return claims
-        elif response.status != QNetworkReply.NetworkError.UnknownNetworkError:
-            self.logout(response.content["message"])
-            return None
-        else:
-            return None
-
-    def get_access_token(self, email: str, password: str) -> str:
-        """
-        Get an access token for the given email and password.
-
-        :param email: The email of a JMap account
-        :param password: The password of the JMap account
-        :return: An access token if the authentication is successful, otherwise None
-        """
-
-        url = "{}/authenticate".format(API_AUTH_URL)
-        body = {"username": email, "password": password}
-        prefix = "Authentication Error"
-        response = self._request_manager.post_request(url, body, error_prefix=prefix, no_auth=True)
-
-        if response.status == QNetworkReply.NetworkError.NoError:
-            content = response.content
-            # ----- setup Authentication_config ------
-            self._session_manager.store_auth_settings(
-                access_token=content["accessToken"],
-                refresh_token=content["refreshToken"],
-                expiration=content["accessTokenExpireAt"],
-            )
-
-            return content["accessToken"]
-        else:
-            return None
+    def cancel_login(self) -> None:
+        QgsNetworkAccessManager.instance().abortAuthBrowser()
 
     def get_user_self(self) -> dict:
         """
-        Get the user associated with the given access token.
+        Get the authenticated user.
 
-        :param access_token:
-            An access token obtained by calling self.get_access_token
         :return:
-            A dictionary with the user information and all his organization ids
+            A dictionary with the user information and all his organizations
             if the request is successful, otherwise None
         """
-        url = "{}/users/self".format(API_AUTH_URL)
+        url = f"{API_AUTH_URL}/users/self"
         prefix = "Authentication Error"
         response = self._request_manager.get_request(url, error_prefix=prefix)
 
         if response.status == QNetworkReply.NetworkError.NoError:
-            self._session_manager.store_auth_settings(username=response.content["name"])
             return response.content
         else:
             return None
 
-    def logout(self, error_message: str = None) -> None:
+    def get_username(self) -> str:
+        return self._session_manager.get_username()
+
+    def get_email(self) -> str:
+        return self._session_manager.get_email()
+
+    def get_organization_name(self) -> str:
+        return QgsSettings().value(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
+
+    def get_roles(self) -> list[str]:
+        return self._session_manager.get_roles()
+
+    def logout(self, error_message: str = None, end_auth0_session: bool = False) -> None:
         """
-        Try to revoke the access token from JMap and
-        remove all the authentication settings from QGIS auth manager.
+        Remove the JMap Cloud OAuth2 config from QGIS auth manager.
 
         :param error_message:
             An optional error message to display in the QGIS message bar
+        :param end_auth0_session:
+            Open the Auth0 logout page in the browser to end the Auth0 session
         """
         if error_message:
             QgsMessageBarHandler.send_message_to_message_bar(
                 error_message, level=Qgis.MessageLevel.Warning
             )
 
-        auth_manager = QgsApplication.authManager()
-        self._refresh_auth_event.stop()
-        refresh_token = (
-            auth_manager.authSetting(REFRESH_SETTING_ID, defaultValue="", decrypt=True) or None
-        )
-        if refresh_token:
-            url = "{}/revoke-token".format(API_AUTH_URL)
-            body = {"refreshToken": refresh_token}
-            prefix = self.tr("Logout Error")
-            self._request_manager.post_request(url, body, error_prefix=prefix, no_auth=True)
-        self._session_manager.revoke_session()
+        if self._session_manager.has_session():
+            self._session_manager.revoke_session()
+        if end_auth0_session:
+            QDesktopServices.openUrl(
+                QUrl(f"{AUTH0_LOGOUT_URL}?{urlencode({'client_id': AUTH0_CLIENT_ID})}")
+            )
+        QgsSettings().setValue(f"{SETTINGS_PREFIX}/{ORG_NAME_SUFFIX}", "")
         self.logged_out_signal.emit()
-
-    def get_refresh_auth_event(self) -> RecurringEvent:
-        """
-        Get the recurring event that refreshes the authentication settings.
-
-        :return: The recurring event that refreshes the authentication settings
-        """
-        return self._refresh_auth_event
-
-    def get_member_self(self) -> dict:
-        """
-        Get the member associated with the given access token.
-
-        :return:
-            A dictionary with the member information and all his organization ids
-            if the request is successful, otherwise None
-        """
-        organization_id = self._session_manager.get_organization_id()
-        if organization_id is None:
-            return None
-
-        url = "{}/organizations/{}/members/self".format(API_AUTH_URL, organization_id)
-        prefix = "Unable to retrieve member information"
-        response = self._request_manager.get_request(url, error_prefix=prefix)
-
-        if response.status == QNetworkReply.NetworkError.NoError:
-            return response.content
-        else:
-            return None
