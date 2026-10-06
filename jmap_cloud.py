@@ -18,6 +18,7 @@ from pathlib import Path
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
+    QgsMapLayer,
     QgsMapLayerType,
     QgsMessageLog,
     QgsProject,
@@ -29,8 +30,15 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, Qt, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from .core.constant import LANGUAGE_SUFFIX, SETTINGS_PREFIX, AuthState, OrganisationRole
+from .core.constant import (
+    AUTH_CONFIG_ID,
+    LANGUAGE_SUFFIX,
+    LEGACY_AUTH_CONFIG_ID,
+    SETTINGS_PREFIX,
+    OrganisationRole,
+)
 from .core.plugin_util import image_path
+from .core.qgs_message_bar_handler import QgsMessageBarHandler
 from .core.services.auth_manager import JMapAuth
 from .core.services.export_layer_manager import ExportLayerManager
 from .core.services.export_project_manager import ExportProjectManager
@@ -97,7 +105,9 @@ class JMapCloud:
         # # initialize ui
         self.connection_dialog = ConnectionDialog(self.auth_manager)
         self.connection_dialog.logged_in_signal.connect(self._logged_in)
-        self.connection_dialog.logout_signal.connect(self.auth_manager.logout)
+        self.connection_dialog.logout_signal.connect(
+            lambda: self.auth_manager.logout(end_auth0_session=True)
+        )
         self.load_project_dialog = OpenProjectDialog(self.jmap_mcs)
         self.load_project_dialog.open_project_pushButton.clicked.connect(self._load_project)
         self.export_project_dialog = ExportProjectDialog()
@@ -176,17 +186,9 @@ class JMapCloud:
             callback=self._open_export_project_dialog,
             parent=self.iface.mainWindow(),
         )
-        self.trigger_refresh_token_action = self._create_actions(
-            text=self.tr("Refresh Token"),
-            callback=self.auth_manager.refresh_auth_settings,
-            parent=self.iface.mainWindow(),
-        )
 
         self.menu.addAction(self.connection_action)
         self.actions.append(self.connection_action)
-
-        self.menu.addAction(self.trigger_refresh_token_action)
-        self.actions.append(self.trigger_refresh_token_action)
 
         self.menu.addAction(self.load_project_action)
         self.actions.append(self.load_project_action)
@@ -213,18 +215,10 @@ class JMapCloud:
         based on the organization permissions and the authentication state.
         :return: True if the user is allowed, False otherwise.
         """
-        if self.auth_manager.get_auth_state() != AuthState.AUTHENTICATED:
+        if not self.auth_manager.is_logged_in():
             return False
 
-        member_info = self.auth_manager.get_member_self()
-
-        if member_info is None:
-            return False
-
-        roles = member_info.get("roles", [])
-
-        if not roles or len(roles) == 0:
-            return False
+        roles = self.auth_manager.get_roles()
 
         return OrganisationRole.ADMIN.value in roles or OrganisationRole.EDITOR.value in roles
 
@@ -276,13 +270,9 @@ class JMapCloud:
         self._create_menu()
         self._create_layer_export_options_menu()
 
-        self.auth_manager.logged_out_signal.connect(
-            lambda: self._set_authorized_action(AuthState.NOT_AUTHENTICATED)
-        )
-        auth_state = self.auth_manager.get_auth_state()
-        if auth_state == AuthState.AUTHENTICATED:
-            self.auth_manager.get_refresh_auth_event().start()
-        self._set_authorized_action(auth_state)
+        self.auth_manager.logged_out_signal.connect(lambda: self._set_authorized_action(False))
+        self._set_authorized_action(self.auth_manager.is_logged_in())
+        QgsProject.instance().readProject.connect(self._warn_layers_outside_organization)
 
     def unload(self):
         """
@@ -290,7 +280,7 @@ class JMapCloud:
         This function must exist for the plugin to load.
         """
         self.iface.webMenu().removeAction(self.menu.menuAction())
-        self.auth_manager.get_refresh_auth_event().stop()
+        QgsProject.instance().readProject.disconnect(self._warn_layers_outside_organization)
         self.connection_dialog.close()
         self.load_project_dialog.close()
         self.export_project_dialog.close()
@@ -303,26 +293,22 @@ class JMapCloud:
         # remove the toolbar
         # del self.toolbar
 
-    def _set_authorized_action(self, auth_state: AuthState):
+    def _set_authorized_action(self, is_logged_in: bool):
         """
         Enable or disable project-related actions based on the authentication state.
 
-        :param auth_state: The current authentication state, determining whether
-                          the user is authenticated and has an organization.
+        :param is_logged_in: Whether the user is authenticated in a JMap organization.
         """
-        isAuthenticated = auth_state == AuthState.AUTHENTICATED
-        self.load_project_action.setEnabled(isAuthenticated)
+        self.load_project_action.setEnabled(is_logged_in)
         self.export_project_action.setEnabled(self._is_user_allowed_to_export_layer_JMC())
-        self.trigger_refresh_token_action.setEnabled(isAuthenticated)
 
     def _open_connection_dialog(self):
         """
         Show the connection dialog.
         """
-        auth_state = self.auth_manager.get_auth_state()
-        if auth_state != AuthState.NOT_AUTHENTICATED:
-            self.connection_dialog.list_organizations()
         self.connection_dialog.show()
+        if not self.auth_manager.is_login_in_progress():
+            self.connection_dialog.refresh()
 
     def _open_load_project_dialog(self):
         """
@@ -345,8 +331,7 @@ class JMapCloud:
         export project action dialog instead.
         """
         if not self.export_project_manager.is_exporting_project():
-            claims = self.session_manager.get_claims()
-            if claims and "organizationId" in claims:
+            if self.session_manager.get_organization_id():
                 self.export_project_dialog.show()
             else:
                 self.auth_manager.logout("Error : Authentication failed")
@@ -366,8 +351,7 @@ class JMapCloud:
             self.export_layer_manager._action_dialog.show()
             return
 
-        claims = self.session_manager.get_claims()
-        if not claims or "organizationId" not in claims:
+        if not self.session_manager.get_organization_id():
             self.auth_manager.logout("Error : Authentication failed")
             return
 
@@ -385,11 +369,57 @@ class JMapCloud:
         """
 
         self.connection_dialog.close()
-        self._set_authorized_action(AuthState.AUTHENTICATED)
-        self.auth_manager.get_refresh_auth_event().start()
+        self._set_authorized_action(True)
+        message = self.tr("Login successful")
+        layers = self._get_layers_outside_organization()
+        if layers:
+            message += "\n\n" + self.tr(
+                "The following layers come from another JMap Cloud organization and will not "
+                "load with your current sign-in. Remove them or start a new project:"
+            )
+            message += "".join(f"\n- {layer.name()}" for layer in layers)
         action_dialog = ActionDialog()
         action_dialog.show()
-        action_dialog.action_finished("Login successful", False)
+        action_dialog.action_finished(message, False)
+
+    def _get_layers_outside_organization(self) -> list[QgsMapLayer]:
+        """
+        Get the JMap Cloud layers of the QGIS project
+        that do not belong to the connected organization.
+
+        :return: The layers, or all the JMap Cloud layers if the user is not logged in
+        """
+        organization_id = None
+        if self.auth_manager.is_logged_in():
+            organization_id = self.session_manager.get_organization_id()
+        jmap_authcfgs = [f"authcfg={AUTH_CONFIG_ID}", f"authcfg={LEGACY_AUTH_CONFIG_ID}"]
+        return [
+            layer
+            for layer in QgsProject.instance().mapLayers().values()
+            if any(authcfg in layer.source() for authcfg in jmap_authcfgs)
+            and (organization_id is None or organization_id not in layer.source())
+        ]
+
+    def _warn_layers_outside_organization(self):
+        """
+        Warn in the message bar when the opened QGIS project has JMap Cloud layers
+        that do not belong to the connected organization.
+        """
+        layers = self._get_layers_outside_organization()
+        if not layers:
+            return
+        if self.auth_manager.is_logged_in():
+            message = self.tr(
+                "{} layer(s) come from another JMap Cloud organization and will not load "
+                "with your current sign-in."
+            ).format(len(layers))
+        else:
+            message = self.tr(
+                "{} JMap Cloud layer(s) will not load. Sign in to JMap Cloud to load them."
+            ).format(len(layers))
+        QgsMessageBarHandler.send_message_to_message_bar(
+            message, prefix="JMap Cloud", level=Qgis.MessageLevel.Warning
+        )
 
     def _load_project(self):
         """
@@ -397,8 +427,7 @@ class JMapCloud:
         """
         project_data = self.load_project_dialog.get_selected_project_data()
         if project_data:
-            auth_state = self.auth_manager.get_auth_state()
-            if auth_state == AuthState.AUTHENTICATED:
+            if self.auth_manager.is_logged_in():
                 self.load_project_dialog.close()
                 crs = QgsCoordinateReferenceSystem(project_data["crs"])
                 initial_extent = (
@@ -430,8 +459,7 @@ class JMapCloud:
         project_data = self.export_project_dialog.get_input_data()
         project_data["description"] = ""
         if project_data:
-            auth_state = self.auth_manager.get_auth_state()
-            if auth_state == AuthState.AUTHENTICATED:
+            if self.auth_manager.is_logged_in():
                 self.export_project_dialog.close()
                 project_data = ProjectData(
                     name=project_data["projectTitle"],
@@ -466,7 +494,7 @@ class JMapCloud:
         if not export_selected_layer_data:
             return
 
-        if self.auth_manager.get_auth_state() != AuthState.AUTHENTICATED:
+        if not self.auth_manager.is_logged_in():
             self.auth_manager.logout("Error : Authentication failed")
             return
 
