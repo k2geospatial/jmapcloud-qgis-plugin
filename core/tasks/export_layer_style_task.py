@@ -12,6 +12,7 @@
 
 import copy
 import re
+import threading
 
 from qgis.core import (
     Qgis,
@@ -61,6 +62,9 @@ MESSAGE_CATEGORY = "JMCExportLayerStyleTask"
 # Matches a tag-like <...> sequence, which JMap Cloud strips from a name as if
 # it were HTML. See ExportLayerStyleTask._sanitize_display_name.
 TAG_LIKE_PATTERN = re.compile(r"<([^<>]*)>")
+
+# QGIS symbol rendering is not thread-safe, and each layer's style is exported in its own thread
+SYMBOL_RENDER_LOCK = threading.Lock()
 
 
 class ExportLayersStyleTask(CustomQgsTask):
@@ -517,13 +521,16 @@ class ExportLayerStyleTask(CustomQgsTask):
 
     def _export_symbol_to_style(self, symbol: QgsSymbol) -> list[str]:
         if isinstance(symbol, QgsMarkerSymbol):
-            styles = PointStyleDTO.from_symbol(symbol)
+            with SYMBOL_RENDER_LOCK:
+                styles = PointStyleDTO.from_symbol(symbol)
             initial_type = "POINT"
         elif isinstance(symbol, QgsLineSymbol):
-            styles = LineStyleDTO.from_symbol(symbol)
+            with SYMBOL_RENDER_LOCK:
+                styles = LineStyleDTO.from_symbol(symbol)
             initial_type = "LINE"
         elif isinstance(symbol, QgsFillSymbol):
-            styles = PolygonStyleDTO.from_symbol(symbol)
+            with SYMBOL_RENDER_LOCK:
+                styles = PolygonStyleDTO.from_symbol(symbol)
             initial_type = "POLYGON"
         else:
             self.error_occur(

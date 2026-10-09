@@ -439,12 +439,13 @@ class ImportProjectManager(CustomTaskManager):
             if bool(mouse_over):
                 vector_layer.setMapTipTemplate(mouse_over)
 
-            edit_rights, all_rights = self._check_editing_rights(layer_data["permissions"])
+            permissions = layer_data.get("permissions", [])
+            edit_rights, all_rights = self._check_editing_rights(permissions)
             if not edit_rights:
                 vector_layer.setReadOnly(True)
             elif edit_rights and not all_rights:
                 vector_layer.editingStarted.connect(
-                    lambda layer_permissions=layer_data["permissions"]: self._layer_editing_warning(
+                    lambda layer_permissions=permissions: self._layer_editing_warning(
                         layer_permissions
                     )
                 )

@@ -5,7 +5,7 @@
 [general]
 name=JMap Cloud
 description=JMap Cloud Plugin
-version=1.0.8
+version=1.0.9
 author=K2 Geospatial
 email=Administration@k2geospatial.com
 
@@ -42,6 +42,8 @@ deprecated=False
 server=False
 
 changelog=
+    1.0.9
+    - Authentication now uses OAuth2 with support for enterprise identity providers
     1.0.8
     - Added support for more QGIS symbologies when exporting a layer to JMap Cloud: pattern fills, multi-outline and marker borders, and lines with markers or patterns
     - Added feedback at the end of an export or an import, listing the layers that were exported, partially exported or skipped, with the reason for each

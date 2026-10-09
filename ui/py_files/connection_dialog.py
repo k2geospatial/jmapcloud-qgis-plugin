@@ -10,20 +10,11 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
-from qgis.core import QgsSettings
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.utils import iface
 
-from ...core.constant import (
-    EMAIL_SUFFIX,
-    ORG_NAME_SUFFIX,
-    SETTINGS_PREFIX,
-    AuthState,
-)
-from ...core.plugin_util import image_path
 from ...core.services.auth_manager import JMapAuth
-
 from .connection_dialog_base_ui import Ui_Dialog
 
 
@@ -40,122 +31,50 @@ class ConnectionDialog(QtWidgets.QDialog, Ui_Dialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        # set here rather than in the .ui file: Qt6 has no compiled resources,
-        # so the check box indicators must be referenced by file path
-        self.show_password_checkBox.setStyleSheet(
-            "QCheckBox::indicator:unchecked {{ image: url({}) }}\n"
-            "QCheckBox::indicator:checked {{ image: url({}) }}".format(
-                image_path("eye-password-show.svg"), image_path("eye-password-hide.svg")
-            )
-        )
         self.auth_manager = auth_manager
-        auth_state = self.auth_manager.get_auth_state()
-        if auth_state == AuthState.AUTHENTICATED:
+        self.connection_button.clicked.connect(self.toggle_connection)
+
+    def refresh(self):
+        if self.auth_manager.is_logged_in():
             self.connection_button.setText(self.tr("logout"))
-            self.connection_button.clicked.connect(self.logout)
-            self.set_choose_organization_layout_enable(True)
-            self.set_login_input_enable(False)
-        elif auth_state == AuthState.NO_ORGANIZATION:
-            self.connection_button.setText(self.tr("login"))
-            self.connection_button.clicked.connect(self.login)
-            self.set_login_input_enable(True)
-            self.set_choose_organization_layout_enable(True)
+            self.message_label.setStyleSheet("font-size: 18px;")
+            welcome_message = self.tr("Welcome {}<br />{}").format(
+                self.auth_manager.get_username(), self.auth_manager.get_email()
+            )
+            organization_name = self.auth_manager.get_organization_name()
+            if organization_name:
+                welcome_message += self.tr("<br />Organisation: {}").format(organization_name)
+            self.message_label.setText(welcome_message)
         else:
-            self.message_label.setStyleSheet("")
             self.connection_button.setText(self.tr("login"))
-            self.connection_button.clicked.connect(self.login)
-            self.message_label.setText("")
-            self.set_login_input_enable(True)
-            self.set_choose_organization_layout_enable(False)
-        self.email_input.setText(QgsSettings().value("{}/{}".format(SETTINGS_PREFIX, EMAIL_SUFFIX), ""))
-        self.show_password_checkBox.stateChanged.connect(self.set_echo_mode)
-        self.accept_button.clicked.connect(self.choose_organization)
+            self.message_label.setStyleSheet("")
+            self.message_label.setText(self.tr("A browser window will open to sign in"))
+
+    def toggle_connection(self):
+        if self.auth_manager.is_login_in_progress():
+            self.auth_manager.cancel_login()
+        elif self.auth_manager.is_logged_in():
+            self.logout()
+        else:
+            self.login()
 
     def login(self):
-        self.connection_button.setEnabled(False)
-        access_token_config = self.auth_manager.get_access_token(self.email_input.text(), self.password_input.text())
-        if access_token_config != None:
-            self.message_label.setText("")
-            self.list_organizations()
-            self.password_input.clear()
-            QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, EMAIL_SUFFIX), self.email_input.text())
+        self.connection_button.setText(self.tr("cancel"))
+        self.message_label.setStyleSheet("")
+        self.message_label.setText(self.tr("Complete the sign in from your browser"))
+        if self.auth_manager.login():
+            self.refresh()
+            self.logged_in_signal.emit()
         else:
+            self.refresh()
             self.message_label.setStyleSheet("color: red;")
-            self.message_label.setText("wrong email or password")
-        self.connection_button.setEnabled(True)
+            self.message_label.setText(self.tr("Sign in cancelled or failed"))
 
     def logout(self):
         self.logout_signal.emit()
-        QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), "")
-        self.connection_button.clicked.disconnect()
-        self.connection_button.setText(self.tr("login"))
-        self.connection_button.clicked.connect(self.login)
-        self.organization_list_comboBox.clear()
-        self.message_label.setText("")
-        self.set_login_input_enable(True)
-        self.set_choose_organization_layout_enable(False)
+        self.refresh()
 
-    def list_organizations(self):
-        result = self.auth_manager.get_user_self()
-        if result != None:
-            self.message_label.setStyleSheet("font-size: 18px;")
-            welcome_message = self.tr("Welcome {}<br />").format(result["name"])
-            organization_name = QgsSettings().value("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), "")
-            if organization_name != "":
-                welcome_message += self.tr("\nConnected to: {}").format(organization_name)
-            self.message_label.setText(welcome_message)
-            organizations = result["organizations"]
-            # to modify ui for ask for organization
-            if len(organizations) > 0:
-                self.set_choose_organization_layout_enable(True)
-                self.organization_list_comboBox.clear()
-                sorted_organizations = sorted(organizations, key=lambda k: k["name"])
-                for organization in sorted_organizations:
-                    self.organization_list_comboBox.addItem(
-                        organization["name"], {"id": organization["id"], "name": organization["name"]}
-                    )
-            else:
-                self.message_label.setStyleSheet("color: red;")
-                self.message_label.setText(self.tr("no organization found"))
-        else:
-            self.message_label.setStyleSheet("color: red;")
-            self.message_label.setText(self.tr("Authentication expired"))
-            self.logout()
-
-    def choose_organization(self):
-        self.accept_button.setEnabled(False)
-        organization_data = self.organization_list_comboBox.currentData()
-        auth_state = self.auth_manager.get_auth_state()
-        if auth_state != AuthState.NOT_AUTHENTICATED and self.auth_manager.refresh_auth_settings(
-            org_id=organization_data["id"]
-        ):
-            QgsSettings().setValue("{}/{}".format(SETTINGS_PREFIX, ORG_NAME_SUFFIX), organization_data["name"])
-            self.password_input.clear()
-            self.set_login_input_enable(False)
-            self.accept_button.setEnabled(True)
-            self.connection_button.clicked.disconnect()
-            self.connection_button.setText(self.tr("logout"))
-            self.connection_button.clicked.connect(self.logout)
-            self.logged_in_signal.emit()
-        else:
-            self.message_label.setStyleSheet("color: red;")
-            self.message_label.setText(self.tr("Authentication error"))
-            self.accept_button.setEnabled(True)
-
-    def set_choose_organization_layout_enable(self, enable: bool):
-
-        self.accept_button.setEnabled(enable)
-        self.choose_organization_label.setEnabled(enable)
-        self.organization_list_comboBox.setEnabled(enable)
-
-    def set_login_input_enable(self, enable: bool):
-        self.email_label.setEnabled(enable)
-        self.email_input.setEnabled(enable)
-        self.password_label.setEnabled(enable)
-        self.password_input.setEnabled(enable)
-
-    def set_echo_mode(self):
-        if self.show_password_checkBox.isChecked():
-            self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Normal)
-        else:
-            self.password_input.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+    def reject(self):
+        if self.auth_manager.is_login_in_progress():
+            self.auth_manager.cancel_login()
+        super().reject()

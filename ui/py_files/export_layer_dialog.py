@@ -310,7 +310,7 @@ class ExportLayerDialog(QtWidgets.QDialog, Ui_Dialog):
             if len(reply.content) == 0:
                 return False
 
-            permissions_payload = reply.content[0]["permissions"] or []
+            permissions_payload = reply.content[0].get("permissions") or []
 
             return (
                 Permission.MODIFY.value in permissions_payload

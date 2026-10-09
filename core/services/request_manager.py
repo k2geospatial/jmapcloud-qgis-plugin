@@ -14,6 +14,7 @@ import json
 import uuid
 
 from qgis.core import (
+    QgsApplication,
     QgsBlockingNetworkRequest,
     QgsMessageLog,
     QgsNetworkAccessManager,
@@ -307,10 +308,7 @@ class RequestManager(QObject):
         request = QNetworkRequest(QUrl(url))
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         if not no_auth:
-            request.setRawHeader(
-                "Authorization".encode(),
-                f"Bearer {self.session_manager.get_access_token()}".encode(),
-            )
+            _, request = QgsApplication.authManager().updateNetworkRequest(request, AUTH_CONFIG_ID)
         for key, value in headers.items():
             request.setRawHeader(key.encode(), value.encode())
         return request

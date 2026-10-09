@@ -10,125 +10,124 @@
 # (at your option) any later version.
 # -----------------------------------------------------------
 
+import base64
+import json
+from pathlib import Path
+
 from qgis.core import QgsApplication, QgsAuthMethodConfig
+from qgis.PyQt.QtNetwork import QNetworkRequest
 
 from ..constant import (
-    ACCESS_SETTING_ID,
+    AUTH0_AUDIENCE,
+    AUTH0_AUTHORIZE_URL,
+    AUTH0_CLIENT_ID,
+    AUTH0_DOMAIN,
+    AUTH0_REDIRECT_PORT,
+    AUTH0_SCOPE,
+    AUTH0_TOKEN_URL,
     AUTH_CONFIG_ID,
-    EXPIRATION_SETTING_ID,
-    ORGANIZATION_SETTING_ID,
-    REFRESH_SETTING_ID,
-    USERNAME_SETTING_ID,
+    EMAIL_CLAIM,
+    LEGACY_AUTH_CONFIG_ID,
+    LEGACY_AUTH_SETTING_IDS,
+    NAME_CLAIM,
+    OAUTH2_ACCESS_METHOD_HEADER,
+    OAUTH2_CONFIG_TYPE_CUSTOM,
+    OAUTH2_GRANT_FLOW_PKCE,
+    ORGANIZATION_CLAIM,
+    ROLES_CLAIM,
 )
 
 
 class SessionManager:
     def __init__(self):
-        self.claims = self.get_auth_settings()
+        self._claims = None
+        self._remove_legacy_session()
 
-    def set_claims(self, claims):
-        self.claims = claims
+    def has_session(self) -> bool:
+        return AUTH_CONFIG_ID in QgsApplication.authManager().configIds()
 
-    def get_claims(self):
-        return self.claims
-
-    def get_organization_id(self):
-        if self.claims and "organizationId" in self.claims:
-            return self.claims["organizationId"]
-        return None
-
-    def get_access_token(self):
-        if self.claims and "accessToken" in self.claims:
-            return self.claims["accessToken"]
-        return None
-
-    def store_auth_settings(
-        self,
-        access_token: str = None,
-        refresh_token: str = None,
-        expiration: str = None,
-        organization_id: str = None,
-        username: str = None,
-    ) -> None:
+    def create_session(self) -> None:
         """
-        Store JMap authentication settings in QgsApplication.authManager()
-        :param access_token: The access token returned by JMap's authentication API
-        :param refresh_token: The refresh token returned by JMap's authentication API
-        :param expiration: The expiration of the access token returned by JMap's authentication API
-        :param organization_id: The id of the JMap organization
-        :param username: The username of the authenticated user
+        Store the JMap Cloud OAuth2 config in QgsApplication.authManager()
         :return: None
         """
-
-        auth_manager = QgsApplication.authManager()
-        if refresh_token is not None:
-            auth_manager.storeAuthSetting(REFRESH_SETTING_ID, refresh_token, True)
-        if expiration is not None:
-            auth_manager.storeAuthSetting(EXPIRATION_SETTING_ID, expiration, True)
-        if organization_id is not None:
-            auth_manager.storeAuthSetting(ORGANIZATION_SETTING_ID, organization_id, True)
-        if username is not None:
-            auth_manager.storeAuthSetting(USERNAME_SETTING_ID, username, True)
-        if access_token is not None:
-            auth_manager.storeAuthSetting(ACCESS_SETTING_ID, access_token, True)
-            self.store_auth_config(access_token)
-
-    def store_auth_config(self, access_token: str = None) -> None:
-        """
-        Store JMap authentication config in QgsApplication.authManager()
-        :param access_token: The access token returned by JMap's authentication API
-        :return: None
-        """
-
-        auth_config = QgsAuthMethodConfig("APIHeader")
-        auth_config.setId(AUTH_CONFIG_ID)
-        auth_config.setName("JMap_Session")
-        auth_config.setConfig("Authorization", "Bearer {}".format(access_token))
-        QgsApplication.authManager().storeAuthenticationConfig(auth_config, True)
-
-    def get_auth_settings(self) -> dict:
-        """
-        Get JMap authentication settings from QgsApplication.authManager()
-        :return: A dictionary with the following keys:
-            accessToken: The access token returned by JMap's authentication API
-            refreshToken: The refresh token returned by JMap's authentication API
-            expiration: The expiration of the access token returned by JMap's authentication API
-            organizationId: The id of the JMap organization
-            username: The username of the authenticated user
-        """
-        auth_manager = QgsApplication.authManager()
-        claims = {
-            "accessToken": (
-                auth_manager.authSetting(ACCESS_SETTING_ID, defaultValue="", decrypt=True) or None
-            ),
-            "refreshToken": (
-                auth_manager.authSetting(REFRESH_SETTING_ID, defaultValue="", decrypt=True) or None
-            ),
-            "expiration": (
-                auth_manager.authSetting(EXPIRATION_SETTING_ID, defaultValue="", decrypt=True)
-                or None
-            ),
-            "organizationId": (
-                auth_manager.authSetting(ORGANIZATION_SETTING_ID, defaultValue="", decrypt=True)
-                or None
-            ),
-            "username": (
-                auth_manager.authSetting(USERNAME_SETTING_ID, defaultValue="", decrypt=True) or None
-            ),
+        oauth2_config = {
+            "version": 1,
+            "configType": OAUTH2_CONFIG_TYPE_CUSTOM,
+            "grantFlow": OAUTH2_GRANT_FLOW_PKCE,
+            "requestUrl": AUTH0_AUTHORIZE_URL,
+            "tokenUrl": AUTH0_TOKEN_URL,
+            "refreshTokenUrl": AUTH0_TOKEN_URL,
+            "redirectHost": "127.0.0.1",
+            "redirectPort": AUTH0_REDIRECT_PORT,
+            "redirectUrl": "",
+            "clientId": AUTH0_CLIENT_ID,
+            "scope": AUTH0_SCOPE,
+            "persistToken": True,
+            "accessMethod": OAUTH2_ACCESS_METHOD_HEADER,
+            "queryPairs": {"audience": AUTH0_AUDIENCE, "prompt": "login"},
         }
+        auth_config = QgsAuthMethodConfig("OAuth2")
+        auth_config.setId(AUTH_CONFIG_ID)
+        auth_config.setName(f"JMap Cloud ({AUTH0_DOMAIN})")
+        auth_config.setConfig("oauth2config", json.dumps(oauth2_config))
+        QgsApplication.authManager().storeAuthenticationConfig(auth_config, True)
+        self._claims = None
 
-        return claims
+    def get_access_token(self) -> str:
+        """
+        Get the access token of the JMap Cloud OAuth2 config
+        :return: The access token, or None if the user is not authenticated
+        """
+        if not self.has_session():
+            return None
+        updated, request = QgsApplication.authManager().updateNetworkRequest(
+            QNetworkRequest(), AUTH_CONFIG_ID
+        )
+        if not updated:
+            return None
+        header = bytes(request.rawHeader(b"Authorization")).decode()
+        return header.removeprefix("Bearer ") or None
+
+    def get_organization_id(self) -> str:
+        return self._get_claims().get(ORGANIZATION_CLAIM)
+
+    def get_username(self) -> str:
+        return self._get_claims().get(NAME_CLAIM)
+
+    def get_email(self) -> str:
+        return self._get_claims().get(EMAIL_CLAIM)
+
+    def get_roles(self) -> list[str]:
+        return self._get_claims().get(ROLES_CLAIM, [])
 
     def revoke_session(self) -> None:
         auth_manager = QgsApplication.authManager()
-        auth_manager.removeAuthSetting(ACCESS_SETTING_ID)
-        auth_manager.removeAuthSetting(REFRESH_SETTING_ID)
-        auth_manager.removeAuthSetting(EXPIRATION_SETTING_ID)
-        auth_manager.removeAuthSetting(ORGANIZATION_SETTING_ID)
-        auth_manager.removeAuthSetting(USERNAME_SETTING_ID)
-        auth_config = QgsAuthMethodConfig("APIHeader")
-        auth_config.setId(AUTH_CONFIG_ID)
-        auth_config.setName("JMap_Session")
-        auth_config.setConfig("Authorization", "")
-        auth_manager.storeAuthenticationConfig(auth_config, True)
-        self.set_claims(None)
+        auth_manager.clearCachedConfig(AUTH_CONFIG_ID)
+        auth_manager.removeAuthenticationConfig(AUTH_CONFIG_ID)
+        token_cache = Path(
+            QgsApplication.qgisSettingsDirPath(), "oauth2-cache", f"authcfg-{AUTH_CONFIG_ID}.ini"
+        )
+        token_cache.unlink(missing_ok=True)
+        self._claims = None
+
+    def _get_claims(self) -> dict:
+        if self._claims is None:
+            access_token = self.get_access_token()
+            if not access_token:
+                return {}
+            self._claims = self._decode_claims(access_token)
+        return self._claims
+
+    @staticmethod
+    def _decode_claims(access_token: str) -> dict:
+        payload = access_token.split(".")[1]
+        return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+
+    @staticmethod
+    def _remove_legacy_session() -> None:
+        auth_manager = QgsApplication.authManager()
+        if LEGACY_AUTH_CONFIG_ID in auth_manager.configIds():
+            auth_manager.removeAuthenticationConfig(LEGACY_AUTH_CONFIG_ID)
+            for setting_id in LEGACY_AUTH_SETTING_IDS:
+                auth_manager.removeAuthSetting(setting_id)
