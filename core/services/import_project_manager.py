@@ -386,7 +386,7 @@ class ImportProjectManager(CustomTaskManager):
             return False
 
         uri = self._jmap_mcs.get_wmts_layer_uri(
-            sources["tiles"][0], sources["minzoom"], sources["maxzoom"]
+            sources["tiles"][0], sources.get("minzoom", 0), sources.get("maxzoom", 22)
         )
         raster_layer = QgsRasterLayer(uri, name, "wms")
         if raster_layer.isValid():

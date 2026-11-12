@@ -68,9 +68,7 @@ class StyleManager:
         def __repr__(self):
             return str({"__class__": self.__class__.__name__, "value": self.value})
 
-        def convert_expression_variable_to_qgis_variable(
-            self, convert_dict: dict
-        ) -> str:
+        def convert_expression_variable_to_qgis_variable(self, convert_dict: dict) -> str:
             for key, value in convert_dict.items():
                 if key in self.value:
                     self.value = self.value.replace(key, value)
@@ -119,9 +117,7 @@ class StyleManager:
 
         return icons
 
-    def format_layer_label_config(
-        self, layer_data: dict, default_language: str = "en"
-    ) -> dict:
+    def format_layer_label_config(self, layer_data: dict, default_language: str = "en") -> dict:
         """
         Formats JMap label configurations for a list of layer data.
         """
@@ -131,9 +127,7 @@ class StyleManager:
             text = find_value_in_dict_or_first(
                 layer_data["labellingConfiguration"]["text"], [default_language], ""
             )
-            layer_data["labellingConfiguration"]["text"] = (
-                convert_jmap_text_label_expression(text)
-            )
+            layer_data["labellingConfiguration"]["text"] = convert_jmap_text_label_expression(text)
         return layer_data["labellingConfiguration"]
 
     def format_layer_mouse_over_configs(
@@ -151,8 +145,10 @@ class StyleManager:
 
         text_label = convert_jmap_text_mouse_over_expression(text)
         text_label = text_label.replace("\n", "<br>\n")
-        text_label = "<div style='background-c  olor:white; color:black; padding:5px;'>{}</div>".format(
-            text_label
+        text_label = (
+            "<div style='background-c  olor:white; color:black; padding:5px;'>{}</div>".format(
+                text_label
+            )
         )
 
         return text_label
@@ -225,14 +221,12 @@ class StyleManager:
 
                     # styleMapScales are symbols with zoom condition
                     if "style-map-scale-id" in mapbox_style["metadata"]:
-                        style_map_scale_id = mapbox_style["metadata"][
-                            "style-map-scale-id"
-                        ]
+                        style_map_scale_id = mapbox_style["metadata"]["style-map-scale-id"]
                         if style_map_scale_id not in rule_condition["styleMapScales"]:
                             rule_condition["styleMapScales"][style_map_scale_id] = {
                                 "styles": {},
-                                "maximumZoom": mapbox_style["maxzoom"],
-                                "minimumZoom": mapbox_style["minzoom"],
+                                "maximumZoom": mapbox_style.get("maxzoom", 23),
+                                "minimumZoom": mapbox_style.get("minzoom", 0),
                                 "type": (
                                     "fill"
                                     if "border" in mapbox_style["id"]
@@ -240,9 +234,7 @@ class StyleManager:
                                 ),
                             }
                         # styles are symbol_layer
-                        style_map_scale = rule_condition["styleMapScales"][
-                            style_map_scale_id
-                        ]
+                        style_map_scale = rule_condition["styleMapScales"][style_map_scale_id]
                         if "style-id" in mapbox_style["metadata"]:
                             style_id = mapbox_style["metadata"]["style-id"]
                             if style_id not in style_map_scale["styles"]:
@@ -267,22 +259,17 @@ class StyleManager:
                                 elif "text-size" in key and "interpolate" in value:
                                     properties[key] = self.QGISExpression(
                                         "{}/2^(23-  @vector_tile_zoom )".format(
-                                            self._convert_mapbox_expression(
-                                                value[4][2][1]
-                                            )
+                                            self._convert_mapbox_expression(value[4][2][1])
                                         )
                                     )
                                 # END OF JMAP HARDCODE-------------------------------
                                 elif isinstance(value, list):
                                     if "literal" in value and all(
-                                        isinstance(x, int) or isinstance(x, float)
-                                        for x in value[1]
+                                        isinstance(x, int) or isinstance(x, float) for x in value[1]
                                     ):
                                         properties[key] = value[1]
                                     else:
-                                        properties[key] = (
-                                            self._convert_mapbox_expression(value)
-                                        )
+                                        properties[key] = self._convert_mapbox_expression(value)
                                 elif "icon-image" in key:
                                     properties[key] = icons[value]
 
@@ -295,9 +282,9 @@ class StyleManager:
         if bool(graphql_style_data):
             for style_rule in graphql_style_data["data"]["getStyleRules"]:
                 for condition in style_rule["conditions"]:
-                    c = layer_styles[style_rule["layerId"]]["styleRules"][
-                        style_rule["id"]
-                    ][condition["id"]]
+                    c = layer_styles[style_rule["layerId"]]["styleRules"][style_rule["id"]][
+                        condition["id"]
+                    ]
                     c["name"] = condition["name"]
                     # the style rule name cannot be in style rule because there  is only condition id that can be here for now
                     c["styleRuleName"] = style_rule["name"]
@@ -314,9 +301,7 @@ class StyleManager:
                     layer_data["elementType"]
                 ].to_qgis_geometry_type()
             else:
-                layer_styles[layer_data["id"]][
-                    "elementType"
-                ] = Qgis.GeometryType.Unknown
+                layer_styles[layer_data["id"]]["elementType"] = Qgis.GeometryType.Unknown
 
         return layer_styles
 
@@ -378,9 +363,7 @@ class StyleManager:
                 )
                 # style by zoom level
                 for style_map_scale in condition["styleMapScales"].values():
-                    symbol = self._convert_formatted_style_map_scale_to_symbol(
-                        style_map_scale
-                    )
+                    symbol = self._convert_formatted_style_map_scale_to_symbol(style_map_scale)
                     if symbol is None:
                         continue
 
@@ -392,12 +375,8 @@ class StyleManager:
                         if len(condition["styleMapScales"]) > 1
                         else ""
                     )
-                    min_scale = round(
-                        convert_zoom_to_scale(style_map_scale["minimumZoom"])
-                    )
-                    max_scale = round(
-                        convert_zoom_to_scale(style_map_scale["maximumZoom"])
-                    )
+                    min_scale = round(convert_zoom_to_scale(style_map_scale["minimumZoom"]))
+                    max_scale = round(convert_zoom_to_scale(style_map_scale["maximumZoom"]))
                     rule = QgsRuleBasedRenderer.Rule(
                         symbol,
                         max_scale,
@@ -459,23 +438,15 @@ class StyleManager:
                 )
                 # style by zoom level
                 for h, style_map_scale in condition["styleMapScales"].items():
-                    symbol = self._convert_formatted_style_map_scale_to_symbol(
-                        style_map_scale
-                    )
+                    symbol = self._convert_formatted_style_map_scale_to_symbol(style_map_scale)
                     if element_type == Qgis.GeometryType.Point:
-                        style = QgsVectorTileBasicRendererStyle(
-                            i, "", Qgis.GeometryType.Point
-                        )
+                        style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Point)
 
                     elif element_type == Qgis.GeometryType.Line:
-                        style = QgsVectorTileBasicRendererStyle(
-                            i, "", Qgis.GeometryType.Line
-                        )
+                        style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Line)
 
                     elif element_type == Qgis.GeometryType.Polygon:
-                        style = QgsVectorTileBasicRendererStyle(
-                            i, "", Qgis.GeometryType.Polygon
-                        )
+                        style = QgsVectorTileBasicRendererStyle(i, "", Qgis.GeometryType.Polygon)
                     else:
                         continue
                     style.setFilterExpression(str(filter_expression))
@@ -630,14 +601,10 @@ class StyleManager:
                 symbol_layer.setSizeUnit(Qgis.RenderUnit.Pixels)
 
             text_color = (
-                style["text-color"]
-                if "text-color" in style
-                else symbol_layer.color().name()
+                style["text-color"] if "text-color" in style else symbol_layer.color().name()
             )
             text_opacity = style["text-opacity"] if "text-opacity" in style else None
-            text_color = self._merge_color_and_opacity_if_exist(
-                text_color, text_opacity
-            )
+            text_color = self._merge_color_and_opacity_if_exist(text_color, text_opacity)
 
             if isinstance(text_color, self.QGISExpression):
                 symbol_layer = self._set_object_data_define_property_expression(
@@ -681,11 +648,7 @@ class StyleManager:
         symbol_layer = QgsSimpleLineSymbolLayer()
         # set line properties
         # set color
-        line_color = (
-            style["line-color"]
-            if "line-color" in style
-            else symbol_layer.color().name()
-        )
+        line_color = style["line-color"] if "line-color" in style else symbol_layer.color().name()
         line_opacity = style["line-opacity"] if "line-opacity" in style else None
         line_color = self._merge_color_and_opacity_if_exist(line_color, line_opacity)
         if isinstance(line_color, self.QGISExpression):
@@ -714,10 +677,8 @@ class StyleManager:
             if isinstance(style["line-dasharray"], self.QGISExpression) or isinstance(
                 line_width, self.QGISExpression
             ):
-                expression = (
-                    "array_to_string( array_foreach({},@element*{} ),';')".format(
-                        style["line-dasharray"].value, style["line-width"]
-                    )
+                expression = "array_to_string( array_foreach({},@element*{} ),';')".format(
+                    style["line-dasharray"].value, style["line-width"]
                 )
                 symbol_layer = self._set_object_data_define_property_expression(
                     symbol_layer, QgsSymbolLayer.PropertyDashVector, expression
@@ -725,9 +686,7 @@ class StyleManager:
             else:
                 symbol_layer.setUseCustomDashPattern(True)
                 symbol_layer.setCustomDashPatternUnit(Qgis.RenderUnit.Pixels)
-                symbol_layer.setCustomDashVector(
-                    [v * line_width for v in style["line-dasharray"]]
-                )
+                symbol_layer.setCustomDashVector([v * line_width for v in style["line-dasharray"]])
 
         if "line-cap" in style:
             if style["line-cap"].upper() == "FLAT":
@@ -750,11 +709,7 @@ class StyleManager:
     def handle_polygon_symbol_layer(self, style: dict) -> QgsFillSymbolLayer:
         symbol_layer = QgsSimpleFillSymbolLayer()
         # set fill color
-        fill_color = (
-            style["fill-color"]
-            if "fill-color" in style
-            else symbol_layer.color().name()
-        )
+        fill_color = style["fill-color"] if "fill-color" in style else symbol_layer.color().name()
         fill_opacity = style["fill-opacity"] if "fill-opacity" in style else None
         fill_color = self._merge_color_and_opacity_if_exist(fill_color, fill_opacity)
         if isinstance(fill_color, self.QGISExpression):
@@ -845,9 +800,7 @@ class StyleManager:
                 converted_expression = "CASE"
                 for i in range(1, len(condition_expressions) - 1, 2):
                     exp_x = self._convert_mapbox_expression(condition_expressions[i])
-                    exp_y = self._convert_mapbox_expression(
-                        condition_expressions[i + 1]
-                    )
+                    exp_y = self._convert_mapbox_expression(condition_expressions[i + 1])
                     converted_expression += " WHEN {} THEN {}".format(exp_x, exp_y)
                 if len(condition_expressions) % 2 == 0:
                     exp1 = self._convert_mapbox_expression(condition_expressions[-1])
@@ -860,12 +813,8 @@ class StyleManager:
                 exp1 = self._convert_mapbox_expression(condition_expressions[1])
                 for i in range(2, len(condition_expressions), 2):
                     exp_x = self._convert_mapbox_expression(condition_expressions[i])
-                    exp_y = self._convert_mapbox_expression(
-                        condition_expressions[i + 1]
-                    )
-                    converted_expression += " WHEN {} in {} THEN {}".format(
-                        exp1, exp_x, exp_y
-                    )
+                    exp_y = self._convert_mapbox_expression(condition_expressions[i + 1])
+                    converted_expression += " WHEN {} in {} THEN {}".format(exp1, exp_x, exp_y)
                 if len(condition_expressions) % 2 == 0:
                     exp2 = self._convert_mapbox_expression(condition_expressions[-1])
                     converted_expression += " ELSE {}".format(exp2)
@@ -888,11 +837,7 @@ class StyleManager:
                 exp2 = self._convert_mapbox_expression(condition_expressions[2])
                 return "{} {} {}".format(
                     exp1,
-                    (
-                        condition_expressions[0]
-                        if condition_expressions[0] != "=="
-                        else "="
-                    ),
+                    (condition_expressions[0] if condition_expressions[0] != "==" else "="),
                     exp2,
                 )
 
@@ -901,9 +846,7 @@ class StyleManager:
                 converted_expression = "{}".format(exp1)
                 for i in range(2, len(condition_expressions)):
                     exp_x = self._convert_mapbox_expression(condition_expressions[i])
-                    converted_expression += " {} {}".format(
-                        condition_expressions[0], exp_x
-                    )
+                    converted_expression += " {} {}".format(condition_expressions[0], exp_x)
                 return self.QGISExpression(converted_expression)
 
             elif condition_expressions[0] == "-":
@@ -944,13 +887,9 @@ class StyleManager:
                 return "false"
 
             elif condition_expressions[0] == "format":
-                exp = "{}".format(
-                    self._convert_mapbox_expression(condition_expressions[1])
-                )
+                exp = "{}".format(self._convert_mapbox_expression(condition_expressions[1]))
                 for i in range(3, len(condition_expressions), 2):
-                    exp += "+{}".format(
-                        self._convert_mapbox_expression(condition_expressions[i])
-                    )
+                    exp += "+{}".format(self._convert_mapbox_expression(condition_expressions[i]))
                 return self.QGISExpression(exp)
 
             else:
@@ -1016,19 +955,14 @@ class StyleManager:
         # line label are not handled by point on map but rather by line itself
         if element_type == Qgis.GeometryType.Line:
             line_settings = QgsLabelLineSettings()
-            line_settings.setAnchorClipping(
-                QgsLabelLineSettings.AnchorClipping.UseEntireLine
-            )
+            line_settings.setAnchorClipping(QgsLabelLineSettings.AnchorClipping.UseEntireLine)
             # line render settings
             if "labelSpacing" in labeling_data:
                 rule_settings.repeatDistance = labeling_data["labelSpacing"]
                 rule_settings.repeatDistanceUnit = Qgis.RenderUnit.Pixels
             # --------------------
 
-            if (
-                "followMapRotation" in labeling_data
-                and labeling_data["followMapRotation"]
-            ):
+            if "followMapRotation" in labeling_data and labeling_data["followMapRotation"]:
                 rule_settings.placement = Qgis.LabelPlacement.Line
                 if "anchor" in labeling_data:
                     if (
@@ -1069,21 +1003,13 @@ class StyleManager:
                 text_anchor = labeling_data["anchor"].lower()
 
                 if text_anchor == "left":
-                    rule_settings.quadOffset = (
-                        QgsPalLayerSettings.QuadrantPosition.QuadrantRight
-                    )
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantPosition.QuadrantRight
                 elif text_anchor == "right":
-                    rule_settings.quadOffset = (
-                        QgsPalLayerSettings.QuadrantPosition.QuadrantLeft
-                    )
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantPosition.QuadrantLeft
                 elif text_anchor == "top":
-                    rule_settings.quadOffset = (
-                        QgsPalLayerSettings.QuadrantPosition.QuadrantBelow
-                    )
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantPosition.QuadrantBelow
                 elif text_anchor == "bottom":
-                    rule_settings.quadOffset = (
-                        QgsPalLayerSettings.QuadrantPosition.QuadrantAbove
-                    )
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantPosition.QuadrantAbove
                 elif text_anchor == "top-left":
                     rule_settings.quadOffset = (
                         QgsPalLayerSettings.QuadrantPosition.QuadrantBelowRight
@@ -1101,9 +1027,7 @@ class StyleManager:
                         QgsPalLayerSettings.QuadrantPosition.QuadrantAboveLeft
                     )
                 else:
-                    rule_settings.quadOffset = (
-                        QgsPalLayerSettings.QuadrantPosition.QuadrantOver
-                    )
+                    rule_settings.quadOffset = QgsPalLayerSettings.QuadrantPosition.QuadrantOver
 
         # set render settings
         thinning_settings = QgsLabelThinningSettings()
@@ -1167,11 +1091,7 @@ class StyleManager:
             if "textColor" in labeling_data
             else text_format.color().name()
         )
-        opacity = (
-            1.0 - labeling_data["transparency"]
-            if "transparency" in labeling_data
-            else None
-        )
+        opacity = 1.0 - labeling_data["transparency"] if "transparency" in labeling_data else None
         color = self._merge_color_and_opacity_if_exist(color, opacity)
         # if isinstance(color, cls.QGISExpression):
         #    rule_settings = cls._set_object_data_define_property_expression(
@@ -1191,14 +1111,8 @@ class StyleManager:
             if "outlineColor" in labeling_data
             else buffer.color().name()
         )
-        opacity = (
-            1.0 - labeling_data["transparency"]
-            if "transparency" in labeling_data
-            else None
-        )
-        text_halo_color = self._merge_color_and_opacity_if_exist(
-            text_halo_color, opacity
-        )
+        opacity = 1.0 - labeling_data["transparency"] if "transparency" in labeling_data else None
+        text_halo_color = self._merge_color_and_opacity_if_exist(text_halo_color, opacity)
         # if isinstance(text_halo_color, cls.QGISExpression):
         #    rule_settings = cls._set_object_data_define_property_expression(
         #        rule_settings, QgsPalLayerSettings.BufferColor, text_halo_color.value
@@ -1281,10 +1195,8 @@ class StyleManager:
             if color_is_expression or opacity_is_expression:
                 color = color.value if color_is_expression else "'{}'".format(color)
                 opacity = opacity.value if opacity_is_expression else opacity
-                expressionString = (
-                    "set_color_part(({}),'alpha',to_int(255*({})))".format(
-                        color, opacity
-                    )
+                expressionString = "set_color_part(({}),'alpha',to_int(255*({})))".format(
+                    color, opacity
                 )
                 return self.QGISExpression(expressionString)
             else:
