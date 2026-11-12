@@ -231,7 +231,7 @@ class StyleManager:
                         if style_map_scale_id not in rule_condition["styleMapScales"]:
                             rule_condition["styleMapScales"][style_map_scale_id] = {
                                 "styles": {},
-                                "maximumZoom": mapbox_style.get("maxzoom", 24),
+                                "maximumZoom": mapbox_style.get("maxzoom", 23),
                                 "minimumZoom": mapbox_style.get("minzoom", 0),
                                 "type": (
                                     "fill"
